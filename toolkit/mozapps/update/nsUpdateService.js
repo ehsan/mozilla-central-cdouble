@@ -2832,6 +2832,7 @@ Downloader.prototype = {
     // Do this after *everything* else, since it will likely cause the app
     // to shut down.
     if (shouldShowPrompt) {
+      // XXX ehsan this code should probably go away...
       // Notify the user that an update has been downloaded and is ready for
       // installation (i.e. that they should restart the application). We do
       // not notify on failed update attempts.
