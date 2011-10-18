@@ -1770,6 +1770,36 @@ UpdateService.prototype = {
     return this._downloader.downloadUpdate(update);
   },
 
+  applyUpdateInBackground: function AUS_applyUpdateInBackground(update) {
+    // XXX ehsan this extensive level of logging might not be quite necessary
+    function updateDetails(update) {
+      var res = "\n";
+      res += "Type: " + update.type + "\n";
+      res += "Name: " + update.name + "\n";
+      res += "DisplayVersion: " + update.displayVersion + "\n";
+      res += "BuildID: " + update.buildID + "\n";
+      res += "Channel: " + update.channel + "\n";
+      res += "ShowPrompt: " + update.showPrompt + "\n";
+      res += "IsCompleteUpdate: " + update.isCompleteUpdate + "\n";
+      res += "State: " + update.state + "\n";
+      res += "ErrorCode: " + update.errorCode + "\n";
+      res += "PatchCount: " + update.patchCount + "\n"; //XXX ehsan what happens with multiple patches?
+      var patch = update.selectedPatch;
+      res += "\nPatch:\n";
+      res += "Type: " + patch.type + "\n";
+      res += "URL: " + patch.URL + "\n";
+      res += "finalURL: " + patch.finalURL + "\n";
+      res += "HashFunction: " + patch.hashFunction + "\n";
+      res += "hashValue: " + patch.hashValue + "\n";
+      res += "size: " + patch.size + "\n";
+      res += "state: " + patch.state + "\n";
+      res += "selected: " + patch.selected + "\n";
+      return res;
+    }
+    LOG("UpdateService:applyUpdateInBackground called with the following update: " +
+        updateDetails(update));
+  },
+
   /**
    * See nsIUpdateService.idl
    */
@@ -2840,6 +2870,12 @@ Downloader.prototype = {
                      createInstance(Ci.nsIUpdatePrompt);
       prompter.showUpdateDownloaded(this._update, true);
     }
+
+    // XXX ehsan This is where the background update is initiated.
+    Cc["@mozilla.org/updates/update-service;1"].
+      getService(Ci.nsIApplicationUpdateService).
+      applyUpdateInBackground(this._update);
+
     // Prevent leaking the update object (bug 454964)
     this._update = null;
   },
