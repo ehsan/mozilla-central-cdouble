@@ -2706,6 +2706,8 @@ Downloader.prototype = {
       LOG("Downloader:onStopRequest - original URI spec: " + request.URI.spec +
           ", final URI spec: " + request.finalURI.spec + ", status: " + status);
 
+    // XXX ehsan shouldShowPrompt should always be false here, really.
+    // But what happens when there is already a UI showing?
     var state = this._patch.state;
     var shouldShowPrompt = false;
     var deleteActiveUpdate = false;
