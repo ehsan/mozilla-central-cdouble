@@ -1798,6 +1798,11 @@ UpdateService.prototype = {
     }
     LOG("UpdateService:applyUpdateInBackground called with the following update: " +
         updateDetails(update));
+
+    // Initiate the update in the background
+    Cc["@mozilla.org/updates/update-processor;1"].
+      createInstance(Ci.nsIUpdateProcessor).
+      processUpdate();
   },
 
   /**
