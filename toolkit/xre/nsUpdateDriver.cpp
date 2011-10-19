@@ -533,3 +533,12 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
 
   return NS_OK;
 }
+
+NS_IMPL_ISUPPORTS1(nsUpdateProcessor, nsIUpdateProcessor)
+
+NS_IMETHODIMP
+nsUpdateProcessor::ProcessUpdate()
+{
+  return NS_OK;
+}
+
