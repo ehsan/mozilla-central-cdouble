@@ -335,7 +335,7 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
 
 static void
 ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
-            nsIFile *appDir, int appArgc, char **appArgv)
+            nsIFile *appDir, int appArgc, char **appArgv, bool restart)
 {
   nsresult rv;
 
@@ -452,6 +452,13 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   pid.AppendInt((PRInt32) getpid());
 #endif
 
+  if (!restart) {
+    // Signal the updater application that it should apply the update in the
+    // background.
+    // XXX ehsan is there a better way to do this?
+    pid.AssignLiteral("-1");
+  }
+
   int argc = appArgc + 5;
   char **argv = new char*[argc + 1];
   if (!argv)
@@ -499,7 +506,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 
 nsresult
 ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
-               int argc, char **argv, const char *appVersion)
+               int argc, char **argv, const char *appVersion, bool restart)
 {
   nsresult rv;
 
@@ -528,7 +535,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
          IsOlderVersion(versionFile, appVersion))) {
       updatesDir->Remove(true);
     } else {
-      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv);
+      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv, restart);
     }
   }
 
