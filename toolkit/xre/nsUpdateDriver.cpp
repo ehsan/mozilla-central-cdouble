@@ -490,17 +490,23 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 #elif defined(XP_WIN)
   if (!WinLaunchChild(updaterPathW.get(), argc, argv))
     return;
-  _exit(0);
+  if (restart) {
+    _exit(0);
+  }
 #elif defined(XP_MACOSX)
   CommandLineServiceMac::SetupMacCommandLine(argc, argv, true);
   // LaunchChildMac uses posix_spawnp and prefers the current
   // architecture when launching. It doesn't require a
   // null-terminated string but it doesn't matter if we pass one.
   LaunchChildMac(argc, argv);
-  exit(0);
+  if (restart) {
+    exit(0);
+  }
 #else
   PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
-  exit(0);
+  if (restart) {
+    exit(0);
+  }
 #endif
 }
 
