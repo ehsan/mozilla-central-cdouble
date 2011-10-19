@@ -566,6 +566,7 @@ nsUpdateProcessor::ProcessUpdate()
                         updRoot,
                         0,
                         nsnull,
-                        gAppData->version);
+                        gAppData->version,
+                        false);
 }
 
