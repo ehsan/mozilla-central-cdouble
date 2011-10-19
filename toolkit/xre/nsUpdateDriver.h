@@ -61,12 +61,16 @@ class nsIFile;
  * version and is used to determine if an update's version is older than the
  * current application version.
  *
+ * If you want the update to be processed without restarting, set the restart
+ * parameter to false.
+ *
  * This function does not modify appDir.
  */
 NS_HIDDEN_(nsresult) ProcessUpdates(nsIFile *greDir, nsIFile *appDir,
                                     nsIFile *updRootDir,
                                     int argc, char **argv,
-                                    const char *appVersion);
+                                    const char *appVersion,
+                                    bool restart = true);
 
 // The implementation of the update processor handles the task of loading the
 // updater application in the background for applying an update.
