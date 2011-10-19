@@ -554,21 +554,19 @@ NS_IMETHODIMP
 nsUpdateProcessor::ProcessUpdate()
 {
   // XXX ehsan this code is tolen from nsAppRunner.cpp's XRE_main
-  nsXREDirProvider dirProvider;
-  nsresult rv = dirProvider.Initialize(gAppData->directory, gAppData->xreDirectory);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsXREDirProvider* dirProvider = nsXREDirProvider::GetSingleton();
 
   // Check for and process any available updates
   nsCOMPtr<nsIFile> updRoot;
   bool persistent;
-  rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
-                           getter_AddRefs(updRoot));
+  nsresult rv = dirProvider->GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
+                                     getter_AddRefs(updRoot));
   // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
   if (NS_FAILED(rv))
-    updRoot = dirProvider.GetAppDir();
+    updRoot = dirProvider->GetAppDir();
 
-  return ProcessUpdates(dirProvider.GetGREDir(),
-                        dirProvider.GetAppDir(),
+  return ProcessUpdates(dirProvider->GetGREDir(),
+                        dirProvider->GetAppDir(),
                         updRoot,
                         gArgc,
                         gArgv,
