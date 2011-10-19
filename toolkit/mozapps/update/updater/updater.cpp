@@ -1757,6 +1757,14 @@ int NS_main(int argc, NS_tchar **argv)
 #else
     int pid = atoi(argv[3]);
 #endif
+    if (pid == -1) {
+      // This is a signal from the parent process that the updater should work
+      // in the background.
+      // For now, we just print some debugging information to see if this works
+      // at all.
+      fprintf(stdout, "XXXXXXXXXXXXXXXXX the updater process!!!!\n");
+      return 1;
+    }
 #ifdef XP_WIN
     if (pid != 0) {
       HANDLE parent = OpenProcess(SYNCHRONIZE, false, (DWORD) pid);
