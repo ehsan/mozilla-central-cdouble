@@ -1754,6 +1754,10 @@ int NS_main(int argc, NS_tchar **argv)
   if (argc > 3) {
 #ifdef XP_WIN
     __int64 pid = _wtoi64(argv[3]);
+#else
+    int pid = atoi(argv[3]);
+#endif
+#ifdef XP_WIN
     if (pid != 0) {
       HANDLE parent = OpenProcess(SYNCHRONIZE, false, (DWORD) pid);
       // May return NULL if the parent process has already gone away.
@@ -1767,7 +1771,6 @@ int NS_main(int argc, NS_tchar **argv)
       }
     }
 #else
-    int pid = atoi(argv[3]);
     if (pid != 0)
       waitpid(pid, NULL, 0);
 #endif
