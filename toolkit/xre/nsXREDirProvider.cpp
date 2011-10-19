@@ -119,6 +119,12 @@ nsXREDirProvider::~nsXREDirProvider()
   gDirServiceProvider = nsnull;
 }
 
+nsXREDirProvider*
+nsXREDirProvider::GetSingleton()
+{
+  return gDirServiceProvider;
+}
+
 nsresult
 nsXREDirProvider::Initialize(nsIFile *aXULAppDir,
                              nsILocalFile *aGREDir,
