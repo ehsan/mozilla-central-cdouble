@@ -570,8 +570,8 @@ nsUpdateProcessor::ProcessUpdate()
   return ProcessUpdates(dirProvider.GetGREDir(),
                         dirProvider.GetAppDir(),
                         updRoot,
-                        0,
-                        nsnull,
+                        gArgc,
+                        gArgv,
                         gAppData->version,
                         false);
 }
