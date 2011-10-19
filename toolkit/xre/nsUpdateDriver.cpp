@@ -51,6 +51,7 @@
 #include "prlog.h"
 #include "prenv.h"
 #include "nsVersionComparator.h"
+#include "nsXREDirProvider.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -539,6 +540,25 @@ NS_IMPL_ISUPPORTS1(nsUpdateProcessor, nsIUpdateProcessor)
 NS_IMETHODIMP
 nsUpdateProcessor::ProcessUpdate()
 {
-  return NS_OK;
+  // XXX ehsan this code is tolen from nsAppRunner.cpp's XRE_main
+  nsXREDirProvider dirProvider;
+  nsresult rv = dirProvider.Initialize(gAppData->directory, gAppData->xreDirectory);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // Check for and process any available updates
+  nsCOMPtr<nsIFile> updRoot;
+  bool persistent;
+  rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
+                           getter_AddRefs(updRoot));
+  // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
+  if (NS_FAILED(rv))
+    updRoot = dirProvider.GetAppDir();
+
+  return ProcessUpdates(dirProvider.GetGREDir(),
+                        dirProvider.GetAppDir(),
+                        updRoot,
+                        0,
+                        nsnull,
+                        gAppData->version);
 }
 
