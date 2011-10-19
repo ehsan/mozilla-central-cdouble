@@ -454,6 +454,20 @@ interface nsIApplicationUpdateService : nsISupports
 };
 
 /**
+ * An interface describing a component which handles the job of processing
+ * an update after it's been downloaded.
+ */
+[scriptable, uuid(74439497-d796-4915-8cef-3dfe43027e4d)]
+interface nsIUpdateProcessor : nsISupports
+{
+  /**
+   * Processes the update which has been downloaded.
+   * This happens without restarting the application.
+   */
+  void processUpdate();
+};
+
+/**
  * An interface describing a global application service that maintains a list
  * of updates previously performed as well as the current active update.
  */

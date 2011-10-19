@@ -42,6 +42,7 @@
 #define nsUpdateDriver_h__
 
 #include "nscore.h"
+#include "nsIUpdateService.h"
 
 class nsIFile;
 
@@ -66,5 +67,16 @@ NS_HIDDEN_(nsresult) ProcessUpdates(nsIFile *greDir, nsIFile *appDir,
                                     nsIFile *updRootDir,
                                     int argc, char **argv,
                                     const char *&appVersion);
+
+// The implementation of the update processor handles the task of loading the
+// updater application in the background for applying an update.
+// XXX ehsan this is living in this file in order to make use of the existing
+// stuff here, we might want to move it elsewhere in the future.
+class nsUpdateProcessor : public nsIUpdateProcessor
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIUPDATEPROCESSOR
+};
 
 #endif  // nsUpdateDriver_h__
