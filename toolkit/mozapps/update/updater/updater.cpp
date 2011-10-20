@@ -1762,8 +1762,7 @@ int NS_main(int argc, NS_tchar **argv)
       // in the background.
       // For now, we just print some debugging information to see if this works
       // at all.
-      fprintf(stdout, "XXXXXXXXXXXXXXXXX the updater process!!!!\n");
-      return 1;
+      // XXX ehsan add more code
     }
 #ifdef XP_WIN
     if (pid > 0) {
