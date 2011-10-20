@@ -390,6 +390,7 @@ static NS_tchar* gSourcePath;
 static ArchiveReader gArchiveReader;
 static bool gSucceeded = false;
 static bool sShowProgressUI = true;
+static bool sBackgroundUpdate = false;
 
 #ifdef XP_WIN
 // The current working directory specified in the command line.
@@ -1774,6 +1775,9 @@ int NS_main(int argc, NS_tchar **argv)
 
       // Suppress displaying the progress UI
       sShowProgressUI = false;
+
+      // We're processing the update in the background
+      sBackgroundUpdate = true;
     }
 #ifdef XP_WIN
     if (pid > 0) {
