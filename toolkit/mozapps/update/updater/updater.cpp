@@ -1759,6 +1759,8 @@ int NS_main(int argc, NS_tchar **argv)
   }
 #endif
 
+  LogInit();
+
   // If there is a PID specified and it is not '0' then wait for the process to exit.
   if (argc > 3) {
 #ifdef XP_WIN
@@ -1778,6 +1780,8 @@ int NS_main(int argc, NS_tchar **argv)
 
       // We're processing the update in the background
       sBackgroundUpdate = true;
+
+      LOG("Performing a background update");
     }
 #ifdef XP_WIN
     if (pid > 0) {
@@ -1899,7 +1903,6 @@ int NS_main(int argc, NS_tchar **argv)
   }
 #endif
 
-  LogInit();
   LOG(("SOURCE DIRECTORY " LOG_S "\n", argv[1]));
   LOG(("DESTINATION DIRECTORY " LOG_S "\n", argv[2]));
 
