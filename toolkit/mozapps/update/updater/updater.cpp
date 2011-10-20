@@ -1766,7 +1766,7 @@ int NS_main(int argc, NS_tchar **argv)
       return 1;
     }
 #ifdef XP_WIN
-    if (pid != 0) {
+    if (pid > 0) {
       HANDLE parent = OpenProcess(SYNCHRONIZE, false, (DWORD) pid);
       // May return NULL if the parent process has already gone away.
       // Otherwise, wait for the parent process to exit before starting the
@@ -1779,7 +1779,7 @@ int NS_main(int argc, NS_tchar **argv)
       }
     }
 #else
-    if (pid != 0)
+    if (pid > 0)
       waitpid(pid, NULL, 0);
 #endif
   }
