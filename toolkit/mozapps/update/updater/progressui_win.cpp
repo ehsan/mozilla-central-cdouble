@@ -75,7 +75,6 @@
 
 static float sProgress;  // between 0 and 100
 static BOOL  sQuit = FALSE;
-static bool  sEnableUI;
 
 static BOOL
 GetStringsFile(WCHAR filename[MAX_PATH])
@@ -237,16 +236,12 @@ DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 int
 InitProgressUI(int *argc, NS_tchar ***argv)
 {
-  sEnableUI = IsProgressUIEnabled(*argc, *argv);
   return 0;
 }
 
 int
 ShowProgressUI()
 {
-  if (!sEnableUI)
-    return -1;
-
   // Only show the Progress UI if the process is taking a significant amount of
   // time where a significant amount of time is defined as .5 seconds after
   // ShowProgressUI is called sProgress is less than 70.
