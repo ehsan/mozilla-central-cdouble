@@ -2003,9 +2003,7 @@ int NS_main(int argc, NS_tchar **argv)
   if (sBackgroundUpdate) {
     // For background updates, we want to blow away the old installation
     // directory and create it from scratch.
-    if (ensure_remove_recursive(gDestinationPath)) {
-      return 1;
-    }
+    ensure_remove_recursive(gDestinationPath);
   }
   // Change current directory to the directory where we need to apply the update.
   if (NS_tchdir(gDestinationPath) != 0) {
