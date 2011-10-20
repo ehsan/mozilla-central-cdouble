@@ -1772,7 +1772,7 @@ int NS_main(int argc, NS_tchar **argv)
       // We're processing the update in the background
       sBackgroundUpdate = true;
 
-      LOG("Performing a background update");
+      LOG(("Performing a background update"));
     }
 #ifdef XP_WIN
     if (pid > 0) {
