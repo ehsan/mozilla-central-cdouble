@@ -387,6 +387,7 @@ private:
 //-----------------------------------------------------------------------------
 
 static NS_tchar* gSourcePath;
+static NS_tchar* gDestinationPath;
 static ArchiveReader gArchiveReader;
 static bool gSucceeded = false;
 static bool sBackgroundUpdate = false;
@@ -412,6 +413,7 @@ static void LogInit()
   if (gLogFP)
     return;
 
+  // XXX ehsan make sure that the log should go inside gSourcePath
   NS_tchar logFile[MAXPATHLEN];
   NS_tsnprintf(logFile, sizeof(logFile)/sizeof(logFile[0]),
                NS_T("%s/update.log"), gSourcePath);
@@ -1793,6 +1795,8 @@ int NS_main(int argc, NS_tchar **argv)
 
   // The directory containing the update information.
   gSourcePath = argv[1];
+  // The directory we're going to update to.
+  gDestinationPath = argv[2];
 
   // The callback is the remaining arguments starting at callbackIndex.
   // The argument specified by callbackIndex is the callback executable and the
