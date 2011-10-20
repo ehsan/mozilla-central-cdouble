@@ -124,10 +124,12 @@
 # define NS_tstrlen wcslen
 # define NS_tstrrchr wcsrchr
 # define NS_tstrstr wcsstr
+# error Implement dirent.h on Windows
 #else
 # include <sys/wait.h>
 # include <unistd.h>
 # include <fts.h>
+# include <dirent.h>
 
 #ifdef XP_MACOSX
 # include <sys/time.h>
@@ -151,6 +153,11 @@
 # define NS_tstrlen strlen
 # define NS_tstrrchr strrchr
 # define NS_tstrstr strstr
+# define NS_tDIR DIR
+# define NS_tdirent dirent
+# define NS_topendir opendir
+# define NS_tcloedir closedir
+# define NS_treaddir readdir
 #endif
 
 #define BACKUP_EXT NS_T(".moz-backup")
@@ -616,6 +623,53 @@ static int ensure_remove(const NS_tchar *path)
   if (rv)
     LOG(("ensure_remove: failed to remove file: " LOG_S ", rv: %d, err: %d\n",
          path, rv, errno));
+  return rv;
+}
+
+static int ensure_remove_recursive(const NS_tchar *path)
+{
+  struct stat sInfo;
+  int rv = NS_tstat(path, &sInfo);
+  if (rv) {
+    LOG(("ensure_remove_recursive: path doesn't exist: " LOG_S ", rv: %d, err: %d\n",
+          path, rv, errno));
+    return rv;
+  }
+  if (!S_ISDIR(sInfo.st_mode)) {
+    return ensure_remove(path);
+  }
+
+  NS_tDIR *dir;
+  NS_tdirent *entry;
+
+  dir = NS_topendir(path);
+  if (!dir) {
+    LOG(("ensure_remove_recursive: path is not a directory: " LOG_S ", rv: %d, err: %d\n",
+          path, rv, errno));
+    return rv;
+  }
+
+  while ((entry = NS_treaddir(dir)) != 0) {
+    if (NS_tstrcmp(entry->d_name, NS_T(".")) &&
+        NS_tstrcmp(entry->d_name, NS_T(".."))) {
+      NS_tchar childPath[MAXPATHLEN];
+      NS_tsnprintf(childPath, sizeof(childPath)/sizeof(childPath[0]),
+                   NS_T("%s/%s"), path, entry->d_name);
+      rv = ensure_remove_recursive(childPath);
+      if (rv) {
+        break;
+      }
+    }
+  }
+
+  if (rv == OK) {
+    ensure_write_permissions(path);
+    rv = NS_trmdir(path);
+    if (rv) {
+      LOG(("ensure_remove_recursive: path is not a directory: " LOG_S ", rv: %d, err: %d\n",
+            path, rv, errno));
+    }
+  }
   return rv;
 }
 
@@ -1728,11 +1782,6 @@ int NS_main(int argc, NS_tchar **argv)
     return 1;
   }
 
-  // Change current directory to the directory where we need to apply the update.
-  if (NS_tchdir(argv[2]) != 0) {
-    return 1;
-  }
-
 #ifdef XP_WIN
   // Remove everything except close window from the context menu
   {
@@ -1797,6 +1846,29 @@ int NS_main(int argc, NS_tchar **argv)
   gSourcePath = argv[1];
   // The directory we're going to update to.
   gDestinationPath = argv[2];
+
+  if (sBackgroundUpdate) {
+    // For background updates, we want to blow away the old installation
+    // directory and create it from scratch.
+    if (ensure_remove_recursive(gDestinationPath)) {
+      return 1;
+    }
+  }
+  // Change current directory to the directory where we need to apply the update.
+  if (NS_tchdir(gDestinationPath) != 0) {
+    // Try to create the destination directory if it doesn't exist
+    int rv = NS_tmkdir(gDestinationPath, 0755);
+    if (rv == OK && errno != EEXIST) {
+      // Try changing the current directory again
+      if (NS_tchdir(gDestinationPath) != 0) {
+        // OK, time to give up!
+        return 1;
+      }
+    } else {
+      // Failed to create the directory, bail out
+      return 1;
+    }
+  }
 
   // The callback is the remaining arguments starting at callbackIndex.
   // The argument specified by callbackIndex is the callback executable and the
