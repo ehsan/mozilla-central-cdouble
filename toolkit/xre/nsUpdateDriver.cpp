@@ -392,9 +392,12 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 
 #endif
 
+  // XXX ehsan this part should change so that we choose FIREFOX_NEW.
   // Get the directory to which the update will be applied. On Mac OSX we need
-  // to apply the update to the Foo.app directory which is the parent of the
-  // parent of the appDir. On other platforms we will just apply to the appDir.
+  // to apply the update to the Updated.app directory under the Foo.app
+  // directory which is the parent of the parent of the appDir. On other
+  // platforms we will just apply to the appDir/updated.
+  nsCOMPtr<nsILocalFile> updatedDir;
 #if defined(XP_MACOSX)
   nsCAutoString applyToDir;
   {
@@ -405,16 +408,22 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     rv = parentDir1->GetParent(getter_AddRefs(parentDir2));
     if (NS_FAILED(rv))
       return;
-    rv = parentDir2->GetNativePath(applyToDir);
+    if (!GetFile(parentDir2, NS_LITERAL_CSTRING("Updated.app"), updatedDir))
+      return;
+    rv = updatedDir->GetNativePath(applyToDir);
   }
-#elif defined(XP_WIN)
+#else
+  if (!GetFile(appDir, NS_LITERAL_CSTRING("updated"), updatedDir))
+    return;
+#if defined(XP_WIN)
   nsAutoString applyToDirW;
-  rv = appDir->GetPath(applyToDirW);
+  rv = updatedDir->GetPath(applyToDirW);
 
   NS_ConvertUTF16toUTF8 applyToDir(applyToDirW);
 #else
   nsCAutoString applyToDir;
-  rv = appDir->GetNativePath(applyToDir);
+  rv = updatedDir->GetNativePath(applyToDir);
+#endif
 #endif
   if (NS_FAILED(rv))
     return;
