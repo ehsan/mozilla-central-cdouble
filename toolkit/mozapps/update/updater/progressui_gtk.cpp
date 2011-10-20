@@ -85,7 +85,12 @@ InitProgressUI(int *pargc, char ***pargv)
 {
   sProgramPath = (*pargv)[0];
 
-  sEnableUI = gtk_init_check(pargc, pargv);
+  // See if we're allowed to display the UI
+  sEnableUI = IsProgressUIEnabled(*pargc, *pargv);
+  if (sEnableUI) {
+    // See if gtk can initialize the UI
+    sEnableUI = gtk_init_check(pargc, pargv);
+  }
   return 0;
 }
 
