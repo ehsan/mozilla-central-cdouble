@@ -50,7 +50,6 @@ static float sProgressVal;  // between 0 and 100
 static BOOL sQuit = FALSE;
 static StringTable sLabels;
 static const char *sUpdatePath;
-static bool sEnableUI;
 
 @interface UpdaterUI : NSObject
 {
@@ -126,7 +125,6 @@ static bool sEnableUI;
 int
 InitProgressUI(int *pargc, char ***pargv)
 {
-  sEnableUI = IsProgressUIEnabled(*pargc, *pargv);
   sUpdatePath = (*pargv)[1];
   
   return 0;
@@ -135,9 +133,6 @@ InitProgressUI(int *pargc, char ***pargv)
 int
 ShowProgressUI()
 {
-  if (!sEnableUI)
-    return -1;
-
   // Only show the Progress UI if the process is taking a significant amount of
   // time where a significant amount of time is defined as .5 seconds after
   // ShowProgressUI is called sProgress is less than 70.

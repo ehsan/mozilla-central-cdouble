@@ -47,10 +47,6 @@
   #define NS_main main
 #endif
 
-// Called by the platform dependent progress UI code to see if the UI can be
-// displayed or not.
-bool IsProgressUIEnabled(int argc, NS_tchar **argv);
-
 // Called to perform any initialization of the widget toolkit
 int InitProgressUI(int *argc, NS_tchar ***argv);
 

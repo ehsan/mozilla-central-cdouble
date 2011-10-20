@@ -389,7 +389,6 @@ private:
 static NS_tchar* gSourcePath;
 static ArchiveReader gArchiveReader;
 static bool gSucceeded = false;
-static bool sShowProgressUI = true;
 static bool sBackgroundUpdate = false;
 
 #ifdef XP_WIN
@@ -1706,17 +1705,10 @@ UpdateThreadFunc(void *param)
   QuitProgressUI();
 }
 
-bool IsProgressUIEnabled(int argc, NS_tchar **argv)
-{
-  // Currently we don't parse the command line arguments ourselves, and will
-  // just let the processing done in NS_main determine if we need to display
-  // the UI or not.  In the future, we may decide to perform additional checks
-  // here to enable/disable the progress UI based on the command line.
-  return sShowProgressUI;
-}
-
 int NS_main(int argc, NS_tchar **argv)
 {
+  InitProgressUI(&argc, &argv);
+
   // To process an update the updater command line must at a minimum have the
   // directory path containing the updater.mar file to process as the first argument
   // and the directory to apply the update to as the second argument. When the
@@ -1775,9 +1767,6 @@ int NS_main(int argc, NS_tchar **argv)
       // at all.
       // XXX ehsan add more code
 
-      // Suppress displaying the progress UI
-      sShowProgressUI = false;
-
       // We're processing the update in the background
       sBackgroundUpdate = true;
 
@@ -1801,8 +1790,6 @@ int NS_main(int argc, NS_tchar **argv)
       waitpid(pid, NULL, 0);
 #endif
   }
-
-  InitProgressUI(&argc, &argv);
 
   // The directory containing the update information.
   gSourcePath = argv[1];
