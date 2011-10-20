@@ -718,6 +718,114 @@ static int ensure_parent_dir(const NS_tchar *path)
   return rv;
 }
 
+static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
+{
+  struct stat ss;
+  int rv = NS_tstat(path, &ss);
+  if (rv) {
+    LOG(("ensure_copy: failed to read file status info: " LOG_S ", err: %d\n",
+          path, errno));
+    return READ_ERROR;
+  }
+
+  AutoFile infile = ensure_open(path, NS_T("rb"), ss.st_mode);
+  if (!infile) {
+    LOG(("ensure_copy: failed to open the file for reading: " LOG_S ", err: %d\n",
+          path, errno));
+    return READ_ERROR;
+  }
+  AutoFile outfile = ensure_open(dest, NS_T("wb"), ss.st_mode);
+  if (!outfile) {
+    LOG(("ensure_copy: failed to open the file for writing: " LOG_S ", err: %d\n",
+          dest, errno));
+    return WRITE_ERROR;
+  }
+
+  void* buffer = malloc(ss.st_size);
+  if (!buffer)
+    return MEM_ERROR;
+
+  size_t left = ss.st_size;
+  while (left) {
+    size_t read = fread(buffer, 1, left, infile);
+    if (read < 0) {
+      LOG(("ensure_copy: failed to read the file: " LOG_S ", err: %d\n",
+           path, errno));
+      free(buffer);
+      return READ_ERROR;
+    }
+
+    left -= read;
+    size_t written = 0;
+
+    while (written < read) {
+      size_t chunkWritten = fwrite(buffer, 1, read - written, outfile);
+      if (chunkWritten <= 0) {
+        LOG(("ensure_copy: failed to write the file: " LOG_S ", err: %d\n",
+             dest, errno));
+        free(buffer);
+        return WRITE_ERROR;
+      }
+
+      written += chunkWritten;
+    }
+  }
+
+  rv = NS_tchmod(dest, ss.st_mode);
+
+  free(buffer);
+  return rv;
+}
+
+static int ensure_copy_recursive(const NS_tchar *path, const NS_tchar *dest)
+{
+  struct stat sInfo;
+  int rv = NS_tstat(path, &sInfo);
+  if (rv) {
+    LOG(("ensure_copy_recursive: path doesn't exist: " LOG_S ", rv: %d, err: %d\n",
+          path, rv, errno));
+    return rv;
+  }
+  if (!S_ISDIR(sInfo.st_mode)) {
+    return ensure_copy(path, dest);
+  }
+
+  rv = NS_tmkdir(dest, sInfo.st_mode);
+  if (rv < 0 && errno != EEXIST) {
+    LOG(("ensure_copy_recursive: could not create destination directory: " LOG_S ", rv: %d, err: %d\n",
+         path, rv, errno));
+    return WRITE_ERROR;
+  }
+
+  NS_tDIR *dir;
+  NS_tdirent *entry;
+
+  dir = NS_topendir(path);
+  if (!dir) {
+    LOG(("ensure_copy_recursive: path is not a directory: " LOG_S ", rv: %d, err: %d\n",
+          path, rv, errno));
+    return rv;
+  }
+
+  while ((entry = NS_treaddir(dir)) != 0) {
+    if (NS_tstrcmp(entry->d_name, NS_T(".")) &&
+        NS_tstrcmp(entry->d_name, NS_T(".."))) {
+      NS_tchar childPath[MAXPATHLEN];
+      NS_tsnprintf(childPath, sizeof(childPath)/sizeof(childPath[0]),
+                   NS_T("%s/%s"), path, entry->d_name);
+      NS_tchar childPathDest[MAXPATHLEN];
+      NS_tsnprintf(childPathDest, sizeof(childPathDest)/sizeof(childPathDest[0]),
+                   NS_T("%s/%s"), dest, entry->d_name);
+      rv = ensure_copy_recursive(childPath, childPathDest);
+      if (rv) {
+        break;
+      }
+    }
+  }
+
+  return rv;
+}
+
 // Renames the specified file to the new file specified. If the destination file
 // exists it is removed.
 static int rename_file(const NS_tchar *spath, const NS_tchar *dpath)
@@ -1716,6 +1824,48 @@ WriteStatusFile(int status)
   fwrite(text, strlen(text), 1, file);
 }
 
+static int
+CopyInstallDirToDestDir()
+{
+  // XXX ehsan make sure not to copy the update files
+
+  // First extract the installation directory from gSourcePath by going two
+  // levels above it.  This is effectively skipping over "updates/0".
+  NS_tchar installDir[MAXPATHLEN];
+  NS_tsnprintf(installDir, sizeof(installDir)/sizeof(installDir[0]),
+               NS_T("%s"), gSourcePath);
+  NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+  // Make sure we're not looking at a trailing slash
+  if (slash && slash[1] == NS_T('\0')) {
+    *slash = NS_T('\0');
+    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+  }
+  if (slash) {
+    *slash = NS_T('\0');
+    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+    if (slash) {
+      *slash = NS_T('\0');
+#ifdef XP_MACOSX
+      // On Mac, we want to go two level higher in the directory chain
+      // to reach the root of our bundle.  We're effectively skipping
+      // over "Contents/MacOS".
+      slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+      if (slash) {
+        *slash = NS_T('\0');
+        slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+        if (slash) {
+          *slash = NS_T('\0');
+        }
+      }
+#endif
+    }
+  } else {
+    return 1;
+  }
+
+  return ensure_copy_recursive(installDir, gDestinationPath);
+}
+
 static void
 UpdateThreadFunc(void *param)
 {
@@ -1726,6 +1876,9 @@ UpdateThreadFunc(void *param)
                NS_T("%s/update.mar"), gSourcePath);
 
   int rv = gArchiveReader.Open(dataFile);
+  if (rv == OK && sBackgroundUpdate) {
+    rv = CopyInstallDirToDestDir();
+  }
   if (rv == OK) {
     rv = DoUpdate();
     gArchiveReader.Close();
