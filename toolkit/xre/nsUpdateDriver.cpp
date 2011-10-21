@@ -476,7 +476,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   argv[1] = (char*) updateDirPath.get();
   argv[2] = (char*) applyToDir.get();
   argv[3] = (char*) pid.get();
-  if (appArgc) {
+  if (restart && appArgc) {
     argv[4] = workingDirPath;
     argv[5] = (char*) appFilePath.get();
     for (int i = 1; i < appArgc; ++i)
