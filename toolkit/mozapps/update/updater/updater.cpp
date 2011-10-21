@@ -779,7 +779,7 @@ static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
 
 template <unsigned N>
 struct copy_recursive_skiplist {
-  NS_tchar paths[MAXPATHLEN][N];
+  NS_tchar paths[N][MAXPATHLEN];
 
   void append(unsigned index, const NS_tchar *path, const NS_tchar *suffix) {
     NS_tsnprintf(paths[index], MAXPATHLEN, "%s/%s", path, suffix);
@@ -1885,12 +1885,20 @@ CopyInstallDirToDestDir()
     return 1;
   }
 
-  copy_recursive_skiplist<1> skiplist;
+  // These files should not be copied over to the updated app
+  copy_recursive_skiplist<4> skiplist;
 #ifdef XP_MACOSX
   skiplist.append(0, installDir, NS_T("Updated.app"));
+  skiplist.append(1, installDir, NS_T("Contents/MacOS/updates"));
+  skiplist.append(2, installDir, NS_T("Contents/MacOS/updates.xml"));
+  skiplist.append(3, installDir, NS_T("Contents/MacOS/active-update.xml"));
 #else
   skiplist.append(0, insatllDir, NS_T("updated"));
+  skiplist.append(1, insatllDir, NS_T("updates"));
+  skiplist.append(2, insatllDir, NS_T("updates.xml"));
+  skiplist.append(3, insatllDir, NS_T("active-update.xml"));
 #endif
+  // XXX ehsan Should precomplete on Mac be in the skiplist?
 
   return ensure_copy_recursive(installDir, gDestinationPath, skiplist);
 }
