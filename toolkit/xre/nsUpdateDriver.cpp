@@ -52,6 +52,7 @@
 #include "prenv.h"
 #include "nsVersionComparator.h"
 #include "nsXREDirProvider.h"
+#include "nsDirectoryServiceDefs.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -357,10 +358,209 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
   return NS_SUCCEEDED(rv); 
 }
 
+static already_AddRefed<nsIFile>
+GetTempDir()
+{
+  nsCOMPtr<nsIProperties> ds =
+    do_CreateInstance(NS_DIRECTORY_SERVICE_CONTRACTID);
+  if (ds) {
+    nsCOMPtr<nsIFile> tmpDir;
+    ds->Get(NS_OS_TEMP_DIR, NS_GET_IID(nsIFile),
+            getter_AddRefs(tmpDir));
+    if (tmpDir) {
+      nsresult rv = tmpDir->Append(NS_LITERAL_STRING("updater.tmp"));
+      if (NS_SUCCEEDED(rv)) {
+        rv = tmpDir->CreateUnique(nsIFile::DIRECTORY_TYPE, 0755);
+        if (NS_SUCCEEDED(rv)) {
+          return tmpDir.forget();
+        }
+      }
+    }
+  }
+  return nsnull;
+}
+
 static void
 SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
                    nsIFile *appDir, int appArgc, char **appArgv)
 {
+  nsresult rv;
+
+  // Steps:
+  //  - copy updater into temp dir
+  //  - run updater with the correct arguments
+
+  nsCOMPtr<nsIFile> tmpDir = GetTempDir();
+  if (!tmpDir) {
+    LOG(("failed getting a temp dir\n"));
+    return;
+  }
+
+  nsCOMPtr<nsIFile> updater;
+  if (!CopyUpdaterIntoUpdateDir(greDir, appDir, tmpDir, updater, false)) {
+    LOG(("failed copying updater\n"));
+    return;
+  }
+
+  // We need to use the value returned from XRE_GetBinaryPath when attempting
+  // to restart the running application.
+  nsCOMPtr<nsILocalFile> appFile;
+
+#if defined(XP_MACOSX)
+  // On OS X we need to pass the location of the xulrunner-stub executable
+  // rather than xulrunner-bin. See bug 349737.
+  GetXULRunnerStubPath(appArgv[0], getter_AddRefs(appFile));
+#else
+  XRE_GetBinaryPath(appArgv[0], getter_AddRefs(appFile));
+#endif
+
+  if (!appFile)
+    return;
+
+#ifdef XP_WIN
+  nsAutoString appFilePathW;
+  rv = appFile->GetPath(appFilePathW);
+  if (NS_FAILED(rv))
+    return;
+  NS_ConvertUTF16toUTF8 appFilePath(appFilePathW);
+
+  nsAutoString updaterPathW;
+  rv = updater->GetPath(updaterPathW);
+  if (NS_FAILED(rv))
+    return;
+
+  NS_ConvertUTF16toUTF8 updaterPath(updaterPathW);
+
+#else
+  nsCAutoString appFilePath;
+  rv = appFile->GetNativePath(appFilePath);
+  if (NS_FAILED(rv))
+    return;
+
+  nsCAutoString updaterPath;
+  rv = updater->GetNativePath(updaterPath);
+  if (NS_FAILED(rv))
+    return;
+
+#endif
+
+  // Get the directory to which the update will be applied. On Mac OSX we need
+  // to apply the update to the Updated.app directory under the Foo.app
+  // directory which is the parent of the parent of the appDir. On other
+  // platforms we will just apply to the appDir/updated.
+  nsCOMPtr<nsILocalFile> updatedDir;
+#if defined(XP_MACOSX)
+  nsCAutoString applyToDir;
+  {
+    nsCOMPtr<nsIFile> parentDir1, parentDir2;
+    rv = appDir->GetParent(getter_AddRefs(parentDir1));
+    if (NS_FAILED(rv))
+      return;
+    rv = parentDir1->GetParent(getter_AddRefs(parentDir2));
+    if (NS_FAILED(rv))
+      return;
+    if (!GetFile(parentDir2, NS_LITERAL_CSTRING("Updated.app"), updatedDir))
+      return;
+    rv = updatedDir->GetNativePath(applyToDir);
+  }
+#else
+  if (!GetFile(appDir, NS_LITERAL_CSTRING("updated"), updatedDir))
+    return;
+#if defined(XP_WIN)
+  nsAutoString applyToDirW;
+  rv = updatedDir->GetPath(applyToDirW);
+
+  NS_ConvertUTF16toUTF8 applyToDir(applyToDirW);
+#else
+  nsCAutoString applyToDir;
+  rv = updatedDir->GetNativePath(applyToDir);
+#endif
+#endif
+  if (NS_FAILED(rv))
+    return;
+
+  // Make sure that the updated directory exists
+  bool updatedDirExists = false;
+  updatedDir->Exists(&updatedDirExists);
+  if (!updatedDirExists) {
+    return;
+  }
+
+#if defined(XP_WIN)
+  nsAutoString updateDirPathW;
+  rv = updateDir->GetPath(updateDirPathW);
+
+  NS_ConvertUTF16toUTF8 updateDirPath(updateDirPathW);
+#else
+  nsCAutoString updateDirPath;
+  rv = updateDir->GetNativePath(updateDirPath);
+#endif
+
+  if (NS_FAILED(rv))
+    return;
+
+  // Get the current working directory.
+  char workingDirPath[MAXPATHLEN];
+  rv = GetCurrentWorkingDir(workingDirPath, sizeof(workingDirPath));
+  if (NS_FAILED(rv))
+    return;
+
+  // Construct the PID argument for this process.  If we are using execv, then
+  // we pass "0" which is then ignored by the updater.
+#if defined(USE_EXECV)
+  NS_NAMED_LITERAL_CSTRING(pid, "0");
+#else
+  nsCAutoString pid;
+  pid.AppendInt((PRInt32) getpid());
+#endif
+
+  // Append a special token to the PID in order to let the updater know that it
+  // just needs to replace the update directory.
+  pid.AppendLiteral("/replace");
+
+  int argc = appArgc + 5;
+  char **argv = new char*[argc + 1];
+  if (!argv)
+    return;
+  argv[0] = (char*) updaterPath.get();
+  argv[1] = (char*) updateDirPath.get();
+  argv[2] = (char*) applyToDir.get();
+  argv[3] = (char*) pid.get();
+  if (appArgc) {
+    argv[4] = workingDirPath;
+    argv[5] = (char*) appFilePath.get();
+    for (int i = 1; i < appArgc; ++i)
+      argv[5 + i] = appArgv[i];
+    argc = 5 + appArgc;
+    argv[argc] = NULL;
+  } else {
+    argc = 4;
+    argv[4] = NULL;
+  }
+
+  if (gSafeMode) {
+    PR_SetEnv("MOZ_SAFE_MODE_RESTART=1");
+  }
+
+  LOG(("spawning updater process for replacing [%s]\n", updaterPath.get()));
+
+#if defined(USE_EXECV)
+  execv(updaterPath.get(), argv);
+#elif defined(XP_WIN)
+  if (!WinLaunchChild(updaterPathW.get(), argc, argv))
+    return;
+  _exit(0);
+#elif defined(XP_MACOSX)
+  CommandLineServiceMac::SetupMacCommandLine(argc, argv, true);
+  // LaunchChildMac uses posix_spawnp and prefers the current
+  // architecture when launching. It doesn't require a
+  // null-terminated string but it doesn't matter if we pass one.
+  LaunchChildMac(argc, argv);
+  exit(0);
+#else
+  PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
+  exit(0);
+#endif
 }
 
 static void
@@ -422,7 +622,6 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 
 #endif
 
-  // XXX ehsan this part should change so that we choose FIREFOX_NEW.
   // Get the directory to which the update will be applied. On Mac OSX we need
   // to apply the update to the Updated.app directory under the Foo.app
   // directory which is the parent of the parent of the appDir. On other
