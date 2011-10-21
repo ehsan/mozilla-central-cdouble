@@ -52,7 +52,7 @@
 #include "prenv.h"
 #include "nsVersionComparator.h"
 #include "nsXREDirProvider.h"
-#include "nsDirectoryServiceDefs.h"
+#include "SpecialSystemDirectory.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -358,28 +358,6 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
   return NS_SUCCEEDED(rv); 
 }
 
-static already_AddRefed<nsIFile>
-GetTempDir()
-{
-  nsCOMPtr<nsIProperties> ds =
-    do_CreateInstance(NS_DIRECTORY_SERVICE_CONTRACTID);
-  if (ds) {
-    nsCOMPtr<nsIFile> tmpDir;
-    ds->Get(NS_OS_TEMP_DIR, NS_GET_IID(nsIFile),
-            getter_AddRefs(tmpDir));
-    if (tmpDir) {
-      nsresult rv = tmpDir->Append(NS_LITERAL_STRING("updater.tmp"));
-      if (NS_SUCCEEDED(rv)) {
-        rv = tmpDir->CreateUnique(nsIFile::DIRECTORY_TYPE, 0755);
-        if (NS_SUCCEEDED(rv)) {
-          return tmpDir.forget();
-        }
-      }
-    }
-  }
-  return nsnull;
-}
-
 static void
 SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
                    nsIFile *appDir, int appArgc, char **appArgv)
@@ -390,7 +368,9 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
   //  - copy updater into temp dir
   //  - run updater with the correct arguments
 
-  nsCOMPtr<nsIFile> tmpDir = GetTempDir();
+  nsCOMPtr<nsILocalFile> tmpDir;
+  GetSpecialSystemDirectory(OS_TemporaryDirectory,
+                            getter_AddRefs(tmpDir));
   if (!tmpDir) {
     LOG(("failed getting a temp dir\n"));
     return;
