@@ -777,7 +777,26 @@ static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
   return rv;
 }
 
-static int ensure_copy_recursive(const NS_tchar *path, const NS_tchar *dest)
+template <unsigned N>
+struct copy_recursive_skiplist {
+  NS_tchar paths[MAXPATHLEN][N];
+
+  void append(unsigned index, const NS_tchar *path, const NS_tchar *suffix) {
+    NS_tsnprintf(paths[index], MAXPATHLEN, "%s/%s", path, suffix);
+  }
+  bool find(const NS_tchar *path) {
+    for (unsigned i = 0; i < N; ++i) {
+      if (!NS_tstrcmp(paths[i], path)) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
+template <unsigned N>
+static int ensure_copy_recursive(const NS_tchar *path, const NS_tchar *dest,
+                                 copy_recursive_skiplist<N>& skiplist)
 {
   struct stat sInfo;
   int rv = NS_tstat(path, &sInfo);
@@ -813,10 +832,13 @@ static int ensure_copy_recursive(const NS_tchar *path, const NS_tchar *dest)
       NS_tchar childPath[MAXPATHLEN];
       NS_tsnprintf(childPath, sizeof(childPath)/sizeof(childPath[0]),
                    NS_T("%s/%s"), path, entry->d_name);
+      if (skiplist.find(childPath)) {
+        continue;
+      }
       NS_tchar childPathDest[MAXPATHLEN];
       NS_tsnprintf(childPathDest, sizeof(childPathDest)/sizeof(childPathDest[0]),
                    NS_T("%s/%s"), dest, entry->d_name);
-      rv = ensure_copy_recursive(childPath, childPathDest);
+      rv = ensure_copy_recursive(childPath, childPathDest, skiplist);
       if (rv) {
         break;
       }
@@ -1863,7 +1885,14 @@ CopyInstallDirToDestDir()
     return 1;
   }
 
-  return ensure_copy_recursive(installDir, gDestinationPath);
+  copy_recursive_skiplist<1> skiplist;
+#ifdef XP_MACOSX
+  skiplist.append(0, installDir, NS_T("Updated.app"));
+#else
+  skiplist.append(0, insatllDir, NS_T("updated"));
+#endif
+
+  return ensure_copy_recursive(installDir, gDestinationPath, skiplist);
 }
 
 static void
