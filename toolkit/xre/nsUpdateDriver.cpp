@@ -190,23 +190,44 @@ GetStatusFile(nsIFile *dir, nsCOMPtr<nsILocalFile> &result)
   return GetFile(dir, NS_LITERAL_CSTRING("update.status"), result);
 }
 
+template <size_t Size>
 static bool
-IsPending(nsILocalFile *statusFile)
+GetStatusFileContents(nsILocalFile *statusFile, char (&buf)[Size])
 {
   PRFileDesc *fd = nsnull;
   nsresult rv = statusFile->OpenNSPRFileDesc(PR_RDONLY, 0660, &fd);
   if (NS_FAILED(rv))
     return false;
 
-  char buf[32];
-  const PRInt32 n = PR_Read(fd, buf, sizeof(buf));
+  const PRInt32 n = PR_Read(fd, buf, Size);
   PR_Close(fd);
 
-  if (n < 0)
-    return false;
-  
-  const char kPending[] = "pending";
-  return (strncmp(buf, kPending, sizeof(kPending) - 1) == 0);
+  return (n >= 0);
+}
+
+typedef enum {
+  eNoUpdateAction,
+  ePendingUpdate,
+  eAppliedUpdate
+} UpdateStatus;
+
+static UpdateStatus
+GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
+{
+  if (GetStatusFile(dir, statusFile)) {
+    char buf[32];
+    if (GetStatusFileContents(statusFile, buf)) {
+      const char kPending[] = "pending";
+      const char kSucceeded[] = "succeeded";
+      if (!strncmp(buf, kPending, sizeof(kPending) - 1)) {
+        return ePendingUpdate;
+      }
+      if (!strncmp(buf, kSucceeded, sizeof(kSucceeded) - 1)) {
+        return eAppliedUpdate;
+      }
+    }
+  }
+  return eNoUpdateAction;
 }
 
 static bool
@@ -334,6 +355,12 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
 #endif
   rv = updater->AppendNative(NS_LITERAL_CSTRING(kUpdaterBin));
   return NS_SUCCEEDED(rv); 
+}
+
+static void
+SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
+                   nsIFile *appDir, int appArgc, char **appArgv)
+{
 }
 
 static void
@@ -542,7 +569,8 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
     return rv;
 
   nsCOMPtr<nsILocalFile> statusFile;
-  if (GetStatusFile(updatesDir, statusFile) && IsPending(statusFile)) {
+  switch (GetUpdateStatus(updatesDir, statusFile)) {
+  case ePendingUpdate: {
     nsCOMPtr<nsILocalFile> versionFile;
     nsCOMPtr<nsILocalFile> channelChangeFile;
     // Remove the update if the update application version file doesn't exist
@@ -555,6 +583,17 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
     } else {
       ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv, restart);
     }
+    break;
+  }
+  case eAppliedUpdate:
+    // An update was applied in the background, so we need to switch to using
+    // it now.
+    SwitchToUpdatedApp(greDir, updatesDir, statusFile, appDir, argc, argv);
+    break;
+  case eNoUpdateAction:
+    // We don't need to do any special processing here, we'll just continue to
+    // startup the application.
+    break;
   }
 
   return NS_OK;
