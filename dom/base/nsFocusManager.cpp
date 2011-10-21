@@ -1190,7 +1190,7 @@ nsFocusManager::SetFocusInner(nsIContent* aNewContent, PRInt32 aFlags,
   //  * the focus is moved to another document's element
   // we need to check the permission.
   if (sendFocusEvent && mFocusedContent &&
-      mFocusedContent->GetOwnerDoc() != aNewContent->GetOwnerDoc()) {
+      mFocusedContent->OwnerDoc() != aNewContent->OwnerDoc()) {
     // If the caller cannot access the current focused node, the caller should
     // not be able to steal focus from it. E.g., When the current focused node
     // is in chrome, any web contents should not be able to steal the focus.
@@ -2980,7 +2980,8 @@ nsFocusManager::GetRootForFocus(nsPIDOMWindow* aWindow,
 TabParent*
 nsFocusManager::GetRemoteForContent(nsIContent* aContent) {
   if (!aContent ||
-      aContent->Tag() != nsGkAtoms::browser ||
+      (aContent->Tag() != nsGkAtoms::browser &&
+       aContent->Tag() != nsGkAtoms::iframe) ||
       !aContent->IsXUL() ||
       !aContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::Remote,
                              nsGkAtoms::_true, eIgnoreCase))
