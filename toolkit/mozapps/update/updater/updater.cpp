@@ -1988,6 +1988,40 @@ ProcessReplaceRequest()
 #endif
   }
 
+#ifdef XP_MACOSX
+  // On OS X, we need to move the precomplete file too.
+  NS_tchar precompleteSource[MAXPATHLEN];
+  NS_tsnprintf(precompleteSource, sizeof(precompleteSource)/sizeof(precompleteSource[0]),
+               NS_T("%s/precomplete"), installDir);
+
+  NS_tchar precompleteTmp[MAXPATHLEN];
+  NS_tsnprintf(precompleteTmp, sizeof(precompleteTmp)/sizeof(precompleteTmp[0]),
+               NS_T("%s/precomplete.bak"), installDir);
+
+  NS_tchar precompleteNew[MAXPATHLEN];
+  NS_tsnprintf(precompleteNew, sizeof(precompleteNew)/sizeof(precompleteNew[0]),
+               NS_T("%s/Updated.app/precomplete"), installDir);
+
+  ensure_remove(precompleteTmp);
+  LOG(("Begin moving precompleteSrc to precompleteTmp\n"));
+  rv = rename_file(precompleteSource, precompleteTmp);
+  LOG(("Moved precompleteSrc to precompleteTmp, err: %d\n", rv));
+  LOG(("Begin moving precompleteNew to precompleteSrc\n"));
+  int rv2 = rename_file(precompleteNew, precompleteSource);
+  LOG(("Moved precompleteNew to precompleteSrc, err: %d\n", rv2));
+
+  // If new could not be moved to source, we only want to restore tmp to source
+  // if the first step succeeded.  Note that it is possible for the first
+  // rename to have failed as well, for example if the tmpFile exists and we
+  // race between the ensure_remove call and the first rename call, but there
+  // isn't too much that we can do about that, unfortunately.
+  if (!rv && rv2) {
+    LOG(("Begin trying to recover precompleteSrc\n"));
+    rv = rename_file(precompleteTmp, precompleteSource);
+    LOG(("Moved precompleteTmp to precompleteSrc, err: %d\n", rv));
+  }
+#endif
+
   gSucceeded = true;
 
   return 0;
