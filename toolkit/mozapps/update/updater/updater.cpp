@@ -851,7 +851,8 @@ static int ensure_copy_recursive(const NS_tchar *path, const NS_tchar *dest,
 
 // Renames the specified file to the new file specified. If the destination file
 // exists it is removed.
-static int rename_file(const NS_tchar *spath, const NS_tchar *dpath)
+static int rename_file(const NS_tchar *spath, const NS_tchar *dpath,
+                       bool allowDirs = false)
 {
   int rv = ensure_parent_dir(dpath);
   if (rv)
@@ -865,7 +866,8 @@ static int rename_file(const NS_tchar *spath, const NS_tchar *dpath)
     return READ_ERROR;
   }
 
-  if (!S_ISREG(spathInfo.st_mode)) {
+  if ((!S_ISREG(spathInfo.st_mode)) ||
+      (allowDirs && !S_ISDIR(spathInfo.st_mode))) {
     LOG(("rename_file: path present, but not a file: " LOG_S ", err: %d\n",
          spath, errno));
     return UNEXPECTED_ERROR;
