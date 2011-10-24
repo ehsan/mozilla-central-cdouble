@@ -620,6 +620,12 @@ void nsDisplayList::PaintForFrame(nsDisplayListBuilder* aBuilder,
                      root, mVisibleRect, mVisibleRect,
                      (usingDisplayport ? &displayport : nsnull), id,
                      containerParameters);
+  if (usingDisplayport &&
+      !(root->GetContentFlags() & Layer::CONTENT_OPAQUE)) {
+    // See bug 693938, attachment 567017
+    NS_WARNING("We don't support transparent content with displayports, force it to be opqaue");
+    root->SetContentFlags(Layer::CONTENT_OPAQUE);
+  }
 
   layerManager->SetRoot(root);
   aBuilder->LayerBuilder()->WillEndTransaction(layerManager);
@@ -2975,22 +2981,5 @@ bool nsDisplaySVGEffects::TryMerge(nsDisplayListBuilder* aBuilder, nsDisplayItem
   mList.AppendToBottom(&other->mList);
   mBounds.UnionRect(mBounds,
     other->mBounds + other->mEffectsFrame->GetOffsetTo(mEffectsFrame));
-  return true;
-}
-
-nsDisplayForcePaintOnScroll::nsDisplayForcePaintOnScroll(
-    nsDisplayListBuilder* aBuilder, nsIFrame* aFrame)
-  : nsDisplayItem(aBuilder, aFrame) {
-  MOZ_COUNT_CTOR(nsDisplayForcePaintOnScroll);
-}
-
-#ifdef NS_BUILD_REFCNT_LOGGING
-nsDisplayForcePaintOnScroll::~nsDisplayForcePaintOnScroll() {
-  MOZ_COUNT_DTOR(nsDisplayForcePaintOnScroll);
-}
-#endif
-
-bool nsDisplayForcePaintOnScroll::IsVaryingRelativeToMovingFrame(
-         nsDisplayListBuilder* aBuilder, nsIFrame* aFrame) {
   return true;
 }
