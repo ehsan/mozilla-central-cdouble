@@ -1916,6 +1916,80 @@ CopyInstallDirToDestDir()
 static int
 ProcessReplaceRequest()
 {
+  // The replacement algorithm is like this:
+  // 1. Move sourceDir to tmpDir.  In case of failure, abort.
+  // 2. Move newDir to sourceDir.  In case of failure, revert step 1 and abort.
+  // 3. Delete tmpDir (or defer it to the next reboot).
+
+  NS_tchar installDir[MAXPATHLEN];
+  if (!GetInstallationDir(installDir)) {
+    return 1;
+  }
+
+#ifdef XP_MACOSX
+  NS_tchar sourceDir[MAXPATHLEN];
+  NS_tsnprintf(sourceDir, sizeof(sourceDir)/sizeof(sourceDir[0]),
+               NS_T("%s/Contents"), installDir);
+#else
+  NS_tchar* sourceDir = installDir;
+#endif
+
+  NS_tchar tmpDir[MAXPATHLEN];
+  NS_tsnprintf(tmpDir, sizeof(tmpDir)/sizeof(tmpDir[0]),
+#ifdef XP_MACOSX
+               NS_T("%s/Contents.bak"),
+#else
+               NS_T("%s.bak"),
+#endif
+               installDir);
+
+  NS_tchar newDir[MAXPATHLEN];
+  NS_tsnprintf(newDir, sizeof(newDir)/sizeof(newDir[0]),
+#ifdef XP_MACOSX
+               NS_T("%s/Updated.app/Contents"),
+#else
+               NS_T("%s.bak/updated"),
+#endif
+               installDir);
+
+  LOG(("Begin moving sourceDir (" LOG_S ") to tmpDir (" LOG_S ")\n",
+       sourceDir, tmpDir));
+  int rv = rename_file(sourceDir, tmpDir, true);
+  if (rv) {
+    LOG(("Moving sourceDir to tmpDir failed, err: %d\n", rv));
+    return rv;
+  }
+
+  LOG(("Begin moving newDir (" LOG_S ") to sourceDir (" LOG_S ")\n",
+       newDir, sourceDir));
+  rv = rename_file(newDir, sourceDir, true);
+  if (rv) {
+    LOG(("Moving newDir to sourceDir failed, err: %d\n", rv));
+    LOG(("Now, try to move tmpDir back to sourceDir\n"));
+    ensure_remove_recursive(sourceDir);
+    int rv2 = rename_file(tmpDir, sourceDir, true);
+    if (rv2) {
+      LOG(("Moving tmpDir back to sourceDir failed, err: %d\n", rv2));
+    }
+    return rv;
+  }
+
+  LOG(("Now, remove the tmpDir\n"));
+  rv = ensure_remove_recursive(tmpDir);
+  if (rv) {
+    LOG(("Removing tmpDir failed, err: %d\n", rv));
+#ifdef XP_WIN
+    if (MoveFileExW(tmpDir, NULL, MOVEFILE_DELAY_UNTIL_REBOOT)) {
+      LOG(("tmpDir will be removed on OS reboot: " LOG_S "\n", tmpDir));
+    } else {
+      LOG(("Failed to schedule OS reboot removal of directory: " LOG_S "\n",
+           tmpDir));
+    }
+#endif
+  }
+
+  gSucceeded = true;
+
   return 0;
 }
 
