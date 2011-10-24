@@ -2124,6 +2124,11 @@ int NS_main(int argc, NS_tchar **argv)
   }
 #endif
 
+  // The directory containing the update information.
+  gSourcePath = argv[1];
+  // The directory we're going to update to.
+  gDestinationPath = argv[2];
+
   LogInit();
 
   // If there is a PID specified and it is not '0' then wait for the process to exit.
@@ -2167,11 +2172,6 @@ int NS_main(int argc, NS_tchar **argv)
       waitpid(pid, NULL, 0);
 #endif
   }
-
-  // The directory containing the update information.
-  gSourcePath = argv[1];
-  // The directory we're going to update to.
-  gDestinationPath = argv[2];
 
   if (sBackgroundUpdate) {
     // For background updates, we want to blow away the old installation
