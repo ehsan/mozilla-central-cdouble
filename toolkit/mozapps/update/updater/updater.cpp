@@ -1993,7 +1993,14 @@ ProcessReplaceRequest()
   }
 
 #ifdef XP_MACOSX
-  // On OS X, we need to move the precomplete file too.
+  // On OS X, we first need to get rid of the Updated.app directory as it's no
+  // longer going to be useful.
+  NS_tchar updatedAppDir[MAXPATHLEN];
+  NS_tsnprintf(updatedAppDir, sizeof(updatedAppDir)/sizeof(updatedAppDir[0]),
+               NS_T("%s/Updated.app"), installDir);
+  ensure_remove_recursive(updatedAppDir);
+
+  // We also need to move the precomplete file too.
   NS_tchar precompleteSource[MAXPATHLEN];
   NS_tsnprintf(precompleteSource, sizeof(precompleteSource)/sizeof(precompleteSource[0]),
                NS_T("%s/precomplete"), installDir);
