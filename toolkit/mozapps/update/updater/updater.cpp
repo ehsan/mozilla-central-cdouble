@@ -703,7 +703,8 @@ static int ensure_parent_dir(const NS_tchar *path)
   if (slash) {
     *slash = NS_T('\0');
     rv = ensure_parent_dir(path);
-    if (rv == OK) {
+    // Only attempt to create the directory if we're not at the root
+    if (rv == OK && *path) {
       rv = NS_tmkdir(path, 0755);
       // If the directory already exists, then ignore the error.
       if (rv < 0 && errno != EEXIST) {
