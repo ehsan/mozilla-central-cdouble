@@ -1911,22 +1911,32 @@ CopyInstallDirToDestDir()
   return ensure_copy_recursive(installDir, gDestinationPath, skiplist);
 }
 
+static int
+ProcessReplaceRequest()
+{
+  return 0;
+}
+
 static void
 UpdateThreadFunc(void *param)
 {
-  // open ZIP archive and process...
+  int rv;
+  if (sReplaceRequest) {
+    rv = ProcessReplaceRequest();
+  } else {
+    // open ZIP archive and process...
+    NS_tchar dataFile[MAXPATHLEN];
+    NS_tsnprintf(dataFile, sizeof(dataFile)/sizeof(dataFile[0]),
+                 NS_T("%s/update.mar"), gSourcePath);
 
-  NS_tchar dataFile[MAXPATHLEN];
-  NS_tsnprintf(dataFile, sizeof(dataFile)/sizeof(dataFile[0]),
-               NS_T("%s/update.mar"), gSourcePath);
-
-  int rv = gArchiveReader.Open(dataFile);
-  if (rv == OK && sBackgroundUpdate) {
-    rv = CopyInstallDirToDestDir();
-  }
-  if (rv == OK) {
-    rv = DoUpdate();
-    gArchiveReader.Close();
+    rv = gArchiveReader.Open(dataFile);
+    if (rv == OK && sBackgroundUpdate) {
+      rv = CopyInstallDirToDestDir();
+    }
+    if (rv == OK) {
+      rv = DoUpdate();
+      gArchiveReader.Close();
+    }
   }
 
   if (rv) {
