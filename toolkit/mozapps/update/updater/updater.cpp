@@ -2148,7 +2148,7 @@ int NS_main(int argc, NS_tchar **argv)
       // We're processing the update in the background
       sBackgroundUpdate = true;
 
-      LOG(("Performing a background update"));
+      LOG(("Performing a background update\n"));
     } else if (NS_tstrstr(argv[3], NS_T("/replace"))) {
       // We're processing a request to replace a version of the application
       // with an updated version applied in the background.
