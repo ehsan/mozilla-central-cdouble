@@ -1847,16 +1847,11 @@ WriteStatusFile(int status)
   fwrite(text, strlen(text), 1, file);
 }
 
-static int
-CopyInstallDirToDestDir()
+template <size_t N>
+static bool
+GetInstallationDir(NS_tchar (&installDir)[N])
 {
-  // XXX ehsan make sure not to copy the update files
-
-  // First extract the installation directory from gSourcePath by going two
-  // levels above it.  This is effectively skipping over "updates/0".
-  NS_tchar installDir[MAXPATHLEN];
-  NS_tsnprintf(installDir, sizeof(installDir)/sizeof(installDir[0]),
-               NS_T("%s"), gSourcePath);
+  NS_tsnprintf(installDir, N, NS_T("%s"), gSourcePath);
   NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
   // Make sure we're not looking at a trailing slash
   if (slash && slash[1] == NS_T('\0')) {
@@ -1883,6 +1878,20 @@ CopyInstallDirToDestDir()
 #endif
     }
   } else {
+    return false;
+  }
+  return true;
+}
+
+static int
+CopyInstallDirToDestDir()
+{
+  // XXX ehsan make sure not to copy the update files
+
+  // First extract the installation directory from gSourcePath by going two
+  // levels above it.  This is effectively skipping over "updates/0".
+  NS_tchar installDir[MAXPATHLEN];
+  if (!GetInstallationDir(installDir)) {
     return 1;
   }
 
