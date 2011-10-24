@@ -304,7 +304,7 @@ CopyFileIntoUpdateDir(nsIFile *parentDir, const char *leafName, nsIFile *updateD
   rv = file->AppendNative(leaf);
   if (NS_FAILED(rv))
     return false;
-  file->Remove(false);
+  file->Remove(true);
 
   // Now, copy into the target location.
   rv = parentDir->Clone(getter_AddRefs(file));
