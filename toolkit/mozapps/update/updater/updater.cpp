@@ -867,11 +867,14 @@ static int rename_file(const NS_tchar *spath, const NS_tchar *dpath,
     return READ_ERROR;
   }
 
-  if ((!S_ISREG(spathInfo.st_mode)) ||
-      (allowDirs && !S_ISDIR(spathInfo.st_mode))) {
-    LOG(("rename_file: path present, but not a file: " LOG_S ", err: %d\n",
-         spath, errno));
-    return UNEXPECTED_ERROR;
+  if (!S_ISREG(spathInfo.st_mode)) {
+    if (allowDirs && !S_ISDIR(spathInfo.st_mode)) {
+      LOG(("rename_file: path present, but not a file: " LOG_S ", err: %d\n",
+           spath, errno));
+      return UNEXPECTED_ERROR;
+    } else {
+      LOG(("rename_file: proceeding to rename the directory\n"));
+    }
   }
 
   if (!NS_taccess(dpath, F_OK)) {
