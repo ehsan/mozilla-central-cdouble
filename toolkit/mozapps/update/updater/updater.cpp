@@ -398,6 +398,7 @@ static NS_tchar* gDestinationPath;
 static ArchiveReader gArchiveReader;
 static bool gSucceeded = false;
 static bool sBackgroundUpdate = false;
+static bool sReplaceRequest = false;
 
 #ifdef XP_WIN
 // The current working directory specified in the command line.
@@ -2010,6 +2011,10 @@ int NS_main(int argc, NS_tchar **argv)
       sBackgroundUpdate = true;
 
       LOG(("Performing a background update"));
+    } else if (NS_tstrstr(argv[3], NS_T("/replace"))) {
+      // We're processing a request to replace a version of the application
+      // with an updated version applied in the background.
+      sReplaceRequest = true;
     }
 #ifdef XP_WIN
     if (pid > 0) {
@@ -2040,19 +2045,21 @@ int NS_main(int argc, NS_tchar **argv)
     // directory and create it from scratch.
     ensure_remove_recursive(gDestinationPath);
   }
-  // Change current directory to the directory where we need to apply the update.
-  if (NS_tchdir(gDestinationPath) != 0) {
-    // Try to create the destination directory if it doesn't exist
-    int rv = NS_tmkdir(gDestinationPath, 0755);
-    if (rv == OK && errno != EEXIST) {
-      // Try changing the current directory again
-      if (NS_tchdir(gDestinationPath) != 0) {
-        // OK, time to give up!
+  if (!sReplaceRequest) {
+    // Change current directory to the directory where we need to apply the update.
+    if (NS_tchdir(gDestinationPath) != 0) {
+      // Try to create the destination directory if it doesn't exist
+      int rv = NS_tmkdir(gDestinationPath, 0755);
+      if (rv == OK && errno != EEXIST) {
+        // Try changing the current directory again
+        if (NS_tchdir(gDestinationPath) != 0) {
+          // OK, time to give up!
+          return 1;
+        }
+      } else {
+        // Failed to create the directory, bail out
         return 1;
       }
-    } else {
-      // Failed to create the directory, bail out
-      return 1;
     }
   }
 
