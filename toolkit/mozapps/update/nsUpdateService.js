@@ -127,6 +127,7 @@ const STATE_NONE            = "null";
 const STATE_DOWNLOADING     = "downloading";
 const STATE_PENDING         = "pending";
 const STATE_APPLYING        = "applying";
+const STATE_APPLIED         = "applied";
 const STATE_SUCCEEDED       = "succeeded";
 const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
@@ -1237,6 +1238,37 @@ UpdateService.prototype = {
           cleanupActiveUpdate();
       }
       return;
+    }
+
+    if (status == STATE_APPLYING) {
+      // This indicates that the background updater service is in either of the
+      // following two states:
+      // 1. It is in the process of applying an update in the background, and
+      //    we just happen to be racing against that.
+      // 2. It has failed to apply an update for some reason, and we hit this
+      //    case because the updater process has set the update status to
+      //    applying, but has never finished.
+      // In order to differentiate between these two states, we look at the
+      // state field of the update object.  If it's "pending", then we know
+      // that this is the first time we're hitting this case, so we switch
+      // that state to "applying" and we just wait and hope for the best.
+      // If it's "applying", we know that we've already been here once, so
+      // we really want to start from a clean state.
+      // XXX ehsan we should make sure that the About dialog UI waits for the
+      // update to be applied before showing the "Apply update" (or "Restart")
+      // button.
+      if (update && update.state == STATE_PENDING) {
+        LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
+            "state for the first time");
+        update.state = STATE_APPLYING;
+        um.saveUpdates();
+        return;
+      } else { // We get here even if we don't have an update object
+        LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
+            "state for the second time");
+        cleanupActiveUpdates();
+        return;
+      }
     }
 
     if (!update)
