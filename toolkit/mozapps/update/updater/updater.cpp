@@ -2160,6 +2160,7 @@ int NS_main(int argc, NS_tchar **argv)
       // We're processing a request to replace a version of the application
       // with an updated version applied in the background.
       sReplaceRequest = true;
+      LOG(("Performing a replace request\n"));
     }
 #ifdef XP_WIN
     if (pid > 0) {
