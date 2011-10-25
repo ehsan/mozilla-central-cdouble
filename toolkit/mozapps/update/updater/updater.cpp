@@ -1908,9 +1908,9 @@ CopyInstallDirToDestDir()
   skiplist.append(1, installDir, NS_T("Contents/MacOS/updates"));
   skiplist.append(2, installDir, NS_T("Contents/MacOS/active-update.xml"));
 #else
-  skiplist.append(0, insatllDir, NS_T("updated"));
-  skiplist.append(1, insatllDir, NS_T("updates"));
-  skiplist.append(2, insatllDir, NS_T("active-update.xml"));
+  skiplist.append(0, installDir, NS_T("updated"));
+  skiplist.append(1, installDir, NS_T("updates"));
+  skiplist.append(2, installDir, NS_T("active-update.xml"));
 #endif
   // XXX ehsan Should precomplete on Mac be in the skiplist?
 
