@@ -1845,7 +1845,11 @@ WriteStatusFile(int status)
 
   char buf[32];
   if (status == OK) {
-    text = "succeeded\n";
+    if (sBackgroundUpdate) {
+      text = "applied\n";
+    } else {
+      text = "succeeded\n";
+    }
   } else {
     snprintf(buf, sizeof(buf)/sizeof(buf[0]), "failed: %d\n", status);
     text = buf;
