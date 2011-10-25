@@ -83,6 +83,7 @@
 #include "nsAutoPtr.h"
 #include "nsIXPCSecurityManager.h"
 #include "xpcpublic.h"
+#include "nsXULAppAPI.h"
 #ifdef XP_MACOSX
 #include "xpcshellMacUtils.h"
 #endif
@@ -2098,7 +2099,11 @@ NS_IMETHODIMP
 XPCShellDirProvider::GetFile(const char *prop, bool *persistent,
                              nsIFile* *result)
 {
-    if (mGREDir && !strcmp(prop, NS_GRE_DIR)) {
+    if (mGREDir && (!strcmp(prop, NS_GRE_DIR) ||
+                    !strcmp(prop, XRE_UPDATE_ROOT_DIR))) {
+        // For xpcshell, we pretend that the update root directory is always
+        // the same as the GRE directory.  This is not really true on Windows.
+        // XXX ehsan this should be fine, right?
         *persistent = true;
         return mGREDir->Clone(result);
     } else if (mAppFile && !strcmp(prop, XRE_EXECUTABLE_FILE)) {
