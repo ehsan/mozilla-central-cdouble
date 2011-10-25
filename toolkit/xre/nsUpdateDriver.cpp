@@ -220,11 +220,11 @@ GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
     char buf[32];
     if (GetStatusFileContents(statusFile, buf)) {
       const char kPending[] = "pending";
-      const char kSucceeded[] = "succeeded";
+      const char kApplied[] = "applied";
       if (!strncmp(buf, kPending, sizeof(kPending) - 1)) {
         return ePendingUpdate;
       }
-      if (!strncmp(buf, kSucceeded, sizeof(kSucceeded) - 1)) {
+      if (!strncmp(buf, kApplied, sizeof(kApplied) - 1)) {
         return eAppliedUpdate;
       }
     }
