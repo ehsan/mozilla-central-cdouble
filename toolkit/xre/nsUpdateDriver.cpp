@@ -489,7 +489,7 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
   // Construct the PID argument for this process.  If we are using execv, then
   // we pass "0" which is then ignored by the updater.
 #if defined(USE_EXECV)
-  NS_NAMED_LITERAL_CSTRING(pid, "0");
+  nsCAutoString pid("0");
 #else
   nsCAutoString pid;
   pid.AppendInt((PRInt32) getpid());
@@ -497,7 +497,7 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
 
   // Append a special token to the PID in order to let the updater know that it
   // just needs to replace the update directory.
-  pid.AppendLiteral("/replace");
+  pid.AppendASCII("/replace");
 
   int argc = appArgc + 5;
   char **argv = new char*[argc + 1];
@@ -632,8 +632,8 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   if (restart) {
     // Use the correct directory if we're not applying the update in the
     // background.
-    updatedDir = appDir;
-  } else if (!GetFile(appDir, NS_LITERAL_CSTRING("updated"), updatedDir))
+    updatedDir = do_QueryInterface(appDir);
+  } else if (!GetFile(appDir, NS_LITERAL_CSTRING("updated"), updatedDir)) {
     return;
   }
 #if defined(XP_WIN)
@@ -676,7 +676,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   // Construct the PID argument for this process.  If we are using execv, then
   // we pass "0" which is then ignored by the updater.
 #if defined(USE_EXECV)
-  NS_NAMED_LITERAL_CSTRING(pid, "0");
+  nsCAutoString pid("0");
 #else
   nsCAutoString pid;
   pid.AppendInt((PRInt32) getpid());
@@ -686,7 +686,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     // Signal the updater application that it should apply the update in the
     // background.
     // XXX ehsan is there a better way to do this?
-    pid.AssignLiteral("-1");
+    pid.AssignASCII("-1");
   }
 
   int argc = appArgc + 5;
