@@ -1800,9 +1800,16 @@ UpdateService.prototype = {
         updateDetails(update));
 
     // Initiate the update in the background
-    Cc["@mozilla.org/updates/update-processor;1"].
-      createInstance(Ci.nsIUpdateProcessor).
-      processUpdate();
+    try {
+      Cc["@mozilla.org/updates/update-processor;1"].
+        createInstance(Ci.nsIUpdateProcessor).
+        processUpdate();
+    } catch (e) {
+      // Fail gracefully in case the application does not support the update
+      // processor service.
+      // Note that this is used in xpcshell tests in order to disable
+      // background updates in some tests.
+    }
   },
 
   /**
