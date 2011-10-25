@@ -615,7 +615,7 @@ function checkUpdateFinished() {
   do_check_eq(readFileBytes(file), "update_test/UpdateTestRemoveFile\n");
 
   let updatesDir = getUpdatesDir();
-  let log = updatesDir.clone();
+  log = updatesDir.clone();
   log.append("0");
   log.append(FILE_UPDATE_LOG);
   logTestInfo("testing " + log.path + " shouldn't exist");
