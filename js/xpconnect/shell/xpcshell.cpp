@@ -123,9 +123,12 @@ public:
 
     bool SetGREDir(const char *dir);
     void ClearGREDir() { mGREDir = nsnull; }
+    void SetAppFile(nsILocalFile *appFile);
+    void ClearAppFile() { mAppFile = nsnull; }
 
 private:
     nsCOMPtr<nsILocalFile> mGREDir;
+    nsCOMPtr<nsILocalFile> mAppFile;
 };
 
 /***************************************************************************/
@@ -1783,6 +1786,8 @@ main(int argc, char **argv, char **envp)
 
     XPCShellDirProvider dirprovider;
 
+    dirprovider.SetAppFile(appFile);
+
     if (argc > 1 && !strcmp(argv[1], "-g")) {
         if (argc < 3)
             return usage();
@@ -2041,6 +2046,7 @@ main(int argc, char **argv, char **envp)
     appDir = nsnull;
     appFile = nsnull;
     dirprovider.ClearGREDir();
+    dirprovider.ClearAppFile();
 
 #ifdef MOZ_CRASHREPORTER
     // Shut down the crashreporter service to prevent leaking some strings it holds.
@@ -2066,6 +2072,12 @@ XPCShellDirProvider::SetGREDir(const char *dir)
     return NS_SUCCEEDED(rv);
 }
 
+void
+XPCShellDirProvider::SetAppFile(nsILocalFile* appFile)
+{
+    mAppFile = appFile;
+}
+
 NS_IMETHODIMP_(nsrefcnt)
 XPCShellDirProvider::AddRef()
 {
@@ -2089,6 +2101,9 @@ XPCShellDirProvider::GetFile(const char *prop, bool *persistent,
     if (mGREDir && !strcmp(prop, NS_GRE_DIR)) {
         *persistent = true;
         return mGREDir->Clone(result);
+    } else if (mAppFile && !strcmp(prop, XRE_EXECUTABLE_FILE)) {
+        *persistent = true;
+        return mAppFile->Clone(result);
     } else if (mGREDir && !strcmp(prop, NS_APP_PREF_DEFAULTS_50_DIR)) {
         nsCOMPtr<nsIFile> file;
         *persistent = true;
