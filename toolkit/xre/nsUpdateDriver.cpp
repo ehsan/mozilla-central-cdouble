@@ -53,6 +53,7 @@
 #include "nsVersionComparator.h"
 #include "nsXREDirProvider.h"
 #include "SpecialSystemDirectory.h"
+#include "nsDirectoryServiceDefs.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -783,24 +784,67 @@ NS_IMPL_ISUPPORTS1(nsUpdateProcessor, nsIUpdateProcessor)
 NS_IMETHODIMP
 nsUpdateProcessor::ProcessUpdate()
 {
-  // XXX ehsan this code is tolen from nsAppRunner.cpp's XRE_main
+  nsCOMPtr<nsIFile> greDir, appDir, updRoot;
+  const char* appVersion;
+  int argc;
+  char **argv;
+
   nsXREDirProvider* dirProvider = nsXREDirProvider::GetSingleton();
+  if (dirProvider) { // Normal code path
+    // Check for and process any available updates
+    bool persistent;
+    nsresult rv = dirProvider->GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
+                                       getter_AddRefs(updRoot));
+    // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
+    if (NS_FAILED(rv))
+      updRoot = dirProvider->GetAppDir();
 
-  // Check for and process any available updates
-  nsCOMPtr<nsIFile> updRoot;
-  bool persistent;
-  nsresult rv = dirProvider->GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
-                                     getter_AddRefs(updRoot));
-  // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
-  if (NS_FAILED(rv))
-    updRoot = dirProvider->GetAppDir();
+    greDir = dirProvider->GetGREDir();
+    appDir = dirProvider->GetAppDir();
+    appVersion = gAppData->version;
+    argc = gArgc;
+    argv = gArgv;
+  } else {
+    // In the xpcshell environment, the usual XRE_main is not run, so things
+    // like dirProvider and gAppData do not exist.  This code path accesses
+    // XPCOM (which is not available in the previous code path) in order to get
+    // the same information.
+    nsCOMPtr<nsIProperties> ds =
+      do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID);
+    if (!ds) {
+      NS_ABORT(); // There's nothing which we can do if this fails!
+    }
 
-  return ProcessUpdates(dirProvider->GetGREDir(),
-                        dirProvider->GetAppDir(),
+    nsresult rv = ds->Get(NS_GRE_DIR, NS_GET_IID(nsIFile),
+                          getter_AddRefs(greDir));
+    NS_ASSERTION(NS_SUCCEEDED(rv), "Can't get the GRE dir");
+    appDir = greDir;
+
+    rv = ds->Get(XRE_UPDATE_ROOT_DIR, NS_GET_IID(nsIFile),
+                 getter_AddRefs(updRoot));
+    NS_ASSERTION(NS_SUCCEEDED(rv), "Can't get the update root dir");
+
+    // XXX ehsan what should the correct value here be?
+    appVersion = "";
+
+    // XXX ehsan is this correct?
+    argc = 1;
+    nsCAutoString binPath;
+    nsCOMPtr<nsIFile> binary;
+    rv = ds->Get(XRE_EXECUTABLE_FILE, NS_GET_IID(nsIFile),
+                 getter_AddRefs(binary));
+    NS_ASSERTION(NS_SUCCEEDED(rv), "Can't get the binary path");
+    binary->GetNativePath(binPath);
+    char* binPathCString = const_cast<char*> (nsPromiseFlatCString(binPath).get());
+    argv = &binPathCString;
+  }
+
+  return ProcessUpdates(greDir,
+                        appDir,
                         updRoot,
-                        gArgc,
-                        gArgv,
-                        gAppData->version,
+                        argc,
+                        argv,
+                        appVersion,
                         false);
 }
 
