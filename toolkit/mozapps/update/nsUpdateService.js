@@ -1807,8 +1807,6 @@ UpdateService.prototype = {
     } catch (e) {
       // Fail gracefully in case the application does not support the update
       // processor service.
-      // Note that this is used in xpcshell tests in order to disable
-      // background updates in some tests.
     }
   },
 
