@@ -240,7 +240,7 @@ SetStatusApplying(nsILocalFile *statusFile)
   if (NS_FAILED(rv))
     return false;
 
-  static const char kApplying[] = "Applying\n";
+  static const char kApplying[] = "applying\n";
   PR_Write(fd, kApplying, sizeof(kApplying) - 1);
   PR_Close(fd);
 
