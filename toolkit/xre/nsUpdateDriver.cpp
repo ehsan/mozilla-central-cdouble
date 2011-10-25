@@ -618,13 +618,24 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     rv = parentDir1->GetParent(getter_AddRefs(parentDir2));
     if (NS_FAILED(rv))
       return;
-    if (!GetFile(parentDir2, NS_LITERAL_CSTRING("Updated.app"), updatedDir))
-      return;
-    rv = updatedDir->GetNativePath(applyToDir);
+    if (restart) {
+      // Use the correct directory if we're not applying the update in the
+      // background.
+      rv = parentDir2->GetNativePath(applyToDir);
+    } else {
+      if (!GetFile(parentDir2, NS_LITERAL_CSTRING("Updated.app"), updatedDir))
+        return;
+      rv = updatedDir->GetNativePath(applyToDir);
+    }
   }
 #else
-  if (!GetFile(appDir, NS_LITERAL_CSTRING("updated"), updatedDir))
+  if (restart) {
+    // Use the correct directory if we're not applying the update in the
+    // background.
+    updatedDir = appDir;
+  } else if (!GetFile(appDir, NS_LITERAL_CSTRING("updated"), updatedDir))
     return;
+  }
 #if defined(XP_WIN)
   nsAutoString applyToDirW;
   rv = updatedDir->GetPath(applyToDirW);
