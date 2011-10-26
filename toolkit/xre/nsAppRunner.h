@@ -86,6 +86,8 @@ extern bool gSafeMode;
 
 extern int    gArgc;
 extern char **gArgv;
+extern int    gRestartArgc;
+extern char **gRestartArgv;
 extern bool gLogConsoleErrors;
 
 /**
