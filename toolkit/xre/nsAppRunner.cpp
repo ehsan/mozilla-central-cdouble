@@ -232,8 +232,8 @@ char **gArgv;
 static const char gToolkitVersion[] = NS_STRINGIFY(GRE_MILESTONE);
 static const char gToolkitBuildID[] = NS_STRINGIFY(GRE_BUILDID);
 
-static int    gRestartArgc;
-static char **gRestartArgv;
+int    gRestartArgc;
+char **gRestartArgv;
 
 #ifdef MOZ_WIDGET_QT
 static int    gQtOnlyArgc;

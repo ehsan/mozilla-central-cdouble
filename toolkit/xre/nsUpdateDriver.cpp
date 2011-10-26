@@ -813,8 +813,8 @@ nsUpdateProcessor::ProcessUpdate()
     greDir = dirProvider->GetGREDir();
     appDir = dirProvider->GetAppDir();
     appVersion = gAppData->version;
-    argc = gArgc;
-    argv = gArgv;
+    argc = gRestartArgc;
+    argv = gRestartArgv;
   } else {
     // In the xpcshell environment, the usual XRE_main is not run, so things
     // like dirProvider and gAppData do not exist.  This code path accesses
