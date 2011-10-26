@@ -124,7 +124,12 @@
 # define NS_tstrlen wcslen
 # define NS_tstrrchr wcsrchr
 # define NS_tstrstr wcsstr
-# error Implement dirent.h on Windows
+# include "win_dirent.h"
+# define NS_tDIR DIR
+# define NS_tdirent dirent
+# define NS_topendir opendir
+# define NS_tcloedir closedir
+# define NS_treaddir readdir
 #else
 # include <sys/wait.h>
 # include <unistd.h>
