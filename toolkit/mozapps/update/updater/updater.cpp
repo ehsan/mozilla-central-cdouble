@@ -74,6 +74,8 @@
 # include <windows.h>
 # include <direct.h>
 # include <io.h>
+# include <stdio.h>
+# include <stdarg.h>
 
 # define F_OK 00
 # define W_OK 02
@@ -96,18 +98,28 @@
 // multiple nulls in a string is fine and this approach is simpler (possibly
 // faster) than calculating the string length to place the null terminator and
 // truncates the string as _snprintf and _snwprintf do on other platforms.
-# define snprintf(dest, count, fmt, ...) \
-  PR_BEGIN_MACRO \
-    int _count = count - 1; \
-    _snprintf(dest, _count, fmt, ##__VA_ARGS__); \
-    dest[_count] = '\0'; \
-  PR_END_MACRO
-# define NS_tsnprintf(dest, count, fmt, ...) \
-  PR_BEGIN_MACRO \
-    int _count = count - 1; \
-    _snwprintf(dest, _count, fmt, ##__VA_ARGS__); \
-    dest[_count] = L'\0'; \
-  PR_END_MACRO
+int mysnprintf(char* dest, size_t count, const char* fmt, ...)
+{
+  size_t _count = count - 1;
+  va_list varargs;
+  va_start(varargs, fmt);
+  int result = _vsnprintf(dest, count - 1, fmt, varargs);
+  va_end(varargs);
+  dest[_count] = '\0';
+  return result;
+}
+#define snprintf mysnprintf
+int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
+{
+  size_t _count = count - 1;
+  va_list varargs;
+  va_start(varargs, fmt);
+  int result = _vsnwprintf(dest, count - 1, fmt, varargs);
+  va_end(varargs);
+  dest[_count] = L'\0';
+  return result;
+}
+#define NS_tsnprintf mywcsprintf
 # define NS_taccess _waccess
 # define NS_tchdir _wchdir
 # define NS_tchmod _wchmod
@@ -124,7 +136,12 @@
 # define NS_tstrlen wcslen
 # define NS_tstrrchr wcsrchr
 # define NS_tstrstr wcsstr
-# error Implement dirent.h on Windows
+# include "win_dirent.h"
+# define NS_tDIR DIR
+# define NS_tdirent dirent
+# define NS_topendir opendir
+# define NS_tclosedir closedir
+# define NS_treaddir readdir
 #else
 # include <sys/wait.h>
 # include <unistd.h>
@@ -156,7 +173,7 @@
 # define NS_tDIR DIR
 # define NS_tdirent dirent
 # define NS_topendir opendir
-# define NS_tcloedir closedir
+# define NS_tclosedir closedir
 # define NS_treaddir readdir
 #endif
 
@@ -663,6 +680,8 @@ static int ensure_remove_recursive(const NS_tchar *path)
     }
   }
 
+  NS_tclosedir(dir);
+
   if (rv == OK) {
     ensure_write_permissions(path);
     rv = NS_trmdir(path);
@@ -784,7 +803,7 @@ struct copy_recursive_skiplist {
   NS_tchar paths[N][MAXPATHLEN];
 
   void append(unsigned index, const NS_tchar *path, const NS_tchar *suffix) {
-    NS_tsnprintf(paths[index], MAXPATHLEN, "%s/%s", path, suffix);
+    NS_tsnprintf(paths[index], MAXPATHLEN, NS_T("%s/%s"), path, suffix);
   }
   bool find(const NS_tchar *path) {
     for (unsigned i = 0; i < N; ++i) {
@@ -901,7 +920,7 @@ static int backup_create(const NS_tchar *path)
 {
   NS_tchar backup[MAXPATHLEN];
   NS_tsnprintf(backup, sizeof(backup)/sizeof(backup[0]),
-               NS_T("%s" BACKUP_EXT), path);
+               NS_T("%s") BACKUP_EXT, path);
 
   return rename_file(path, backup);
 }
@@ -912,7 +931,7 @@ static int backup_restore(const NS_tchar *path)
 {
   NS_tchar backup[MAXPATHLEN];
   NS_tsnprintf(backup, sizeof(backup)/sizeof(backup[0]),
-               NS_T("%s" BACKUP_EXT), path);
+               NS_T("%s") BACKUP_EXT, path);
 
   if (NS_taccess(backup, F_OK)) {
     LOG(("backup_restore: backup file doesn't exist: " LOG_S "\n", backup));
@@ -927,7 +946,7 @@ static int backup_discard(const NS_tchar *path)
 {
   NS_tchar backup[MAXPATHLEN];
   NS_tsnprintf(backup, sizeof(backup)/sizeof(backup[0]),
-               NS_T("%s" BACKUP_EXT), path);
+               NS_T("%s") BACKUP_EXT, path);
 
   // Nothing to discard
   if (NS_taccess(backup, F_OK)) {
