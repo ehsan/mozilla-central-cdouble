@@ -908,7 +908,7 @@ static int backup_create(const NS_tchar *path)
 {
   NS_tchar backup[MAXPATHLEN];
   NS_tsnprintf(backup, sizeof(backup)/sizeof(backup[0]),
-               NS_T("%s" BACKUP_EXT), path);
+               NS_T("%s") BACKUP_EXT, path);
 
   return rename_file(path, backup);
 }
@@ -919,7 +919,7 @@ static int backup_restore(const NS_tchar *path)
 {
   NS_tchar backup[MAXPATHLEN];
   NS_tsnprintf(backup, sizeof(backup)/sizeof(backup[0]),
-               NS_T("%s" BACKUP_EXT), path);
+               NS_T("%s") BACKUP_EXT, path);
 
   if (NS_taccess(backup, F_OK)) {
     LOG(("backup_restore: backup file doesn't exist: " LOG_S "\n", backup));
@@ -934,7 +934,7 @@ static int backup_discard(const NS_tchar *path)
 {
   NS_tchar backup[MAXPATHLEN];
   NS_tsnprintf(backup, sizeof(backup)/sizeof(backup[0]),
-               NS_T("%s" BACKUP_EXT), path);
+               NS_T("%s") BACKUP_EXT, path);
 
   // Nothing to discard
   if (NS_taccess(backup, F_OK)) {
