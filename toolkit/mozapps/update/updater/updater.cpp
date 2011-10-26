@@ -74,6 +74,8 @@
 # include <windows.h>
 # include <direct.h>
 # include <io.h>
+# include <stdio.h>
+# include <stdarg.h>
 
 # define F_OK 00
 # define W_OK 02
@@ -96,18 +98,28 @@
 // multiple nulls in a string is fine and this approach is simpler (possibly
 // faster) than calculating the string length to place the null terminator and
 // truncates the string as _snprintf and _snwprintf do on other platforms.
-# define snprintf(dest, count, fmt, ...) \
-  PR_BEGIN_MACRO \
-    int _count = count - 1; \
-    _snprintf(dest, _count, fmt, ##__VA_ARGS__); \
-    dest[_count] = '\0'; \
-  PR_END_MACRO
-# define NS_tsnprintf(dest, count, fmt, ...) \
-  PR_BEGIN_MACRO \
-    int _count = count - 1; \
-    _snwprintf(dest, _count, fmt, ##__VA_ARGS__); \
-    dest[_count] = L'\0'; \
-  PR_END_MACRO
+int mysnprintf(char* dest, size_t count, const char* fmt, ...)
+{
+  size_t _count = count - 1;
+  va_list varargs;
+  va_start(varargs, fmt);
+  int result = _vsnprintf(dest, count - 1, fmt, varargs);
+  va_end(varargs);
+  dest[_count] = '\0';
+  return result;
+}
+#define snprintf mysnprintf
+int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
+{
+  size_t _count = count - 1;
+  va_list varargs;
+  va_start(varargs, fmt);
+  int result = _vsnwprintf(dest, count - 1, fmt, varargs);
+  va_end(varargs);
+  dest[_count] = L'\0';
+  return result;
+}
+#define NS_tsnprintf mywcsprintf
 # define NS_taccess _waccess
 # define NS_tchdir _wchdir
 # define NS_tchmod _wchmod
