@@ -663,6 +663,8 @@ static int ensure_remove_recursive(const NS_tchar *path)
     }
   }
 
+  NS_tclosedir(dir);
+
   if (rv == OK) {
     ensure_write_permissions(path);
     rv = NS_trmdir(path);
