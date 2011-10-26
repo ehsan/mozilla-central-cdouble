@@ -128,7 +128,7 @@
 # define NS_tDIR DIR
 # define NS_tdirent dirent
 # define NS_topendir opendir
-# define NS_tcloedir closedir
+# define NS_tclosedir closedir
 # define NS_treaddir readdir
 #else
 # include <sys/wait.h>
@@ -161,7 +161,7 @@
 # define NS_tDIR DIR
 # define NS_tdirent dirent
 # define NS_topendir opendir
-# define NS_tcloedir closedir
+# define NS_tclosedir closedir
 # define NS_treaddir readdir
 #endif
 
