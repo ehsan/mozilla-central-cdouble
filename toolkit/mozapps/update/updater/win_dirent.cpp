@@ -35,8 +35,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nscore.h"
 #include "win_dirent.h"
-#include "mozilla/mozalloc.h"
+#include <errno.h>
+#include <string.h>
 
 // This file implements the minimum set of dirent APIs used by updater.cpp on
 // Windows.  If updater.cpp is modified to use more of this API, we need to
@@ -47,7 +49,7 @@ static dirent gDirEnt;
 DIR::DIR(const WCHAR* path)
   : findHandle(NULL)
 {
-  _wcsncpy(name, path, sizeof(name)/sizeof(name[0]));
+  wcsncpy(name, path, sizeof(name)/sizeof(name[0]));
 }
 
 DIR::~DIR()
@@ -72,6 +74,7 @@ int
 closedir(DIR* dir)
 {
   delete dir;
+  return 0;
 }
 
 dirent* readdir(DIR* dir)
@@ -81,7 +84,7 @@ dirent* readdir(DIR* dir)
     BOOL result = FindNextFileW(dir->findHandle, &data);
     if (!result) {
       if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-        errno = ENONET;
+        errno = ENOENT;
       }
       return 0;
     }
@@ -90,7 +93,7 @@ dirent* readdir(DIR* dir)
     HANDLE find = FindFirstFileW(dir->name, &data);
     if (find == INVALID_HANDLE_VALUE) {
       if (GetLastError() == ERROR_FILE_NOT_FOUND) {
-        errno = ENONET;
+        errno = ENOENT;
       } else {
         errno = EBADF;
       }
@@ -98,7 +101,7 @@ dirent* readdir(DIR* dir)
     }
     dir->findHandle = find;
   }
-  _wcsncpy(gDirEnt.d_name, data.cFileName,
+  wcsncpy(gDirEnt.d_name, data.cFileName,
            sizeof(gDirEnt.d_name)/sizeof(gDirEnt.d_name[0]));
   return &gDirEnt;
 }
