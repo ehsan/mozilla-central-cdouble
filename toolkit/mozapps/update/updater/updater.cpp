@@ -791,7 +791,7 @@ struct copy_recursive_skiplist {
   NS_tchar paths[N][MAXPATHLEN];
 
   void append(unsigned index, const NS_tchar *path, const NS_tchar *suffix) {
-    NS_tsnprintf(paths[index], MAXPATHLEN, "%s/%s", path, suffix);
+    NS_tsnprintf(paths[index], MAXPATHLEN, NS_T("%s/%s"), path, suffix);
   }
   bool find(const NS_tchar *path) {
     for (unsigned i = 0; i < N; ++i) {
