@@ -1266,7 +1266,7 @@ UpdateService.prototype = {
       } else { // We get here even if we don't have an update object
         LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
             "state for the second time");
-        cleanupActiveUpdates();
+        cleanupActiveUpdate();
         return;
       }
     }
