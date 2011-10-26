@@ -716,7 +716,13 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   LOG(("spawning updater process [%s]\n", updaterPath.get()));
 
 #if defined(USE_EXECV)
-  execv(updaterPath.get(), argv);
+  // Don't use execv for background updates.
+  if (restart) {
+    execv(updaterPath.get(), argv);
+  } else {
+    PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
+    _exit(0);
+  }
 #elif defined(XP_WIN)
   if (!WinLaunchChild(updaterPathW.get(), argc, argv))
     return;
