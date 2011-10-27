@@ -2384,28 +2384,6 @@ int NS_main(int argc, NS_tchar **argv)
       return 1;
     }
 
-    int len = NS_tstrlen(applyDirLongPath);
-    NS_tchar *s = callbackLongPath;
-    NS_tchar *d = gCallbackRelPath;
-    // advance to the apply to directory and advance past the trailing backslash
-    // if present.
-    s += len;
-    if (*s == NS_T('\\'))
-      ++s;
-
-    // Copy the string and replace backslashes with forward slashes along the
-    // way.
-    do {
-      if (*s == NS_T('\\'))
-        *d = NS_T('/');
-      else
-        *d = *s;
-      ++s;
-      ++d;
-    } while (*s);
-    *d = NS_T('\0');
-    ++d;
-
     // Make a copy of the callback executable so it can be read when patching.
     NS_tsnprintf(gCallbackBackupPath,
                  sizeof(gCallbackBackupPath)/sizeof(gCallbackBackupPath[0]),
