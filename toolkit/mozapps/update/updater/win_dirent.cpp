@@ -50,6 +50,7 @@ DIR::DIR(const WCHAR* path)
   : findHandle(NULL)
 {
   wcsncpy(name, path, sizeof(name)/sizeof(name[0]));
+  wcsncat(name, L"\\*", sizeof(name)/sizeof(name[0]) - wcslen(name) - 1);
 }
 
 DIR::~DIR()
