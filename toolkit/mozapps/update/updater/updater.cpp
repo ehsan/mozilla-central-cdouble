@@ -2251,9 +2251,29 @@ int NS_main(int argc, NS_tchar **argv)
   NS_tchar elevatedLockFilePath[MAXPATHLEN] = {NS_T('\0')};
   if (argc > callbackIndex || sBackgroundUpdate || sReplaceRequest) {
     NS_tchar updateLockFilePath[MAXPATHLEN];
-    NS_tsnprintf(updateLockFilePath,
-                 sizeof(updateLockFilePath)/sizeof(updateLockFilePath[0]),
-                 NS_T("%s.update_in_progress.lock"), argv[callbackIndex]);
+    if (sBackgroundUpdate) {
+      // When updating in the background, the lock file is:
+      // $INSTALLDIR\updated.update_in_progress.lock
+      NS_tsnprintf(updateLockFilePath,
+                   sizeof(updateLockFilePath)/sizeof(updateLockFilePath[0]),
+                   NS_T("%s.update_in_progress.lock"), gDestinationPath);
+    } else if (sReplaceRequest) {
+      // When processing a replace request, the lock file is:
+      // $INSTALLDIR\..\moz_update_in_progress.lock
+      NS_tchar installDir[MAXPATHLEN];
+      if (!GetInstallationDir(installDir)) {
+        return 1;
+      }
+      NS_tsnprintf(updateLockFilePath,
+                   sizeof(updateLockFilePath)/sizeof(updateLockFilePath[0]),
+                   NS_T("%s\\..\\moz_update_in_progress.lock"), installDir);
+    } else {
+      // In the old non-background update case, the lock file is:
+      // $INSTALLDIR\$APPNAME.exe.update_in_progress.lock
+      NS_tsnprintf(updateLockFilePath,
+                   sizeof(updateLockFilePath)/sizeof(updateLockFilePath[0]),
+                   NS_T("%s.update_in_progress.lock"), argv[callbackIndex]);
+    }
 
     // The update_in_progress.lock file should only exist during an update. In
     // case it exists attempt to remove it and exit if that fails to prevent
