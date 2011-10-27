@@ -716,7 +716,13 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   LOG(("spawning updater process [%s]\n", updaterPath.get()));
 
 #if defined(USE_EXECV)
-  execv(updaterPath.get(), argv);
+  // Don't use execv for background updates.
+  if (restart) {
+    execv(updaterPath.get(), argv);
+  } else {
+    PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
+    _exit(0);
+  }
 #elif defined(XP_WIN)
   if (!WinLaunchChild(updaterPathW.get(), argc, argv))
     return;
@@ -813,8 +819,8 @@ nsUpdateProcessor::ProcessUpdate()
     greDir = dirProvider->GetGREDir();
     appDir = dirProvider->GetAppDir();
     appVersion = gAppData->version;
-    argc = gArgc;
-    argv = gArgv;
+    argc = gRestartArgc;
+    argv = gRestartArgv;
   } else {
     // In the xpcshell environment, the usual XRE_main is not run, so things
     // like dirProvider and gAppData do not exist.  This code path accesses
