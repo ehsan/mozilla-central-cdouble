@@ -979,7 +979,7 @@ static int backup_discard(const NS_tchar *path)
 
   int rv = ensure_remove(backup);
 #if defined(XP_WIN)
-  if (rv) {
+  if (rv && !sBackgroundUpdate && !sReplaceRequest) {
     LOG(("backup_discard: unable to remove: " LOG_S "\n", backup));
     NS_tchar path[MAXPATHLEN];
     GetTempFileNameW(DELETE_DIR, L"moz", 0, path);
@@ -2401,7 +2401,7 @@ int NS_main(int argc, NS_tchar **argv)
   }
 
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
-  if (argc > callbackIndex || sReplaceRequest) {
+  if (argc > callbackIndex || sBackgroundUpdate || sReplaceRequest) {
     // If the callback executable is specified it must exist for a successful
     // update.
     NS_tchar callbackLongPath[MAXPATHLEN];
@@ -2427,7 +2427,9 @@ int NS_main(int argc, NS_tchar **argv)
       LogFinish();
       WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
-      LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+      if (argc > callbackIndex) {
+        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+      }
       return 1;
     }
 
@@ -2438,55 +2440,63 @@ int NS_main(int argc, NS_tchar **argv)
       LogFinish();
       WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
-      LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+      if (argc > callbackIndex) {
+        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+      }
       return 1;
     }
 
-    // Make a copy of the callback executable so it can be read when patching.
-    NS_tsnprintf(gCallbackBackupPath,
-                 sizeof(gCallbackBackupPath)/sizeof(gCallbackBackupPath[0]),
-                 NS_T("%s" CALLBACK_BACKUP_EXT), targetPath);
-    NS_tremove(gCallbackBackupPath);
-    CopyFileW(targetPath, gCallbackBackupPath, false);
-
-    // Since the process may be signaled as exited by WaitForSingleObject before
-    // the release of the executable image try to lock the main executable file
-    // multiple times before giving up.
-    int retries = 5;
-    do {
-      // By opening a file handle wihout FILE_SHARE_READ to the callback
-      // executable, the OS will prevent launching the process while it is
-      // being updated.
-      callbackFile = CreateFileW(targetPath,
-                                 DELETE | GENERIC_WRITE,
-                                 // allow delete, rename, and write
-                                 FILE_SHARE_DELETE | FILE_SHARE_WRITE,
-                                 NULL, OPEN_EXISTING, 0, NULL);
-      if (callbackFile != INVALID_HANDLE_VALUE)
-        break;
-
-      Sleep(50);
-    } while (--retries);
-
-    // CreateFileW will fail if the callback executable is already in use. Since
-    // it isn't possible to update write the status file and return.
-    if (callbackFile == INVALID_HANDLE_VALUE) {
-      LOG(("NS_main: file in use - failed to exclusively open executable " \
-           "file: " LOG_S "\n", argv[callbackIndex]));
-      LogFinish();
-      WriteStatusFile(WRITE_ERROR);
+    // Doing this is only necessary when we're actually applying a patch.
+    if (!sReplaceRequest) {
+      // Make a copy of the callback executable so it can be read when patching.
+      NS_tsnprintf(gCallbackBackupPath,
+                   sizeof(gCallbackBackupPath)/sizeof(gCallbackBackupPath[0]),
+                   NS_T("%s" CALLBACK_BACKUP_EXT), targetPath);
       NS_tremove(gCallbackBackupPath);
-      EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
-      LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
-      return 1;
+      CopyFileW(targetPath, gCallbackBackupPath, false);
+
+      // Since the process may be signaled as exited by WaitForSingleObject before
+      // the release of the executable image try to lock the main executable file
+      // multiple times before giving up.
+      int retries = 5;
+      do {
+        // By opening a file handle wihout FILE_SHARE_READ to the callback
+        // executable, the OS will prevent launching the process while it is
+        // being updated.
+        callbackFile = CreateFileW(targetPath,
+                                   DELETE | GENERIC_WRITE,
+                                   // allow delete, rename, and write
+                                   FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+                                   NULL, OPEN_EXISTING, 0, NULL);
+        if (callbackFile != INVALID_HANDLE_VALUE)
+          break;
+
+        Sleep(50);
+      } while (--retries);
+
+      // CreateFileW will fail if the callback executable is already in use. Since
+      // it isn't possible to update write the status file and return.
+      if (callbackFile == INVALID_HANDLE_VALUE) {
+        LOG(("NS_main: file in use - failed to exclusively open executable " \
+             "file: " LOG_S "\n", argv[callbackIndex]));
+        LogFinish();
+        WriteStatusFile(WRITE_ERROR);
+        NS_tremove(gCallbackBackupPath);
+        EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
+        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+        return 1;
+      }
     }
   }
 
-  // The directory to move files that are in use to on Windows. This directory
-  // will be deleted after the update is finished or on OS reboot using
-  // MoveFileEx if it contains files that are in use.
-  if (NS_taccess(DELETE_DIR, F_OK)) {
-    NS_tmkdir(DELETE_DIR, 0755);
+  // DELETE_DIR is not required in the case of background updates.
+  if (!sBackgroundUpdate && !sReplaceRequest) {
+    // The directory to move files that are in use to on Windows. This directory
+    // will be deleted after the update is finished or on OS reboot using
+    // MoveFileEx if it contains files that are in use.
+    if (NS_taccess(DELETE_DIR, F_OK)) {
+      NS_tmkdir(DELETE_DIR, 0755);
+    }
   }
 #endif /* XP_WIN */
 
@@ -2506,7 +2516,7 @@ int NS_main(int argc, NS_tchar **argv)
     NS_tremove(gCallbackBackupPath);
   }
 
-  if (_wrmdir(DELETE_DIR)) {
+  if (!sBackgroundUpdate && !sReplaceRequest && _wrmdir(DELETE_DIR)) {
     LOG(("NS_main: unable to remove directory: " LOG_S ", err: %d\n",
          DELETE_DIR, errno));
     // The directory probably couldn't be removed due to it containing files
