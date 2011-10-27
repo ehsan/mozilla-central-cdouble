@@ -1979,6 +1979,12 @@ ProcessReplaceRequest()
 #endif
                installDir);
 
+  // First try to remove the possibly existing temp directory, because if this
+  // directory exists, we will fail to rename sourceDir.
+  // No need to error check here because if this fails, we will fail in the
+  // next step anyways.
+  ensure_remove_recursive(tmpDir);
+
   LOG(("Begin moving sourceDir (" LOG_S ") to tmpDir (" LOG_S ")\n",
        sourceDir, tmpDir));
   int rv = rename_file(sourceDir, tmpDir, true);
