@@ -2247,7 +2247,7 @@ int NS_main(int argc, NS_tchar **argv)
 #if defined(XP_WIN)
   // Launch a second instance of the updater with the runas verb on Windows
   // when write access is denied to the installation directory.
-  HANDLE updateLockFileHandle;
+  HANDLE updateLockFileHandle = INVALID_HANDLE_VALUE;
   NS_tchar elevatedLockFilePath[MAXPATHLEN];
   if (argc > callbackIndex) {
     NS_tchar updateLockFilePath[MAXPATHLEN];
