@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nscore.h"
 #include "win_dirent.h"
 #include <errno.h>
 #include <string.h>
