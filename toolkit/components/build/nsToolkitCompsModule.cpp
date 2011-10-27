@@ -41,7 +41,9 @@
 #include "nsUserInfo.h"
 #include "nsToolkitCompsCID.h"
 #include "nsFindService.h"
+#ifdef MOZ_UPDATER
 #include "nsUpdateDriver.h"
+#endif
 
 #if defined(XP_WIN) && !defined(MOZ_DISABLE_PARENTAL_CONTROLS)
 #include "nsParentalControlsServiceWin.h"
@@ -125,7 +127,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsScriptableUnescapeHTML)
 #endif
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsBrowserStatusFilter)
-#ifndef ANDROID
+#ifdef MOZ_UPDATER
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsUpdateProcessor)
 #endif
 
@@ -154,7 +156,7 @@ NS_DEFINE_NAMED_CID(NS_SCRIPTABLEUNESCAPEHTML_CID);
 #endif
 NS_DEFINE_NAMED_CID(NS_BROWSERSTATUSFILTER_CID);
 NS_DEFINE_NAMED_CID(NS_CHARSETMENU_CID);
-#ifndef ANDROID
+#ifdef MOZ_UPDATER
 NS_DEFINE_NAMED_CID(NS_UPDATEPROCESSOR_CID);
 #endif
 
@@ -184,7 +186,7 @@ static const mozilla::Module::CIDEntry kToolkitCIDs[] = {
 #endif
   { &kNS_BROWSERSTATUSFILTER_CID, false, NULL, nsBrowserStatusFilterConstructor },
   { &kNS_CHARSETMENU_CID, false, NULL, NS_NewCharsetMenu },
-#ifndef ANDROID
+#ifdef MOZ_UPDATER
   { &kNS_UPDATEPROCESSOR_CID, false, NULL, nsUpdateProcessorConstructor },
 #endif
   { NULL }
@@ -217,7 +219,7 @@ static const mozilla::Module::ContractIDEntry kToolkitContracts[] = {
 #endif
   { NS_BROWSERSTATUSFILTER_CONTRACTID, &kNS_BROWSERSTATUSFILTER_CID },
   { NS_RDF_DATASOURCE_CONTRACTID_PREFIX NS_CHARSETMENU_PID, &kNS_CHARSETMENU_CID },
-#ifndef ANDROID
+#ifdef MOZ_UPDATER
   { NS_UPDATEPROCESSOR_CONTRACTID, &kNS_UPDATEPROCESSOR_CID },
 #endif
   { NULL }
