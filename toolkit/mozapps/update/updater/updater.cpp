@@ -2359,24 +2359,28 @@ int NS_main(int argc, NS_tchar **argv)
   LOG(("DESTINATION DIRECTORY " LOG_S "\n", argv[2]));
 
 #ifdef XP_WIN
-  // Allocate enough space for the length of the path an optional additional
-  // trailing slash and null termination.
-  NS_tchar *destpath = (NS_tchar *) malloc((NS_tstrlen(argv[2]) + 2) * sizeof(NS_tchar));
-  if (!destpath)
-    return 1;
+  // For replace requests, we don't need to do any real updates, so this is not
+  // necessary.
+  if (!sReplaceRequest) {
+    // Allocate enough space for the length of the path an optional additional
+    // trailing slash and null termination.
+    NS_tchar *destpath = (NS_tchar *) malloc((NS_tstrlen(argv[2]) + 2) * sizeof(NS_tchar));
+    if (!destpath)
+      return 1;
 
-  NS_tchar *c = destpath;
-  NS_tstrcpy(c, argv[2]);
-  c += NS_tstrlen(argv[2]);
-  if (argv[2][NS_tstrlen(argv[2]) - 1] != NS_T('/') &&
-      argv[2][NS_tstrlen(argv[2]) - 1] != NS_T('\\')) {
-    NS_tstrcat(c, NS_T("/"));
-    c += NS_tstrlen(NS_T("/"));
+    NS_tchar *c = destpath;
+    NS_tstrcpy(c, argv[2]);
+    c += NS_tstrlen(argv[2]);
+    if (argv[2][NS_tstrlen(argv[2]) - 1] != NS_T('/') &&
+        argv[2][NS_tstrlen(argv[2]) - 1] != NS_T('\\')) {
+      NS_tstrcat(c, NS_T("/"));
+      c += NS_tstrlen(NS_T("/"));
+    }
+    *c = NS_T('\0');
+    c++;
+
+    gDestPath = destpath;
   }
-  *c = NS_T('\0');
-  c++;
-
-  gDestPath = destpath;
 
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
   if (argc > callbackIndex) {
