@@ -130,6 +130,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_trename _wrename
 # define NS_trmdir _wrmdir
 # define NS_tstat _wstat
+# define NS_tlstat _wstat // No symlinks on Windows
 # define NS_tstrcat wcscat
 # define NS_tstrcmp wcscmp
 # define NS_tstrcpy wcscpy
@@ -164,6 +165,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_trename rename
 # define NS_trmdir rmdir
 # define NS_tstat stat
+# define NS_tlstat lstat
 # define NS_tstrcat strcat
 # define NS_tstrcmp strcmp
 # define NS_tstrcpy strcpy
@@ -646,8 +648,10 @@ static int ensure_remove(const NS_tchar *path)
 
 static int ensure_remove_recursive(const NS_tchar *path)
 {
+  // We use lstat rather than stat here so that we can successfully remove
+  // symlinks.
   struct stat sInfo;
-  int rv = NS_tstat(path, &sInfo);
+  int rv = NS_tlstat(path, &sInfo);
   if (rv) {
     LOG(("ensure_remove_recursive: path doesn't exist: " LOG_S ", rv: %d, err: %d\n",
           path, rv, errno));
