@@ -42,7 +42,9 @@
 #define nsUpdateDriver_h__
 
 #include "nscore.h"
+#ifdef MOZ_UPDATER
 #include "nsIUpdateService.h"
+#endif
 
 class nsIFile;
 
@@ -72,6 +74,7 @@ NS_HIDDEN_(nsresult) ProcessUpdates(nsIFile *greDir, nsIFile *appDir,
                                     const char *appVersion,
                                     bool restart = true);
 
+#ifdef MOZ_UPDATER
 // The implementation of the update processor handles the task of loading the
 // updater application in the background for applying an update.
 // XXX ehsan this is living in this file in order to make use of the existing
@@ -82,5 +85,6 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIUPDATEPROCESSOR
 };
+#endif
 
 #endif  // nsUpdateDriver_h__
