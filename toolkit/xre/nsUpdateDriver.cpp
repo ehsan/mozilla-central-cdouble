@@ -721,7 +721,6 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     execv(updaterPath.get(), argv);
   } else {
     PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
-    _exit(0);
   }
 #elif defined(XP_WIN)
   if (!WinLaunchChild(updaterPathW.get(), argc, argv))
