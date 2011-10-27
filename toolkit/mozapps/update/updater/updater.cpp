@@ -135,6 +135,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_tstrcat wcscat
 # define NS_tstrcmp wcscmp
 # define NS_tstrcpy wcscpy
+# define NS_tstrncpy wcsncpy
 # define NS_tstrlen wcslen
 # define NS_tstrrchr wcsrchr
 # define NS_tstrstr wcsstr
@@ -520,6 +521,23 @@ mstrtok(const NS_tchar *delims, NS_tchar **str)
 }
 
 #ifdef XP_WIN
+/**
+ * Finds the length of the longest common prefix between two strings.
+ */
+static size_t
+find_LCP_length(const NS_tchar *str1, const NS_tchar *str2)
+{
+  size_t i = 0;
+
+  for (; str1[i] && str2[i]; ++i) {
+    if (str1[i] != str2[i]) {
+      break;
+    }
+  }
+
+  return i;
+}
+
 /**
  * Coverts a relative update path to a full path for Windows.
  *
@@ -2383,11 +2401,27 @@ int NS_main(int argc, NS_tchar **argv)
   }
 
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
-  if (argc > callbackIndex) {
+  if (argc > callbackIndex || sReplaceRequest) {
     // If the callback executable is specified it must exist for a successful
     // update.
     NS_tchar callbackLongPath[MAXPATHLEN];
-    if (!GetLongPathNameW(argv[callbackIndex], callbackLongPath,
+    NS_tchar *targetPath = argv[callbackIndex];
+    NS_tchar buffer[MAXPATHLEN*2];
+    if (sReplaceRequest) {
+      // In case of replace requests, we should look for the callback file in
+      // the destination directory.
+      size_t commonPrefixLength = find_LCP_length(argv[callbackIndex], gDestinationPath);
+      NS_tchar *p = buffer;
+      NS_tstrncpy(p, argv[callbackIndex], commonPrefixLength);
+      p += commonPrefixLength;
+      NS_tstrcpy(p, gDestinationPath + commonPrefixLength);
+      p += NS_tstrlen(gDestinationPath + commonPrefixLength);
+      *p = NS_T('\\');
+      ++p;
+      NS_tstrcpy(p, argv[callbackIndex] + commonPrefixLength);
+      targetPath = buffer;
+    }
+    if (!GetLongPathNameW(targetPath, callbackLongPath,
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
       LOG(("NS_main: unable to find callback file: " LOG_S "\n", argv[callbackIndex]));
       LogFinish();
