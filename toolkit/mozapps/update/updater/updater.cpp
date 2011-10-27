@@ -92,6 +92,7 @@
 
 # define LOG_S "%S"
 # define NS_T(str) L ## str
+# define NS_SLASH NS_T('\\')
 // On Windows, _snprintf and _snwprintf don't guarantee null termination. These
 // macros always leave room in the buffer for null termination and set the end
 // of the buffer to null in case the string is larger than the buffer. Having
@@ -155,6 +156,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 
 # define LOG_S "%s"
 # define NS_T(str) str
+# define NS_SLASH NS_T('/')
 # define NS_tsnprintf snprintf
 # define NS_taccess access
 # define NS_tchdir chdir
@@ -1885,25 +1887,25 @@ static bool
 GetInstallationDir(NS_tchar (&installDir)[N])
 {
   NS_tsnprintf(installDir, N, NS_T("%s"), gSourcePath);
-  NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+  NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
   // Make sure we're not looking at a trailing slash
   if (slash && slash[1] == NS_T('\0')) {
     *slash = NS_T('\0');
-    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
   }
   if (slash) {
     *slash = NS_T('\0');
-    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
     if (slash) {
       *slash = NS_T('\0');
 #ifdef XP_MACOSX
       // On Mac, we want to go two level higher in the directory chain
       // to reach the root of our bundle.  We're effectively skipping
       // over "Contents/MacOS".
-      slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+      slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
       if (slash) {
         *slash = NS_T('\0');
-        slash = (NS_tchar *) NS_tstrrchr(installDir, NS_T('/'));
+        slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
         if (slash) {
           *slash = NS_T('\0');
         }
