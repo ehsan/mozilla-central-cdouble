@@ -2423,7 +2423,7 @@ int NS_main(int argc, NS_tchar **argv)
     }
     if (!GetLongPathNameW(targetPath, callbackLongPath,
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
-      LOG(("NS_main: unable to find callback file: " LOG_S "\n", argv[callbackIndex]));
+      LOG(("NS_main: unable to find callback file: " LOG_S "\n", targetPath));
       LogFinish();
       WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
@@ -2445,9 +2445,9 @@ int NS_main(int argc, NS_tchar **argv)
     // Make a copy of the callback executable so it can be read when patching.
     NS_tsnprintf(gCallbackBackupPath,
                  sizeof(gCallbackBackupPath)/sizeof(gCallbackBackupPath[0]),
-                 NS_T("%s" CALLBACK_BACKUP_EXT), argv[callbackIndex]);
+                 NS_T("%s" CALLBACK_BACKUP_EXT), targetPath);
     NS_tremove(gCallbackBackupPath);
-    CopyFileW(argv[callbackIndex], gCallbackBackupPath, false);
+    CopyFileW(targetPath, gCallbackBackupPath, false);
 
     // Since the process may be signaled as exited by WaitForSingleObject before
     // the release of the executable image try to lock the main executable file
@@ -2457,7 +2457,7 @@ int NS_main(int argc, NS_tchar **argv)
       // By opening a file handle wihout FILE_SHARE_READ to the callback
       // executable, the OS will prevent launching the process while it is
       // being updated.
-      callbackFile = CreateFileW(argv[callbackIndex],
+      callbackFile = CreateFileW(targetPath,
                                  DELETE | GENERIC_WRITE,
                                  // allow delete, rename, and write
                                  FILE_SHARE_DELETE | FILE_SHARE_WRITE,
