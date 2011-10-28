@@ -943,13 +943,13 @@ nsXREDirProvider::GetUpdateRootDir(nsIFile* *aResult)
 
   nsAutoString programName;
   if (_wcsnicmp(programFiles.get(), longPath.get(), programFilesLen) == 0) {
-	programName = Substring(longPath, programFilesLen);
+    programName = Substring(longPath, programFilesLen);
   } else {
-	// We need the update root directory to live outside of the installation
-	// directory, because otherwise the updater writing the log file can cause
-	// the directory to be locked, which prevents it from being replaced after
-	// background updates.
-	// XXX ehsan is this a good choice?
+    // We need the update root directory to live outside of the installation
+    // directory, because otherwise the updater writing the log file can cause
+    // the directory to be locked, which prevents it from being replaced after
+    // background updates.
+    // XXX ehsan is this a good choice?
     programName.AssignASCII(MOZ_APP_NAME);
   }
 
