@@ -1904,7 +1904,7 @@ template <size_t N>
 static bool
 GetInstallationDir(NS_tchar (&installDir)[N])
 {
-  NS_tsnprintf(installDir, N, NS_T("%s"), gSourcePath);
+  NS_tsnprintf(installDir, N, NS_T("%s"), gDestinationPath);
   NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
   // Make sure we're not looking at a trailing slash
   if (slash && slash[1] == NS_T('\0')) {
@@ -1913,23 +1913,6 @@ GetInstallationDir(NS_tchar (&installDir)[N])
   }
   if (slash) {
     *slash = NS_T('\0');
-    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
-    if (slash) {
-      *slash = NS_T('\0');
-#ifdef XP_MACOSX
-      // On Mac, we want to go two level higher in the directory chain
-      // to reach the root of our bundle.  We're effectively skipping
-      // over "Contents/MacOS".
-      slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
-      if (slash) {
-        *slash = NS_T('\0');
-        slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
-        if (slash) {
-          *slash = NS_T('\0');
-        }
-      }
-#endif
-    }
   } else {
     return false;
   }
