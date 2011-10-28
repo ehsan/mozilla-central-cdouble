@@ -2348,7 +2348,16 @@ int NS_main(int argc, NS_tchar **argv)
     // directory and create it from scratch.
     ensure_remove_recursive(gDestinationPath);
   }
-  if (!sReplaceRequest) {
+  if (sReplaceRequest) {
+#ifdef XP_WIN
+    // On Windows, the current working directory of the process should be changed
+    // so that it's not locked.
+    NS_tchar tmpDir[MAXPATHLEN];
+    if (GetTempPathW(MAXPATHLEN, tmpDir)) {
+      NS_tchdir(tmpDir);
+    }
+#endif
+  } else {
     // Change current directory to the directory where we need to apply the update.
     if (NS_tchdir(gDestinationPath) != 0) {
       // Try to create the destination directory if it doesn't exist
