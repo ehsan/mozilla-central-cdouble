@@ -538,6 +538,8 @@ appUpdater.prototype =
     case Components.results.NS_OK:
       this.removeDownloadListener();
       this.selectPanel("updateButtonBox");
+      // XXX ehsan this is where we should wait for the updater to finish its
+      // work in the background.
       this.setupUpdateButton("update.restart." +
                              (this.isMajor ? "upgradeButton" : "applyButton"));
       break;
