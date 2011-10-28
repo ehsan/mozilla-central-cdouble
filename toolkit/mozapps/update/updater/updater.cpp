@@ -2393,8 +2393,21 @@ int NS_main(int argc, NS_tchar **argv)
     gDestPath = destpath;
   }
 
+  NS_tchar applyDirLongPath[MAXPATHLEN];
+  if (!GetLongPathNameW(argv[2], applyDirLongPath,
+                        sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
+    LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", argv[2]));
+    LogFinish();
+    WriteStatusFile(WRITE_ERROR);
+    EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
+    if (argc > callbackIndex) {
+      LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+    }
+    return 1;
+  }
+
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
-  if (argc > callbackIndex || sBackgroundUpdate || sReplaceRequest) {
+  if (argc > callbackIndex || sReplaceRequest) {
     // If the callback executable is specified it must exist for a successful
     // update.
     NS_tchar callbackLongPath[MAXPATHLEN];
@@ -2417,19 +2430,6 @@ int NS_main(int argc, NS_tchar **argv)
     if (!GetLongPathNameW(targetPath, callbackLongPath,
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
       LOG(("NS_main: unable to find callback file: " LOG_S "\n", targetPath));
-      LogFinish();
-      WriteStatusFile(WRITE_ERROR);
-      EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
-      if (argc > callbackIndex) {
-        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
-      }
-      return 1;
-    }
-
-    NS_tchar applyDirLongPath[MAXPATHLEN];
-    if (!GetLongPathNameW(argv[2], applyDirLongPath,
-                          sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
-      LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", argv[2]));
       LogFinish();
       WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
