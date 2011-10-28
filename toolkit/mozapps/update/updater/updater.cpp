@@ -1932,7 +1932,12 @@ CopyInstallDirToDestDir()
   }
 
   // These files should not be copied over to the updated app
-  copy_recursive_skiplist<3> skiplist;
+#ifdef XP_WIN
+#define SKIPLIST_COUNT 4
+#else
+#define SKIPLIST_COUNT 3
+#endif
+  copy_recursive_skiplist<SKIPLIST_COUNT> skiplist;
 #ifdef XP_MACOSX
   skiplist.append(0, installDir, NS_T("Updated.app"));
   skiplist.append(1, installDir, NS_T("Contents/MacOS/updates"));
@@ -1941,6 +1946,9 @@ CopyInstallDirToDestDir()
   skiplist.append(0, installDir, NS_T("updated"));
   skiplist.append(1, installDir, NS_T("updates"));
   skiplist.append(2, installDir, NS_T("active-update.xml"));
+#ifdef XP_WIN
+  skiplist.append(3, installDir, NS_T("updated.update_in_progress.lock"));
+#endif
 #endif
   // XXX ehsan Should precomplete on Mac be in the skiplist?
 
