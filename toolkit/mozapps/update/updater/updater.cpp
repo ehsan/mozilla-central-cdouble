@@ -2259,9 +2259,11 @@ int NS_main(int argc, NS_tchar **argv)
       if (!GetInstallationDir(installDir)) {
         return 1;
       }
+      NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
+      *slash = NS_T('\0');
       NS_tsnprintf(updateLockFilePath,
                    sizeof(updateLockFilePath)/sizeof(updateLockFilePath[0]),
-                   NS_T("%s\\..\\moz_update_in_progress.lock"), installDir);
+                   NS_T("%s\\moz_update_in_progress.lock"), installDir);
     } else {
       // In the old non-background update case, the lock file is:
       // $INSTALLDIR\$APPNAME.exe.update_in_progress.lock
