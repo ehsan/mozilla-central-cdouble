@@ -2510,7 +2510,7 @@ int NS_main(int argc, NS_tchar **argv)
   t.Join();
 
 #ifdef XP_WIN
-  if (argc > callbackIndex) {
+  if (argc > callbackIndex && !sReplaceRequest) {
     CloseHandle(callbackFile);
     // Remove the copy of the callback executable.
     NS_tremove(gCallbackBackupPath);
