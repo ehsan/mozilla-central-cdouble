@@ -1904,7 +1904,7 @@ template <size_t N>
 static bool
 GetInstallationDir(NS_tchar (&installDir)[N])
 {
-  NS_tsnprintf(installDir, N, NS_T("%s"), gSourcePath);
+  NS_tsnprintf(installDir, N, NS_T("%s"), gDestinationPath);
   NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
   // Make sure we're not looking at a trailing slash
   if (slash && slash[1] == NS_T('\0')) {
@@ -1913,23 +1913,6 @@ GetInstallationDir(NS_tchar (&installDir)[N])
   }
   if (slash) {
     *slash = NS_T('\0');
-    slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
-    if (slash) {
-      *slash = NS_T('\0');
-#ifdef XP_MACOSX
-      // On Mac, we want to go two level higher in the directory chain
-      // to reach the root of our bundle.  We're effectively skipping
-      // over "Contents/MacOS".
-      slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
-      if (slash) {
-        *slash = NS_T('\0');
-        slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
-        if (slash) {
-          *slash = NS_T('\0');
-        }
-      }
-#endif
-    }
   } else {
     return false;
   }
@@ -1949,7 +1932,12 @@ CopyInstallDirToDestDir()
   }
 
   // These files should not be copied over to the updated app
-  copy_recursive_skiplist<3> skiplist;
+#ifdef XP_WIN
+#define SKIPLIST_COUNT 4
+#else
+#define SKIPLIST_COUNT 3
+#endif
+  copy_recursive_skiplist<SKIPLIST_COUNT> skiplist;
 #ifdef XP_MACOSX
   skiplist.append(0, installDir, NS_T("Updated.app"));
   skiplist.append(1, installDir, NS_T("Contents/MacOS/updates"));
@@ -1958,6 +1946,9 @@ CopyInstallDirToDestDir()
   skiplist.append(0, installDir, NS_T("updated"));
   skiplist.append(1, installDir, NS_T("updates"));
   skiplist.append(2, installDir, NS_T("active-update.xml"));
+#ifdef XP_WIN
+  skiplist.append(3, installDir, NS_T("updated.update_in_progress.lock"));
+#endif
 #endif
   // XXX ehsan Should precomplete on Mac be in the skiplist?
 
@@ -2357,7 +2348,16 @@ int NS_main(int argc, NS_tchar **argv)
     // directory and create it from scratch.
     ensure_remove_recursive(gDestinationPath);
   }
-  if (!sReplaceRequest) {
+  if (sReplaceRequest) {
+#ifdef XP_WIN
+    // On Windows, the current working directory of the process should be changed
+    // so that it's not locked.
+    NS_tchar tmpDir[MAXPATHLEN];
+    if (GetTempPathW(MAXPATHLEN, tmpDir)) {
+      NS_tchdir(tmpDir);
+    }
+#endif
+  } else {
     // Change current directory to the directory where we need to apply the update.
     if (NS_tchdir(gDestinationPath) != 0) {
       // Try to create the destination directory if it doesn't exist
@@ -2402,8 +2402,21 @@ int NS_main(int argc, NS_tchar **argv)
     gDestPath = destpath;
   }
 
+  NS_tchar applyDirLongPath[MAXPATHLEN];
+  if (!GetLongPathNameW(argv[2], applyDirLongPath,
+                        sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
+    LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", argv[2]));
+    LogFinish();
+    WriteStatusFile(WRITE_ERROR);
+    EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
+    if (argc > callbackIndex) {
+      LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+    }
+    return 1;
+  }
+
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
-  if (argc > callbackIndex || sBackgroundUpdate || sReplaceRequest) {
+  if (argc > callbackIndex || sReplaceRequest) {
     // If the callback executable is specified it must exist for a successful
     // update.
     NS_tchar callbackLongPath[MAXPATHLEN];
@@ -2426,19 +2439,6 @@ int NS_main(int argc, NS_tchar **argv)
     if (!GetLongPathNameW(targetPath, callbackLongPath,
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
       LOG(("NS_main: unable to find callback file: " LOG_S "\n", targetPath));
-      LogFinish();
-      WriteStatusFile(WRITE_ERROR);
-      EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
-      if (argc > callbackIndex) {
-        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
-      }
-      return 1;
-    }
-
-    NS_tchar applyDirLongPath[MAXPATHLEN];
-    if (!GetLongPathNameW(argv[2], applyDirLongPath,
-                          sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
-      LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", argv[2]));
       LogFinish();
       WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);

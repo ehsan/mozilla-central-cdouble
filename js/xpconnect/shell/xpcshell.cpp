@@ -89,6 +89,7 @@
 #endif
 #ifdef XP_WIN
 #include <windows.h>
+#include <shlobj.h>
 #endif
 
 #include "nsIScriptSecurityManager.h"
@@ -2099,11 +2100,7 @@ NS_IMETHODIMP
 XPCShellDirProvider::GetFile(const char *prop, bool *persistent,
                              nsIFile* *result)
 {
-    if (mGREDir && (!strcmp(prop, NS_GRE_DIR) ||
-                    !strcmp(prop, XRE_UPDATE_ROOT_DIR))) {
-        // For xpcshell, we pretend that the update root directory is always
-        // the same as the GRE directory.  This is not really true on Windows.
-        // XXX ehsan this should be fine, right?
+    if (mGREDir && !strcmp(prop, NS_GRE_DIR)) {
         *persistent = true;
         return mGREDir->Clone(result);
     } else if (mAppFile && !strcmp(prop, XRE_EXECUTABLE_FILE)) {
@@ -2118,6 +2115,35 @@ XPCShellDirProvider::GetFile(const char *prop, bool *persistent,
             return NS_ERROR_FAILURE;
         NS_ADDREF(*result = file);
         return NS_OK;
+    } else if (mAppFile && !strcmp(prop, XRE_UPDATE_ROOT_DIR)) {
+        // For xpcshell, we pretend that the update root directory is always
+        // the same as the GRE directory, except for Windows, where we immitate
+        // the algorithm defined in nsXREDirProvider::GetUpdateRootDir.
+        *persistent = true;
+#ifdef XP_WIN
+        char appData[MAX_PATH] = {'\0'};
+        char path[MAX_PATH] = {'\0'};
+        LPITEMIDLIST pItemIDList;
+        if (FAILED(SHGetSpecialFolderLocation(NULL, CSIDL_LOCAL_APPDATA, &pItemIDList)) ||
+            FAILED(SHGetPathFromIDListA(pItemIDList, appData))) {
+            return NS_ERROR_FAILURE;
+        }
+#ifdef MOZ_APP_PROFILE
+        sprintf(path, "%s\\%s", appData, MOZ_APP_PROFILE);
+#else
+        sprintf(path, "%s\\%s\\%s\\%s", appData, MOZ_APP_VENDOR, MOZ_APP_BASENAME, MOZ_APP_NAME);
+#endif
+        nsAutoString pathName;
+        pathName.AssignASCII(path);
+        nsCOMPtr<nsILocalFile> localFile;
+        nsresult rv = NS_NewLocalFile(pathName, true, getter_AddRefs(localFile));
+        if (NS_FAILED(rv)) {
+            return rv;
+        }
+        return localFile->Clone(result);
+#else
+        return mAppFile->Clone(result);
+#endif
     }
 
     return NS_ERROR_FAILURE;
