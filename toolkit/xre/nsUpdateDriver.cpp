@@ -838,7 +838,8 @@ nsUpdateProcessor::ProcessUpdate()
 
     rv = ds->Get(XRE_UPDATE_ROOT_DIR, NS_GET_IID(nsIFile),
                  getter_AddRefs(updRoot));
-    NS_ASSERTION(NS_SUCCEEDED(rv), "Can't get the update root dir");
+    if (NS_FAILED(rv))
+      updRoot = appDir;
 
     // XXX ehsan what should the correct value here be?
     appVersion = "";

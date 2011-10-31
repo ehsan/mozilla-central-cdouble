@@ -192,7 +192,7 @@ function setUpdateURLOverride(aURL) {
  *         return the updates.xml file.
  */
 function getUpdatesXMLFile(aIsActiveUpdate) {
-  var file = Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
+  var file = getUpdatesRootDir();
   file.append(aIsActiveUpdate ? FILE_UPDATE_ACTIVE : FILE_UPDATES_DB);
   return file;
 }
@@ -243,12 +243,26 @@ function writeVersionFile(aVersion) {
 }
 
 /**
+ * Gets the updates root directory.
+ *
+ * @return nsIFile for the updates root directory.
+ */
+function getUpdatesRootDir() {
+  try {
+    return Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
+  } catch (e) {
+    // Fall back on the current process directory
+    return getCurrentProcessDir();
+  }
+}
+
+/**
  * Gets the updates directory.
  *
  * @return nsIFile for the updates directory.
  */
 function getUpdatesDir() {
-  var dir = Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
+  var dir = getUpdatesRootDir();
   dir.append("updates");
   return dir;
 }
