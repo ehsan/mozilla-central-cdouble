@@ -185,6 +185,19 @@ function setUpdateURLOverride(aURL) {
 }
 
 /**
+ * Returns either the active or regular update database XML file.
+ *
+ * @param  isActiveUpdate
+ *         If true this will return the active-update.xml otherwise it will
+ *         return the updates.xml file.
+ */
+function getUpdatesXMLFile(aIsActiveUpdate) {
+  var file = Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
+  file.append(aIsActiveUpdate ? FILE_UPDATE_ACTIVE : FILE_UPDATES_DB);
+  return file;
+}
+
+/**
  * Writes the updates specified to either the active-update.xml or the
  * updates.xml.
  *
@@ -195,9 +208,7 @@ function setUpdateURLOverride(aURL) {
  *         write to the updates.xml file.
  */
 function writeUpdatesToXMLFile(aContent, aIsActiveUpdate) {
-  var file = Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
-  file.append(aIsActiveUpdate ? FILE_UPDATE_ACTIVE : FILE_UPDATES_DB);
-  writeFile(file, aContent);
+  writeFile(getUpdatesXMLFile(aIsActiveUpdate), aContent);
 }
 
 /**
@@ -368,9 +379,7 @@ function getFileExtension(aFile) {
  * tests are interrupted.
  */
 function removeUpdateDirsAndFiles() {
-  var appDir = getCurrentProcessDir();
-  var file = appDir.clone();
-  file.append(FILE_UPDATE_ACTIVE);
+  var file = getUpdatesXMLFile(true);
   try {
     if (file.exists())
       file.remove(false);
@@ -380,8 +389,7 @@ function removeUpdateDirsAndFiles() {
          "\nException: " + e + "\n");
   }
 
-  file = appDir.clone();
-  file.append(FILE_UPDATES_DB);
+  file = getUpdatesXMLFile(false);
   try {
     if (file.exists())
       file.remove(false);
