@@ -436,6 +436,7 @@ function runUpdate() {
 
   let args = [updatesDirPath, applyToDirPath, 0, cwdPath, callbackAppPath].
              concat(gCallbackArgs);
+  logTestInfo("Running the updater: " + updateBin.path + " " + args.join(" "));
   let process = AUS_Cc["@mozilla.org/process/util;1"].
                 createInstance(AUS_Ci.nsIProcess);
   process.init(updateBin);
