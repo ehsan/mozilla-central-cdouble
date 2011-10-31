@@ -307,8 +307,6 @@ function cleanUp() {
   // tests to fail.
   gAUS.observe(null, "xpcom-shutdown", "");
 
-  Services.dirsvc.unregisterProvider(gDirProvider);
-
   if (gXHR) {
     gXHRCallback     = null;
 
@@ -1149,22 +1147,3 @@ function createAppInfo(id, name, version, platformVersion) {
   registrar.registerFactory(XULAPPINFO_CID, "XULAppInfo",
                             XULAPPINFO_CONTRACTID, XULAppInfoFactory);
 }
-
-// On Vista XRE_UPDATE_ROOT_DIR can be a directory other than the one in the
-// application directory. This will reroute it back to the one in the
-// application directory.
-var gDirProvider = {
-  getFile: function DP_getFile(prop, persistent) {
-    persistent.value = true;
-    if (prop == XRE_UPDATE_ROOT_DIR)
-      return getCurrentProcessDir();
-    return null;
-  },
-  QueryInterface: function(iid) {
-    if (iid.equals(AUS_Ci.nsIDirectoryServiceProvider) ||
-        iid.equals(AUS_Ci.nsISupports))
-      return this;
-    throw AUS_Cr.NS_ERROR_NO_INTERFACE;
-  }
-};
-Services.dirsvc.QueryInterface(AUS_Ci.nsIDirectoryService).registerProvider(gDirProvider);

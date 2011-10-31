@@ -237,7 +237,7 @@ function writeVersionFile(aVersion) {
  * @return nsIFile for the updates directory.
  */
 function getUpdatesDir() {
-  var dir = getCurrentProcessDir();
+  var dir = Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
   dir.append("updates");
   return dir;
 }
