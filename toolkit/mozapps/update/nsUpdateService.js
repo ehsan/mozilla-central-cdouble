@@ -77,6 +77,7 @@ const PREF_APP_UPDATE_POSTUPDATE          = "app.update.postupdate";
 const PREF_APP_UPDATE_PROMPTWAITTIME      = "app.update.promptWaitTime";
 const PREF_APP_UPDATE_SHOW_INSTALLED_UI   = "app.update.showInstalledUI";
 const PREF_APP_UPDATE_SILENT              = "app.update.silent";
+const PREF_APP_UPDATE_BACKGROUND          = "app.update.background";
 const PREF_APP_UPDATE_URL                 = "app.update.url";
 const PREF_APP_UPDATE_URL_DETAILS         = "app.update.url.details";
 const PREF_APP_UPDATE_URL_OVERRIDE        = "app.update.url.override";
@@ -1801,6 +1802,11 @@ UpdateService.prototype = {
   },
 
   applyUpdateInBackground: function AUS_applyUpdateInBackground(update) {
+    // If background updates are disabled, then just bail out!
+    if (!getPref("getBoolPref", PREF_APP_UPDATE_BACKGROUND, false)) {
+      return;
+    }
+
     // XXX ehsan this extensive level of logging might not be quite necessary
     function updateDetails(update) {
       var res = "\n";
