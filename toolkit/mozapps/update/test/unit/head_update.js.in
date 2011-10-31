@@ -1129,6 +1129,9 @@ function createAppInfo(id, name, version, platformVersion) {
     QueryInterface: function QueryInterface(iid) {
       if (iid.equals(AUS_Ci.nsIXULAppInfo) ||
           iid.equals(AUS_Ci.nsIXULRuntime) ||
+#ifdef XP_WIN
+          iid.equals(AUS_Ci.nsIWinAppHelper) ||
+#endif
           iid.equals(AUS_Ci.nsISupports))
         return this;
       throw AUS_Cr.NS_ERROR_NO_INTERFACE;
