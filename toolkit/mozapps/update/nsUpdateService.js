@@ -261,8 +261,7 @@ XPCOMUtils.defineLazyGetter(this, "gCanApplyUpdates", function aus_gCanApplyUpda
     }
 
     /**
-#      On Windows, we no longer store the update under the app dir if the app
-#      dir is under C:\Program Files.
+#      On Windows, we no longer store the update under the app dir.
 #
 #      If we are on Windows (including Vista, if we can't elevate) we need to
 #      to check that we can create and remove files from the actual app 
