@@ -392,8 +392,7 @@ function removeUpdateDirsAndFiles() {
   }
 
   // This fails sporadically on Mac OS X so wrap it in a try catch
-  var updatesDir = appDir.clone();
-  updatesDir.append("updates");
+  var updatesDir = getUpdatesDir();
   try {
     cleanUpdatesDir(updatesDir);
   }
