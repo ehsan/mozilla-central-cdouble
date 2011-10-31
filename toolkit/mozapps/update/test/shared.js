@@ -195,7 +195,7 @@ function setUpdateURLOverride(aURL) {
  *         write to the updates.xml file.
  */
 function writeUpdatesToXMLFile(aContent, aIsActiveUpdate) {
-  var file = getCurrentProcessDir();
+  var file = Services.dirsvc.get(XRE_UPDATE_ROOT_DIR, AUS_Ci.nsIFile);
   file.append(aIsActiveUpdate ? FILE_UPDATE_ACTIVE : FILE_UPDATES_DB);
   writeFile(file, aContent);
 }
