@@ -2277,7 +2277,7 @@ int NS_main(int argc, NS_tchar **argv)
     // simultaneous updates occurring.
     if (!_waccess(updateLockFilePath, F_OK) &&
         NS_tremove(updateLockFilePath) != 0) {
-      fprintf(stderr, "Update already in progress! Exiting\n");
+      LOG(("Update already in progress! Exiting\n"));
       return 1;
     }
 
@@ -2296,7 +2296,7 @@ int NS_main(int argc, NS_tchar **argv)
     if (updateLockFileHandle == INVALID_HANDLE_VALUE) {
       if (!_waccess(elevatedLockFilePath, F_OK) &&
           NS_tremove(elevatedLockFilePath) != 0) {
-        fprintf(stderr, "Update already elevated! Exiting\n");
+        LOG(("Update already elevated! Exiting\n"));
         return 1;
       }
 
@@ -2310,7 +2310,7 @@ int NS_main(int argc, NS_tchar **argv)
                                        NULL);
 
       if (elevatedFileHandle == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Unable to create elevated lock file! Exiting\n");
+        LOG(("Unable to create elevated lock file! Exiting\n"));
         return 1;
       }
 
