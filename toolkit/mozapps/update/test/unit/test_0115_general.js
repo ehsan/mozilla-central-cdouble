@@ -266,8 +266,8 @@ ADDITIONAL_TEST_DIRS = [
 function run_test() {
   do_register_cleanup(cleanupUpdaterTest);
 
-  setupUpdaterTest(MAR_PARTIAL_FILE);
   gBackgroundUpdate = true;
+  setupUpdaterTest(MAR_PARTIAL_FILE);
 
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   let applyToDir = getApplyDirFile();
