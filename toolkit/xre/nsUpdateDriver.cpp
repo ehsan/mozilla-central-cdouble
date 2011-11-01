@@ -836,6 +836,38 @@ nsUpdateProcessor::ProcessUpdate()
     NS_ASSERTION(NS_SUCCEEDED(rv), "Can't get the GRE dir");
     appDir = greDir;
 
+#ifdef XP_MACOSX
+    // It's possible to launch xpcshell from dist/bin as opposed to from the
+    // app bundle directory on Mac.  This is how our xpcshell tests run.  In
+    // order to launch the updater with the correct arguments, we need to set
+    // the appDir to the application bundle directory though.
+#ifdef DEBUG
+#define BUNDLE_NAME MOZ_APP_DISPLAYNAME "Debug.app"
+#else
+#define BUNDLE_NAME MOZ_APP_DISPLAYNAME ".app"
+#endif
+    nsCOMPtr<nsIFile> parent1, parent2;
+    rv = appDir->GetParent(getter_AddRefs(parent1));
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = parent1->GetParent(getter_AddRefs(parent2));
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsAutoString bundleLeafName;
+    rv = parent2->GetLeafName(bundleLeafName);
+    if (!bundleLeafName.Equals(NS_LITERAL_STRING(BUNDLE_NAME))) {
+      rv = parent1->Append(NS_LITERAL_STRING(BUNDLE_NAME));
+      NS_ENSURE_SUCCESS(rv, rv);
+      rv = parent1->Append(NS_LITERAL_STRING("Contents"));
+      NS_ENSURE_SUCCESS(rv, rv);
+      rv = parent1->Append(NS_LITERAL_STRING("MacOS"));
+      NS_ENSURE_SUCCESS(rv, rv);
+      bool exists = false;
+      parent1->Exists(&exists);
+      NS_ENSURE_TRUE(exists, NS_ERROR_FAILURE);
+      appDir = parent1;
+    }
+#undef BUNDLE_NAME
+#endif
+
     rv = ds->Get(XRE_UPDATE_ROOT_DIR, NS_GET_IID(nsIFile),
                  getter_AddRefs(updRoot));
     if (NS_FAILED(rv))

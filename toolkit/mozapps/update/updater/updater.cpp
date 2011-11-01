@@ -2043,11 +2043,38 @@ ProcessReplaceRequest()
   }
 
 #ifdef XP_MACOSX
-  // On OS X, we first need to get rid of the Updated.app directory as it's no
-  // longer going to be useful.
+  // On OS X, we need to copy anything else left over inside the Updated.app
+  // directory, and then we need to get rid of it as it's no longer going to
+  // be useful.
   NS_tchar updatedAppDir[MAXPATHLEN];
   NS_tsnprintf(updatedAppDir, sizeof(updatedAppDir)/sizeof(updatedAppDir[0]),
                NS_T("%s/Updated.app"), installDir);
+  NS_tDIR *dir = NS_topendir(updatedAppDir);
+  if (dir) {
+    NS_tdirent *entry;
+    while ((entry = NS_treaddir(dir)) != 0) {
+      if (NS_tstrcmp(entry->d_name, NS_T(".")) &&
+          NS_tstrcmp(entry->d_name, NS_T(".."))) {
+        NS_tchar childSrcPath[MAXPATHLEN];
+        NS_tsnprintf(childSrcPath, sizeof(childSrcPath)/sizeof(childSrcPath[0]),
+                     NS_T("%s/%s"), updatedAppDir, entry->d_name);
+        NS_tchar childDstPath[MAXPATHLEN];
+        NS_tsnprintf(childDstPath, sizeof(childDstPath)/sizeof(childDstPath[0]),
+                     NS_T("%s/%s"), installDir, entry->d_name);
+        ensure_remove_recursive(childDstPath);
+        rv = rename_file(childSrcPath, childDstPath, true);
+        if (rv) {
+          LOG(("Moving " LOG_S " to " LOG_S " failed, err: %d\n",
+               childSrcPath, childDstPath, errno));
+        }
+      }
+    }
+
+    NS_tclosedir(dir);
+  } else {
+    LOG(("Updated.app dir can't be found: " LOG_S ", err: %d\n",
+         updatedAppDir, errno));
+  }
   ensure_remove_recursive(updatedAppDir);
 
   LOG(("Moving the precomplete file\n"));
