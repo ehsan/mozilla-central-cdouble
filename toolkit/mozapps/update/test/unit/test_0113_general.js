@@ -312,7 +312,10 @@ function run_test() {
     checkUpdateLogContents(LOG_COMPLETE_SUCCESS);
   }
 
+  // This shouldn't exist anyways in background updates, but let's make sure
   logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
+  do_check_false(toBeDeletedDir.exists());
+  toBeDeletedDir = getTargetDirFile("tobedeleted", true);
   do_check_false(toBeDeletedDir.exists());
 }
