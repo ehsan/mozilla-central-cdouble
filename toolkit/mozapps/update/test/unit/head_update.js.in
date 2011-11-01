@@ -757,6 +757,8 @@ function checkUpdateLogContents(aCompareLogFile) {
 
   let compareLog = do_get_file(aCompareLogFile);
   let compareLogContents = readFileBytes(compareLog);
+  // Remove leading and trailing newlines
+  compareLogContents = compareLogContents.replace(/^\n|\n$/g, "");
 
   do_check_eq(compareLogContents, updateLogContents);
 }
