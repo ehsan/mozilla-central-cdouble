@@ -745,8 +745,6 @@ function checkUpdateLogContents(aCompareLogFile) {
     updateLogContents = updateLogContents.replace(/Moving the precomplete file.*Finished moving the precomplete file/, "");
     updateLogContents = updateLogContents.replace(/%%%EOL%%%/g, "\n");
 #endif
-    // Remove consecutive newlines
-    updateLogContents = updateLogContents.replace(/\n\n/g, "\n");
   }
   updateLogContents = updateLogContents.replace(/\r/g, "");
   // Replace error codes since they are different on each platform.
@@ -756,6 +754,8 @@ function checkUpdateLogContents(aCompareLogFile) {
   // The FindFile results when enumerating the filesystem on Windows is not
   // determistic so the results matching the following need to be ignored.
   updateLogContents = updateLogContents.replace(/.* a\/b\/7\/7text.*\n/g, "");
+  // Remove consecutive newlines
+  updateLogContents = updateLogContents.replace(/\n+/g, "\n");
   // Remove leading and trailing newlines
   updateLogContents = updateLogContents.replace(/^\n|\n$/g, "");
 
