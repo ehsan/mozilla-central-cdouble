@@ -99,6 +99,7 @@ const CHANNEL_CHANGE_FILE = "channelchange";
 const LOG_COMPLETE_SUCCESS = "data/complete_log_success";
 const LOG_COMPLETE_SWITCH_SUCCESS = "data/complete_log_switch_success"
 const LOG_COMPLETE_CC_SUCCESS = "data/complete_cc_log_success";
+const LOG_COMPLETE_CC_SWITCH_SUCCESS = "data/complete_cc_log_switch_success";
 
 const LOG_PARTIAL_SUCCESS = "data/partial_log_success";
 const LOG_PARTIAL_SWITCH_SUCCESS = "data/partial_log_switch_success";
