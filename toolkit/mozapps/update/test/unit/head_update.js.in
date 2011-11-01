@@ -453,6 +453,10 @@ function runUpdate() {
   if (gBackgroundUpdate || gSwitchApp) {
     applyToDirPath += "/" + UPDATED_DIR_SUFFIX;
   }
+  if (IS_WIN) {
+    // Convert to native path
+    applyToDirPath = applyToDirPath.replace(/\//g, "\\");
+  }
   if (/ /.test(applyToDirPath))
     applyToDirPath = '"' + applyToDirPath + '"';
 
