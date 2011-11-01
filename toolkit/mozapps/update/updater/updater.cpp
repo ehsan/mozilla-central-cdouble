@@ -172,6 +172,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_tstrcat strcat
 # define NS_tstrcmp strcmp
 # define NS_tstrcpy strcpy
+# define NS_tstrncpy strncpy
 # define NS_tstrlen strlen
 # define NS_tstrrchr strrchr
 # define NS_tstrstr strstr
@@ -416,7 +417,7 @@ private:
 //-----------------------------------------------------------------------------
 
 static NS_tchar* gSourcePath;
-static NS_tchar* gDestinationPath;
+static NS_tchar gDestinationPath[MAXPATHLEN];
 static ArchiveReader gArchiveReader;
 static bool gSucceeded = false;
 static bool sBackgroundUpdate = false;
@@ -2187,7 +2188,15 @@ int NS_main(int argc, NS_tchar **argv)
   // The directory containing the update information.
   gSourcePath = argv[1];
   // The directory we're going to update to.
-  gDestinationPath = argv[2];
+  // We copy this string because we need to remove trailing slashes.  The C++
+  // standard says that it's always safe to write to strings pointed to by argv
+  // elements, but I don't necessarily believe it.
+  NS_tstrncpy(gDestinationPath, argv[2], MAXPATHLEN);
+  gDestinationPath[MAXPATHLEN] = NS_T('\0');
+  NS_tchar *slash = NS_tstrrchr(gDestinationPath, NS_SLASH);
+  if (slash && !slash[1]) {
+    *slash = NS_T('\0');
+  }
 
   LogInit();
 
