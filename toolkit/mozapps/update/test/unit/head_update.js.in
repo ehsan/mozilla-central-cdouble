@@ -84,6 +84,11 @@ const URL_HOST = "http://localhost:4444/";
 const URL_PATH = "data";
 
 const APPLY_TO_DIR_SUFFIX = "_applyToDir/";
+#ifdef XP_MACOSX
+const UPDATED_DIR_SUFFIX = "Updated.app/";
+#else
+const UPDATED_DIR_SUFFIX = "updated/";
+#endif
 const HELPER_BIN_FILE = "TestAUSHelper" + BIN_SUFFIX;
 const MAR_COMPLETE_FILE = "data/complete.mar";
 const MAR_PARTIAL_FILE = "data/partial.mar";
@@ -107,6 +112,7 @@ const ERR_BACKUP_DISCARD = "backup_discard: unable to remove";
 // variables are used instead of contants so tests can override these values
 var gCallbackBinFile = "callback_app" + BIN_SUFFIX;
 var gCallbackArgs = ["./", "callback.log", "Test Arg 2", "Test Arg 3"];
+var gBackgroundUpdate = false;
 
 // Time to wait for the test helper process before continuing the test
 const TEST_HELPER_TIMEOUT = 100;
@@ -384,6 +390,27 @@ function getApplyDirFile(aRelPath, allowNonexistent) {
 }
 
 /**
+ * Helper function for getting the nsIFile for the directory where the update
+ * has been applied.
+ *
+ * This will be the same as getApplyDirFile for foreground updates, but will
+ * point to a different file for the case of background updates.
+ *
+ * Functions which attempt to access the files in the updated directory should
+ * be using this instead of getApplyDirFile.
+ *
+ * @return  The nsIFile for the directory where the update has been applied.
+ */
+function getTargetDirFile(aRelPath, allowNonexistent) {
+  let suffix = "";
+  if (gBackgroundUpdate) {
+    suffix = UPDATED_DIR_SUFFIX;
+  }
+  let relpath = getApplyDirPath() + suffix + (aRelPath ? aRelPath : "");
+  return do_get_file(relpath, allowNonexistent);
+}
+
+/**
  * Helper function for updater tests for launching the updater binary to apply
  * a mar file.
  *
@@ -420,6 +447,9 @@ function runUpdate() {
 
   let applyToDir = getApplyDirFile();
   let applyToDirPath = applyToDir.path;
+  if (gBackgroundUpdate) {
+    applyToDirPath += "/" + UPDATED_DIR_SUFFIX;
+  }
   if (/ /.test(applyToDirPath))
     applyToDirPath = '"' + applyToDirPath + '"';
 
@@ -434,8 +464,13 @@ function runUpdate() {
   if (/ /.test(callbackAppPath))
     callbackAppPath = '"' + callbackAppPath + '"';
 
-  let args = [updatesDirPath, applyToDirPath, 0, cwdPath, callbackAppPath].
-             concat(gCallbackArgs);
+  let args = [updatesDirPath, applyToDirPath, 0];
+  if (gBackgroundUpdate) {
+    args[2] = -1;
+  } else {
+    args = args.concat([cwdPath, callbackAppPath]);
+    args = args.concat(gCallbackArgs);
+  }
   logTestInfo("Running the updater: " + updateBin.path + " " + args.join(" "));
   let process = AUS_Cc["@mozilla.org/process/util;1"].
                 createInstance(AUS_Ci.nsIProcess);
@@ -592,13 +627,15 @@ function setupUpdaterTest(aMarFile) {
   let afterApplyBinDir = getApplyDirFile("a/b/", true);
   helperBin.copyTo(afterApplyBinDir, gCallbackBinFile);
 
-  let updaterIniContents = "[Strings]\n" +
-                           "Title=Update XPCShell Test\n" +
-                           "Info=Application Update Test - " + TEST_ID + "\n";
-  let updaterIni = updatesDir.clone();
-  updaterIni.append(FILE_UPDATER_INI);
-  writeFile(updaterIni, updaterIniContents);
-  updaterIni.copyTo(afterApplyBinDir, FILE_UPDATER_INI);
+  if (!gBackgroundUpdate) {
+    let updaterIniContents = "[Strings]\n" +
+                             "Title=Update XPCShell Test\n" +
+                             "Info=Application Update Test - " + TEST_ID + "\n";
+    let updaterIni = updatesDir.clone();
+    updaterIni.append(FILE_UPDATER_INI);
+    writeFile(updaterIni, updaterIniContents);
+    updaterIni.copyTo(afterApplyBinDir, FILE_UPDATER_INI);
+  }
 
   // Copy the mar that will be applied
   let mar = do_get_file(aMarFile);
@@ -678,8 +715,13 @@ function cleanupUpdaterTest() {
 function checkUpdateLogContents(aCompareLogFile) {
   let updateLog = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX, true);
   updateLog.append(FILE_UPDATE_LOG);
+  let updateLogContents = readFileBytes(updateLog).split("\n");
+  if (gBackgroundUpdate) {
+    // Skip the first line since it just designates a background update
+    updateLogContents = updateLogContents.slice(1);
+  }
   // Skip the first two lines since they contain absolute paths.
-  let updateLogContents = readFileBytes(updateLog).split("\n").slice(2).join("\n");
+  updateLogContents = updateLogContents.slice(2).join("\n");
   updateLogContents = updateLogContents.replace(/\r/g, "");
   // Replace error codes since they are different on each platform.
   updateLogContents = updateLogContents.replace(/, err:.*\n/g, "\n");
@@ -709,7 +751,7 @@ function checkUpdateLogContains(aCheckString) {
 function checkFilesAfterUpdateSuccess() {
   logTestInfo("testing contents of files after a successful update");
   TEST_FILES.forEach(function CFAUS_TF_FE(aTestFile) {
-    let testFile = getApplyDirFile(aTestFile.relPathDir + aTestFile.fileName, true);
+    let testFile = getTargetDirFile(aTestFile.relPathDir + aTestFile.fileName, true);
     logTestInfo("testing file: " + testFile.path);
     if (aTestFile.compareFile || aTestFile.compareContents) {
       do_check_true(testFile.exists());
@@ -745,7 +787,7 @@ function checkFilesAfterUpdateSuccess() {
               "after a successful update");
   var testDirs = TEST_DIRS.concat(ADDITIONAL_TEST_DIRS);
   testDirs.forEach(function CFAUS_TD_FE(aTestDir) {
-    let testDir = getApplyDirFile(aTestDir.relPathDir, true);
+    let testDir = getTargetDirFile(aTestDir.relPathDir, true);
     logTestInfo("testing directory: " + testDir.path);
     if (aTestDir.dirRemoved) {
       do_check_false(testDir.exists());
@@ -755,7 +797,7 @@ function checkFilesAfterUpdateSuccess() {
 
       if (aTestDir.files) {
         aTestDir.files.forEach(function CFAUS_TD_F_FE(aTestFile) {
-          let testFile = getApplyDirFile(aTestDir.relPathDir + aTestFile, true);
+          let testFile = getTargetDirFile(aTestDir.relPathDir + aTestFile, true);
           logTestInfo("testing directory file: " + testFile.path);
           if (aTestDir.filesRemoved) {
             do_check_false(testFile.exists());
@@ -768,12 +810,12 @@ function checkFilesAfterUpdateSuccess() {
 
       if (aTestDir.subDirs) {
         aTestDir.subDirs.forEach(function CFAUS_TD_SD_FE(aSubDir) {
-          let testSubDir = getApplyDirFile(aTestDir.relPathDir + aSubDir, true);
+          let testSubDir = getTargetDirFile(aTestDir.relPathDir + aSubDir, true);
           logTestInfo("testing sub-directory: " + testSubDir.path);
           do_check_true(testSubDir.exists());
           if (aTestDir.subDirFiles) {
             aTestDir.subDirFiles.forEach(function CFAUS_TD_SDF_FE(aTestFile) {
-              let testFile = getApplyDirFile(aTestDir.relPathDir + aSubDir + aTestFile, true);
+              let testFile = getTargetDirFile(aTestDir.relPathDir + aSubDir + aTestFile, true);
               logTestInfo("testing sub-directory file: " + testFile.path);
               do_check_true(testFile.exists());
             });
@@ -873,7 +915,7 @@ function checkFilesAfterUpdateCommon() {
   }
 
   logTestInfo("testing backup files should not be left behind");
-  let applyToDir = getApplyDirFile(null, true);
+  let applyToDir = getTargetDirFile(null, true);
   checkFilesInDirRecursive(applyToDir, checkForBackupFiles);
 }
 

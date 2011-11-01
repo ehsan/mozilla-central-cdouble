@@ -673,8 +673,7 @@ static int ensure_remove_recursive(const NS_tchar *path)
   struct stat sInfo;
   int rv = NS_tlstat(path, &sInfo);
   if (rv) {
-    LOG(("ensure_remove_recursive: path doesn't exist: " LOG_S ", rv: %d, err: %d\n",
-          path, rv, errno));
+    // This error is benign
     return rv;
   }
   if (!S_ISDIR(sInfo.st_mode)) {
