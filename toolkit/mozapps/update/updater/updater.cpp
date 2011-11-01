@@ -1971,18 +1971,17 @@ ProcessReplaceRequest()
   NS_tchar sourceDir[MAXPATHLEN];
   NS_tsnprintf(sourceDir, sizeof(sourceDir)/sizeof(sourceDir[0]),
                NS_T("%s/Contents"), installDir);
+  if (NS_taccess(sourceDir, F_OK)) {
+    // For xpcshell tests, make sourceDir fall back to installDir
+    NS_tstrcpy(sourceDir, installDir);
+  }
 #else
   NS_tchar* sourceDir = installDir;
 #endif
 
   NS_tchar tmpDir[MAXPATHLEN];
   NS_tsnprintf(tmpDir, sizeof(tmpDir)/sizeof(tmpDir[0]),
-#ifdef XP_MACOSX
-               NS_T("%s/Contents.bak"),
-#else
-               NS_T("%s.bak"),
-#endif
-               installDir);
+               NS_T("%s.bak"), sourceDir);
 
   NS_tchar newDir[MAXPATHLEN];
   NS_tsnprintf(newDir, sizeof(newDir)/sizeof(newDir[0]),
@@ -1992,6 +1991,13 @@ ProcessReplaceRequest()
                NS_T("%s.bak/updated"),
 #endif
                installDir);
+#ifdef XP_MACOSX
+  if (NS_taccess(newDir, F_OK)) {
+    // For xpcshell tests, make newDir fall back to $sourceDir/updated
+    NS_tsnprintf(newDir, sizeof(newDir)/sizeof(newDir[0]),
+                 NS_T("%s.bak/Updated.app"), installDir);
+  }
+#endif
 
   // First try to remove the possibly existing temp directory, because if this
   // directory exists, we will fail to rename sourceDir.
@@ -2043,6 +2049,8 @@ ProcessReplaceRequest()
                NS_T("%s/Updated.app"), installDir);
   ensure_remove_recursive(updatedAppDir);
 
+  LOG(("Moving the precomplete file\n"));
+
   // We also need to move the precomplete file too.
   NS_tchar precompleteSource[MAXPATHLEN];
   NS_tsnprintf(precompleteSource, sizeof(precompleteSource)/sizeof(precompleteSource[0]),
@@ -2074,6 +2082,8 @@ ProcessReplaceRequest()
     rv = rename_file(precompleteTmp, precompleteSource);
     LOG(("Moved precompleteTmp to precompleteSrc, err: %d\n", rv));
   }
+
+  LOG(("Finished moving the precomplete file\n"));
 #endif
 
   gSucceeded = true;

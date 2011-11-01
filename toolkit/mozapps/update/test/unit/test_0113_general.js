@@ -269,6 +269,7 @@ ADDITIONAL_TEST_DIRS = [
 }];
 
 function run_test() {
+  do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
   setupUpdaterTest(MAR_COMPLETE_FILE);
@@ -318,4 +319,43 @@ function run_test() {
   do_check_false(toBeDeletedDir.exists());
   toBeDeletedDir = getTargetDirFile("tobedeleted", true);
   do_check_false(toBeDeletedDir.exists());
+
+  // Now switch the application and its updated version
+  gBackgroundUpdate = false;
+  gSwitchApp = true;
+  exitValue = runUpdate();
+  logTestInfo("testing updater binary process exitValue for success when " +
+              "switching to the updated application");
+  do_check_eq(exitValue, 0);
+
+  logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
+  do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
+
+  // For Mac OS X check that the last modified time for a directory has been
+  // updated after a successful update (bug 600098).
+  if (IS_MACOSX) {
+    logTestInfo("testing last modified time on the apply to directory has " +
+                "changed after a successful update (bug 600098)");
+    let now = Date.now();
+    let timeDiff = Math.abs(applyToDir.lastModifiedTime - now);
+    do_check_true(timeDiff < MAX_TIME_DIFFERENCE);
+  }
+
+  checkFilesAfterUpdateSuccess();
+  // Sorting on Linux is different so skip this check for now.
+  if (!IS_UNIX) {
+    checkUpdateLogContents(LOG_COMPLETE_SWITCH_SUCCESS);
+  }
+
+  // This shouldn't exist anyways in background updates, but let's make sure
+  logTestInfo("testing tobedeleted directory doesn't exist");
+  toBeDeletedDir = getApplyDirFile("tobedeleted", true);
+  do_check_false(toBeDeletedDir.exists());
+
+  // Make sure that the intermediate directory has been removed
+  let updatedDir = applyToDir.clone();
+  updatedDir.append(UPDATED_DIR_SUFFIX.replace("/", ""));
+  do_check_false(updatedDir.exists());
+
+  checkCallbackAppLog();
 }

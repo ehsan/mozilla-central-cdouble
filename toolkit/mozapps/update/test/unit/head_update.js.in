@@ -97,9 +97,11 @@ const UPDATES_DIR_SUFFIX = "_mar";
 const CHANNEL_CHANGE_FILE = "channelchange";
 
 const LOG_COMPLETE_SUCCESS = "data/complete_log_success";
+const LOG_COMPLETE_SWITCH_SUCCESS = "data/complete_log_switch_success"
 const LOG_COMPLETE_CC_SUCCESS = "data/complete_cc_log_success";
 
 const LOG_PARTIAL_SUCCESS = "data/partial_log_success";
+const LOG_PARTIAL_SWITCH_SUCCESS = "data/partial_log_switch_success";
 const LOG_PARTIAL_FAILURE = "data/partial_log_failure";
 
 const ERR_CALLBACK_FILE_IN_USE = "NS_main: file in use - failed to " +
@@ -113,6 +115,7 @@ const ERR_BACKUP_DISCARD = "backup_discard: unable to remove";
 var gCallbackBinFile = "callback_app" + BIN_SUFFIX;
 var gCallbackArgs = ["./", "callback.log", "Test Arg 2", "Test Arg 3"];
 var gBackgroundUpdate = false;
+var gSwitchApp = false;
 
 // Time to wait for the test helper process before continuing the test
 const TEST_HELPER_TIMEOUT = 100;
@@ -447,7 +450,7 @@ function runUpdate() {
 
   let applyToDir = getApplyDirFile();
   let applyToDirPath = applyToDir.path;
-  if (gBackgroundUpdate) {
+  if (gBackgroundUpdate || gSwitchApp) {
     applyToDirPath += "/" + UPDATED_DIR_SUFFIX;
   }
   if (/ /.test(applyToDirPath))
@@ -468,6 +471,9 @@ function runUpdate() {
   if (gBackgroundUpdate) {
     args[2] = -1;
   } else {
+    if (gSwitchApp) {
+      args[2] = "0/replace";
+    }
     args = args.concat([cwdPath, callbackAppPath]);
     args = args.concat(gCallbackArgs);
   }
@@ -627,7 +633,7 @@ function setupUpdaterTest(aMarFile) {
   let afterApplyBinDir = getApplyDirFile("a/b/", true);
   helperBin.copyTo(afterApplyBinDir, gCallbackBinFile);
 
-  if (!gBackgroundUpdate) {
+  if (!gBackgroundUpdate && !gSwitchApp) {
     let updaterIniContents = "[Strings]\n" +
                              "Title=Update XPCShell Test\n" +
                              "Info=Application Update Test - " + TEST_ID + "\n";
@@ -719,9 +725,25 @@ function checkUpdateLogContents(aCompareLogFile) {
   if (gBackgroundUpdate) {
     // Skip the first line since it just designates a background update
     updateLogContents = updateLogContents.slice(1);
+  } else if (gSwitchApp) {
+    // Skip the first line since it just designates a switch app request
+    updateLogContents = updateLogContents.slice(1);
   }
   // Skip the first two lines since they contain absolute paths.
   updateLogContents = updateLogContents.slice(2).join("\n");
+  if (gSwitchApp) {
+    // Remove the lines which contain absolute paths
+    updateLogContents = updateLogContents.replace(/^Begin moving.*$/mg, "");
+#ifdef XP_MACOSX
+    // Remove the entire section about moving the precomplete file as it contains
+    // absolute paths.
+    updateLogContents = updateLogContents.replace(/\n/g, "%%%EOL%%%");
+    updateLogContents = updateLogContents.replace(/Moving the precomplete file.*Finished moving the precomplete file/, "");
+    updateLogContents = updateLogContents.replace(/%%%EOL%%%/g, "\n");
+#endif
+    // Remove consecutive newlines
+    updateLogContents = updateLogContents.replace(/\n\n/g, "\n");
+  }
   updateLogContents = updateLogContents.replace(/\r/g, "");
   // Replace error codes since they are different on each platform.
   updateLogContents = updateLogContents.replace(/, err:.*\n/g, "\n");
@@ -730,6 +752,8 @@ function checkUpdateLogContents(aCompareLogFile) {
   // The FindFile results when enumerating the filesystem on Windows is not
   // determistic so the results matching the following need to be ignored.
   updateLogContents = updateLogContents.replace(/.* a\/b\/7\/7text.*\n/g, "");
+  // Remove leading and trailing newlines
+  updateLogContents = updateLogContents.replace(/^\n|\n$/g, "");
 
   let compareLog = do_get_file(aCompareLogFile);
   let compareLogContents = readFileBytes(compareLog);
