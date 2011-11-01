@@ -2323,7 +2323,7 @@ int NS_main(int argc, NS_tchar **argv)
 
     NS_tsnprintf(elevatedLockFilePath,
                  sizeof(elevatedLockFilePath)/sizeof(elevatedLockFilePath[0]),
-                 NS_T("%s/update_elevated.lock"), argv[1]);
+                 NS_T("%s/update_elevated.lock"), gSourcePath);
 
     if (updateLockFileHandle == INVALID_HANDLE_VALUE) {
       if (!_waccess(elevatedLockFilePath, F_OK) &&
@@ -2384,8 +2384,8 @@ int NS_main(int argc, NS_tchar **argv)
   }
 #endif
 
-  LOG(("SOURCE DIRECTORY " LOG_S "\n", argv[1]));
-  LOG(("DESTINATION DIRECTORY " LOG_S "\n", argv[2]));
+  LOG(("SOURCE DIRECTORY " LOG_S "\n", gSourcePath));
+  LOG(("DESTINATION DIRECTORY " LOG_S "\n", gDestinationPath));
 
 #ifdef XP_WIN
   // For replace requests, we don't need to do any real updates, so this is not
@@ -2393,15 +2393,15 @@ int NS_main(int argc, NS_tchar **argv)
   if (!sReplaceRequest) {
     // Allocate enough space for the length of the path an optional additional
     // trailing slash and null termination.
-    NS_tchar *destpath = (NS_tchar *) malloc((NS_tstrlen(argv[2]) + 2) * sizeof(NS_tchar));
+    NS_tchar *destpath = (NS_tchar *) malloc((NS_tstrlen(gDestinationPath) + 2) * sizeof(NS_tchar));
     if (!destpath)
       return 1;
 
     NS_tchar *c = destpath;
-    NS_tstrcpy(c, argv[2]);
-    c += NS_tstrlen(argv[2]);
-    if (argv[2][NS_tstrlen(argv[2]) - 1] != NS_T('/') &&
-        argv[2][NS_tstrlen(argv[2]) - 1] != NS_T('\\')) {
+    NS_tstrcpy(c, gDestinationPath);
+    c += NS_tstrlen(gDestinationPath);
+    if (gDestinationPath[NS_tstrlen(gDestinationPath) - 1] != NS_T('/') &&
+        gDestinationPath[NS_tstrlen(gDestinationPath) - 1] != NS_T('\\')) {
       NS_tstrcat(c, NS_T("/"));
       c += NS_tstrlen(NS_T("/"));
     }
@@ -2412,9 +2412,9 @@ int NS_main(int argc, NS_tchar **argv)
   }
 
   NS_tchar applyDirLongPath[MAXPATHLEN];
-  if (!GetLongPathNameW(argv[2], applyDirLongPath,
+  if (!GetLongPathNameW(gDestinationPath, applyDirLongPath,
                         sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
-    LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", argv[2]));
+    LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", gDestinationPath));
     LogFinish();
     WriteStatusFile(WRITE_ERROR);
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
