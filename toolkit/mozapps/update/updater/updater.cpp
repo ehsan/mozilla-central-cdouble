@@ -765,6 +765,16 @@ static int ensure_parent_dir(const NS_tchar *path)
 
 static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
 {
+#ifdef XP_WIN
+  // Fast path for Windows
+  bool result = CopyFileW(path, dest, false);
+  if (!result) {
+    LOG(("ensure_copy: failed to copy the file " LOG_S " over to " LOG_S ", lasterr: %x\n",
+         path, dest, GetLastError()));
+    return WRITE_ERROR;
+  }
+  return 0;
+#else
   struct stat ss;
   int rv = NS_tstat(path, &ss);
   if (rv) {
@@ -820,6 +830,7 @@ static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
 
   free(buffer);
   return rv;
+#endif
 }
 
 template <unsigned N>
