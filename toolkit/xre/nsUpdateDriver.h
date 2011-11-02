@@ -55,6 +55,7 @@ class nsIFile;
 #elif defined(XP_MACOSX)
   typedef pid_t      ProcessType;
 #else
+#include "prproces.h"
   typedef PRProcess* ProcessType;
 #endif
 
