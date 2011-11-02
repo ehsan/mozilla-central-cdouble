@@ -232,7 +232,7 @@ FreeAllocStrings(int argc, PRUnichar **argv)
 
 BOOL
 WinLaunchChild(const PRUnichar *exePath, int argc,
-               PRUnichar **argv, HANDLE* hProcess);
+               PRUnichar **argv, HANDLE* hProcess = NULL);
 
 BOOL
 WinLaunchChild(const PRUnichar *exePath, int argc,
