@@ -1839,7 +1839,7 @@ UpdateService.prototype = {
     try {
       Cc["@mozilla.org/updates/update-processor;1"].
         createInstance(Ci.nsIUpdateProcessor).
-        processUpdate();
+        processUpdate(update);
     } catch (e) {
       // Fail gracefully in case the application does not support the update
       // processor service.
@@ -2126,6 +2126,15 @@ UpdateManager.prototype = {
 
       this._writeUpdatesToXMLFile(updates.slice(0, 10),
                                   getUpdateFile([FILE_UPDATES_DB]));
+    }
+  },
+
+  refreshUpdateStatus: function UM_refreshUpdateStatus(update) {
+    var status = readStatusFile(getUpdatesDir());
+    var ary = status.split(":");
+    update.state = ary[0];
+    if (update.state == STATE_FAILED && ary[1]) {
+      update.errorCode = parseInt(ary[1]);
     }
   },
 

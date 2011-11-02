@@ -248,6 +248,7 @@ interface nsIUpdate : nsISupports
    *   "downloading"       The update is being downloaded.
    *   "pending"           The update is ready to be applied.
    *   "applying"          The update is being applied.
+   *   "applied"           The update has been applied in the background.
    *   "succeeded"         The update was successfully applied.
    *   "download-failed"   The update failed to be downloaded.
    *   "failed"            The update failed to be applied.
@@ -464,14 +465,14 @@ interface nsIUpdateProcessor : nsISupports
    * Processes the update which has been downloaded.
    * This happens without restarting the application.
    */
-  void processUpdate();
+  void processUpdate(in nsIUpdate update);
 };
 
 /**
  * An interface describing a global application service that maintains a list
  * of updates previously performed as well as the current active update.
  */
-[scriptable, uuid(fede66a9-9f96-4507-a22a-775ee885577e)]
+[scriptable, uuid(c5df56de-919d-406b-aaf9-106dfa9b685b)]
 interface nsIUpdateManager : nsISupports
 {
   /**
@@ -496,6 +497,11 @@ interface nsIUpdateManager : nsISupports
    * Saves all updates to disk.
    */
   void saveUpdates();
+
+  /**
+   * Refresh the update status based on the information in update.status.
+   */
+  void refreshUpdateStatus(in nsIUpdate update);
 };
 
 /**

@@ -161,9 +161,11 @@ function run_test() {
   let mar = do_get_file("data/simple.mar");
   mar.copyTo(updatesPatchDir, FILE_UPDATE_ARCHIVE);
 
+  standardInit();
+
   AUS_Cc["@mozilla.org/updates/update-processor;1"].
     createInstance(AUS_Ci.nsIUpdateProcessor).
-    processUpdate();
+    processUpdate(gUpdateManger.activeUpdate);
 
   checkUpdateApplied();
 }
@@ -578,8 +580,6 @@ function checkUpdateApplied() {
   let contents = readFile(log);
   logTestInfo("contents of " + log.path + ":\n" +  
               contents.replace(/\r\n/g, "\n"));
-
-  standardInit();
 
   // We can't do this check on Mac since the update root directory we use is
   // inside the app bundle directory.

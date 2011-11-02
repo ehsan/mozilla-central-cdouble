@@ -54,6 +54,7 @@
 #include "nsXREDirProvider.h"
 #include "SpecialSystemDirectory.h"
 #include "nsDirectoryServiceDefs.h"
+#include "nsThreadUtils.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -546,7 +547,8 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
 
 static void
 ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
-            nsIFile *appDir, int appArgc, char **appArgv, bool restart)
+            nsIFile *appDir, int appArgc, char **appArgv, bool restart,
+            ProcessType *outpid)
 {
   nsresult rv;
 
@@ -720,10 +722,10 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   if (restart) {
     execv(updaterPath.get(), argv);
   } else {
-    PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
+    *outpid = PR_CreateProcess(updaterPath.get(), argv, NULL, NULL);
   }
 #elif defined(XP_WIN)
-  if (!WinLaunchChild(updaterPathW.get(), argc, argv))
+  if (!WinLaunchChild(updaterPathW.get(), argc, argv, outpid))
     return;
   if (restart) {
     _exit(0);
@@ -733,21 +735,36 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   // LaunchChildMac uses posix_spawnp and prefers the current
   // architecture when launching. It doesn't require a
   // null-terminated string but it doesn't matter if we pass one.
-  LaunchChildMac(argc, argv);
+  LaunchChildMac(argc, argv, 0, outpid);
   if (restart) {
     exit(0);
   }
 #else
-  PR_CreateProcessDetached(updaterPath.get(), argv, NULL, NULL);
+  *outpid = PR_CreateProcess(updaterPath.get(), argv, NULL, NULL);
   if (restart) {
     exit(0);
   }
 #endif
 }
 
+static void
+WaitForProcess(ProcessType pt)
+{
+#if defined(XP_WIN)
+  WaitForSingleObject(pt, INFINITE);
+  CloseHandle(pt);
+#elif defined(XP_MACOSX)
+  waitpid(pt, 0, 0);
+#else
+  PRInt32 exitCode;
+  PR_WaitProcess(pt, &exitCode);
+#endif
+}
+
 nsresult
 ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
-               int argc, char **argv, const char *appVersion, bool restart)
+               int argc, char **argv, const char *appVersion,
+               bool restart, ProcessType *pid)
 {
   nsresult rv;
 
@@ -777,7 +794,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
          IsOlderVersion(versionFile, appVersion))) {
       updatesDir->Remove(true);
     } else {
-      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv, restart);
+      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv, restart, pid);
     }
     break;
   }
@@ -795,10 +812,15 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
   return NS_OK;
 }
 
-NS_IMPL_ISUPPORTS1(nsUpdateProcessor, nsIUpdateProcessor)
+NS_IMPL_THREADSAFE_ISUPPORTS1(nsUpdateProcessor, nsIUpdateProcessor)
+
+nsUpdateProcessor::nsUpdateProcessor()
+  : mUpdaterPID(0)
+{
+}
 
 NS_IMETHODIMP
-nsUpdateProcessor::ProcessUpdate()
+nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
 {
   nsCOMPtr<nsIFile> greDir, appDir, updRoot;
   const char* appVersion;
@@ -888,12 +910,48 @@ nsUpdateProcessor::ProcessUpdate()
     argv = &binPathCString;
   }
 
-  return ProcessUpdates(greDir,
-                        appDir,
-                        updRoot,
-                        argc,
-                        argv,
-                        appVersion,
-                        false);
+  nsresult rv = ProcessUpdates(greDir,
+                               appDir,
+                               updRoot,
+                               argc,
+                               argv,
+                               appVersion,
+                               false,
+                               &mUpdaterPID);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (aUpdate) {
+    mUpdate = aUpdate;
+    // Track the state of the background updater process
+    NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
+    rv = NS_NewThread(getter_AddRefs(mProcessWatcher),
+                      NS_NewRunnableMethod(this, &nsUpdateProcessor::WaitForProcess));
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+
+  return rv;
+}
+
+void
+nsUpdateProcessor::WaitForProcess()
+{
+  NS_ABORT_IF_FALSE(!NS_IsMainThread(), "main thread");
+  ::WaitForProcess(mUpdaterPID);
+  NS_DispatchToMainThread(NS_NewRunnableMethod(this, &nsUpdateProcessor::UpdateDone));
+}
+
+void
+nsUpdateProcessor::UpdateDone()
+{
+  NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
+  mProcessWatcher->Shutdown();
+  mProcessWatcher = nsnull;
+
+  nsCOMPtr<nsIUpdateManager> um =
+    do_GetService("@mozilla.org/updates/update-manager;1");
+  if (um) {
+    um->RefreshUpdateStatus(mUpdate);
+  }
+  mUpdate = nsnull;
 }
 

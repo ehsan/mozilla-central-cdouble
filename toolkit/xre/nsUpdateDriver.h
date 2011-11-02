@@ -44,9 +44,19 @@
 #include "nscore.h"
 #ifdef MOZ_UPDATER
 #include "nsIUpdateService.h"
+#include "nsIThread.h"
+#include "nsCOMPtr.h"
 #endif
 
 class nsIFile;
+
+#if defined(XP_WIN)
+  typedef HANDLE     ProcessType;
+#elif defined(XP_MACOSX)
+  typedef pid_t      ProcessType;
+#else
+  typedef PRProcess* ProcessType;
+#endif
 
 /**
  * This function processes any available updates.  As part of that process, it
@@ -72,7 +82,8 @@ NS_HIDDEN_(nsresult) ProcessUpdates(nsIFile *greDir, nsIFile *appDir,
                                     nsIFile *updRootDir,
                                     int argc, char **argv,
                                     const char *appVersion,
-                                    bool restart = true);
+                                    bool restart = true,
+                                    ProcessType *pid = nsnull);
 
 #ifdef MOZ_UPDATER
 // The implementation of the update processor handles the task of loading the
@@ -82,8 +93,19 @@ NS_HIDDEN_(nsresult) ProcessUpdates(nsIFile *greDir, nsIFile *appDir,
 class nsUpdateProcessor : public nsIUpdateProcessor
 {
 public:
+  nsUpdateProcessor();
+
   NS_DECL_ISUPPORTS
   NS_DECL_NSIUPDATEPROCESSOR
+
+private:
+  void WaitForProcess();
+  void UpdateDone();
+
+private:
+  ProcessType mUpdaterPID;
+  nsCOMPtr<nsIThread> mProcessWatcher;
+  nsCOMPtr<nsIUpdate> mUpdate;
 };
 #endif
 
