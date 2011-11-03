@@ -665,7 +665,7 @@ function checkUpdateFinished() {
   // We can't do this check on Mac since the update root directory we use is
   // inside the app bundle directory.
   if (!IS_MACOSX) {
-    let update = gUpdateManager.getUpdateAt(0);
+    let update = gUpdateManager.activeUpdate;
     do_check_eq(update.state, STATE_SUCCEEDED);
   }
 
