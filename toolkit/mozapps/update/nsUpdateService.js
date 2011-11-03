@@ -2133,6 +2133,9 @@ UpdateManager.prototype = {
     if (update.state == STATE_FAILED && ary[1]) {
       update.errorCode = parseInt(ary[1]);
     }
+    var um = Cc["@mozilla.org/updates/update-manager;1"].
+             getService(Ci.nsIUpdateManager);
+    um.saveUpdates();
   },
 
   classID: Components.ID("{093C2356-4843-4C65-8709-D7DBCBBE7DFB}"),
