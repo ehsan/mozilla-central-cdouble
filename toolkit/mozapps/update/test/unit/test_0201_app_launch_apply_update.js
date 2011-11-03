@@ -161,8 +161,6 @@ function run_test() {
   let mar = do_get_file("data/simple.mar");
   mar.copyTo(updatesPatchDir, FILE_UPDATE_ARCHIVE);
 
-  standardInit();
-
   AUS_Cc["@mozilla.org/updates/update-processor;1"].
     createInstance(AUS_Ci.nsIUpdateProcessor).
     processUpdate(gUpdateManager.activeUpdate);
@@ -559,34 +557,26 @@ function getLaunchScript() {
  * Checks if the update has finished being applied in the background.
  */
 function checkUpdateApplied() {
-  // Don't proceed until the update.log has been created.
-  let log = getUpdatesDir();
-  log.append("0");
-  log.append(FILE_UPDATE_LOG);
-  if (!log.exists()) {
+  // Don't proceed until the update has been applied.
+  if (gUpdateManager.activeUpdate.state != STATE_APPLIED) {
     do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateApplied);
     return;
   }
 
+  let log = getUpdatesDir();
+  log.append("0");
+  log.append(FILE_UPDATE_LOG);
+  do_check_true(log.exists());
+
   // Don't proceed until the update status is no longer pending or applying.
   let status = readStatusFile();
-  if (status != STATE_APPLIED) {
-    do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateApplied);
-    return;
-  }
+  do_check_eq(status, STATE_APPLIED);
 
   // Log the contents of the update.log so it is simpler to diagnose a test
   // failure.
   let contents = readFile(log);
   logTestInfo("contents of " + log.path + ":\n" +  
               contents.replace(/\r\n/g, "\n"));
-
-  // We can't do this check on Mac since the update root directory we use is
-  // inside the app bundle directory.
-  if (!IS_MACOSX) {
-    let update = gUpdateManager.getUpdateAt(0);
-    do_check_eq(update.state, STATE_PENDING);
-  }
 
   let updatedDir = getAppDir();
   if (IS_MACOSX) {
