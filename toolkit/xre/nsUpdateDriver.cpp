@@ -920,7 +920,7 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
                                &mUpdaterPID);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (aUpdate) {
+  if (mUpdaterPID && aUpdate) {
     mUpdate = aUpdate;
     // Track the state of the background updater process
     NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
