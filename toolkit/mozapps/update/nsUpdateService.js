@@ -1254,9 +1254,6 @@ UpdateService.prototype = {
       // that state to "applying" and we just wait and hope for the best.
       // If it's "applying", we know that we've already been here once, so
       // we really want to start from a clean state.
-      // XXX ehsan we should make sure that the About dialog UI waits for the
-      // update to be applied before showing the "Apply update" (or "Restart")
-      // button.
       if (update && update.state == STATE_PENDING) {
         LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
             "state for the first time");
