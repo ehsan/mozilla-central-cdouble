@@ -165,7 +165,7 @@ function run_test() {
 
   AUS_Cc["@mozilla.org/updates/update-processor;1"].
     createInstance(AUS_Ci.nsIUpdateProcessor).
-    processUpdate(gUpdateManger.activeUpdate);
+    processUpdate(gUpdateManager.activeUpdate);
 
   checkUpdateApplied();
 }
