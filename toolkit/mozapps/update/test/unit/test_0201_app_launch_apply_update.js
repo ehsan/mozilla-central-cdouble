@@ -225,8 +225,6 @@ function run_test() {
   let mar = do_get_file("data/simple.mar");
   mar.copyTo(updatesPatchDir, FILE_UPDATE_ARCHIVE);
 
-  // Hold on to the activeUpdate object so that we don't need to retrieve it
-  // again when the bundle directory is moved.
   reloadUpdateManagerData();
   gActiveUpdate = gUpdateManager.activeUpdate;
   do_check_true(!!gActiveUpdate);
@@ -629,7 +627,7 @@ function getLaunchScript() {
  */
 function checkUpdateApplied() {
   // Don't proceed until the update has been applied.
-  if (gActiveUpdate.state != STATE_APPLIED) {
+  if (gUpdateManager.activeUpdate.state != STATE_APPLIED) {
     do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateApplied);
     return;
   }
