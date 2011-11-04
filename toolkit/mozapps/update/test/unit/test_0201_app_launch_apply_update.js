@@ -29,6 +29,7 @@ const APP_TIMER_TIMEOUT = 15000;
 
 let gAppTimer;
 let gProcess;
+let gActiveUpdate;
 
 // Environment related globals
 let gShouldResetEnv = undefined;
@@ -109,17 +110,80 @@ XPCOMUtils.defineLazyGetter(this, "gAppBinPath", function test_gAppBinPath() {
   return null;
 });
 
+// Override getUpdatesRootDir on Mac because we need to apply the update
+// inside the bundle directory.
+function symlinkUpdateFilesIntoBundleDirectory() {
+  if (!IS_MACOSX) {
+    return;
+  }
+  // Symlink active-update.xml and updates/ inside the dist/bin directory
+  // to point to the bundle directory.
+  // This is necessary because in order to test the code which actually ships
+  // with Firefox, we need to perform the update inside the bundle directory,
+  // whereas xpcshell runs from dist/bin/, and the updater service code looks
+  // at the current process directory to find things like these two files.
+
+  Components.utils.import("resource://gre/modules/ctypes.jsm");
+  let libc = ctypes.open("/usr/lib/libc.dylib");
+  // We need these two low level APIs because their functionality is not
+  // provided in nsIFile APIs.
+  let symlink = libc.declare("symlink", ctypes.default_abi, ctypes.int,
+                             ctypes.char.ptr, ctypes.char.ptr);
+  let unlink = libc.declare("unlink", ctypes.default_abi, ctypes.int,
+                            ctypes.char.ptr);
+
+  // Symlink active-update.xml
+  let dest = getAppDir();
+  dest.append("active-update.xml");
+  if (!dest.exists()) {
+    dest.create(dest.NORMAL_FILE_TYPE, 0644);
+  }
+  do_check_true(dest.exists());
+  let source = getUpdatesRootDir();
+  source.append("active-update.xml");
+  unlink(source.path);
+  let ret = symlink(dest.path, source.path);
+  do_check_eq(ret, 0);
+  do_check_true(source.exists());
+
+  // Symlink updates/
+  let dest2 = getAppDir();
+  dest2.append("updates");
+  if (dest2.exists()) {
+    dest2.remove(true);
+  }
+  dest2.create(dest.DIRECTORY_TYPE, 0755);
+  do_check_true(dest2.exists());
+  let source2 = getUpdatesRootDir();
+  source2.append("updates");
+  if (source2.exists()) {
+    source2.remove(true);
+  }
+  ret = symlink(dest2.path, source2.path);
+  do_check_eq(ret, 0);
+  do_check_true(source2.exists());
+
+  // Cleanup the symlinks when the test is finished.
+  do_register_cleanup(function() {
+    let ret = unlink(source.path);
+    do_check_false(source.exists());
+    let ret = unlink(source2.path);
+    do_check_false(source2.exists());
+  });
+
+  // Now, make sure that getUpdatesRootDir returns the application bundle
+  // directory, to make the various stuff in the test framework to work
+  // correctly.
+  getUpdatesRootDir = getAppDir;
+}
+
 function run_test() {
   do_test_pending();
   do_register_cleanup(end_test);
 
-  // Override getUpdatesRootDir on Mac because we need to apply the update
-  // inside the bundle directory.
-  if (IS_MACOSX) {
-    getUpdatesRootDir = getAppDir;
-  }
-
   removeUpdateDirsAndFiles();
+
+  symlinkUpdateFilesIntoBundleDirectory();
 
   if (!gAppBinPath) {
     do_throw("Main application binary not found... expected: " +
@@ -161,9 +225,16 @@ function run_test() {
   let mar = do_get_file("data/simple.mar");
   mar.copyTo(updatesPatchDir, FILE_UPDATE_ARCHIVE);
 
+  // Hold on to the activeUpdate object so that we don't need to retrieve it
+  // again when the bundle directory is moved.
+  reloadUpdateManagerData();
+  gActiveUpdate = gUpdateManager.activeUpdate;
+  do_check_true(!!gActiveUpdate);
+
+  // Initiate a background update.
   AUS_Cc["@mozilla.org/updates/update-processor;1"].
     createInstance(AUS_Ci.nsIUpdateProcessor).
-    processUpdate(gUpdateManager.activeUpdate);
+    processUpdate(gActiveUpdate);
 
   checkUpdateApplied();
 }
@@ -558,7 +629,7 @@ function getLaunchScript() {
  */
 function checkUpdateApplied() {
   // Don't proceed until the update has been applied.
-  if (gUpdateManager.activeUpdate.state != STATE_APPLIED) {
+  if (gActiveUpdate.state != STATE_APPLIED) {
     do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateApplied);
     return;
   }
@@ -655,8 +726,7 @@ function checkUpdateFinished() {
   // We can't do this check on Mac since the update root directory we use is
   // inside the app bundle directory.
   if (!IS_MACOSX) {
-    let update = gUpdateManager.activeUpdate;
-    do_check_eq(update.state, STATE_SUCCEEDED);
+    do_check_eq(gActiveUpdate.state, STATE_SUCCEEDED);
   }
 
   let updatedDir = getAppDir();
