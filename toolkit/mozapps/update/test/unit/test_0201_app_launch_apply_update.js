@@ -717,7 +717,7 @@ function checkUpdateApplied() {
 function checkUpdateFinished() {
   // Don't proceed until the update status is no longer applied.
   try {
-    let status = readStatusFile();
+    var status = readStatusFile();
     if (status == STATE_APPLIED) {
       do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateFinished);
       return;
@@ -727,6 +727,7 @@ function checkUpdateFinished() {
   }
 
   // At this point we need to see if the application was switched successfully.
+  do_check_eq(status, STATE_SUCCEEDED);
 
   let updatedDir = getAppDir();
   if (IS_MACOSX) {
