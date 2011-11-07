@@ -728,12 +728,6 @@ function checkUpdateFinished() {
 
   // At this point we need to see if the application was switched successfully.
 
-  // We can't do this check on Mac since the update root directory we use is
-  // inside the app bundle directory.
-  if (!IS_MACOSX) {
-    do_check_eq(gActiveUpdate.state, STATE_SUCCEEDED);
-  }
-
   let updatedDir = getAppDir();
   if (IS_MACOSX) {
     updatedDir = updatedDir.parent.parent;
