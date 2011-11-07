@@ -693,7 +693,7 @@ function checkUpdateApplied() {
   // Log the contents of the update.log so it is simpler to diagnose a test
   // failure.
   let contents = readFile(log);
-  logTestInfo("contents of " + log.path + ":\n" +  
+  logTestInfo("contents of " + log.path + ":\n" +
               contents.replace(/\r\n/g, "\n"));
 
   let updatedDir = getAppDir();
