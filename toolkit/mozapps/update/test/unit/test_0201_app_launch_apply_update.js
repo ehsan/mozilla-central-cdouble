@@ -113,7 +113,7 @@ XPCOMUtils.defineLazyGetter(this, "gAppBinPath", function test_gAppBinPath() {
 // Override getUpdatesRootDir on Mac because we need to apply the update
 // inside the bundle directory.
 function symlinkUpdateFilesIntoBundleDirectory() {
-  if (!IS_MACOSX) {
+  if (!shouldAdjustPathsOnMac()) {
     return;
   }
   // Symlink active-update.xml and updates/ inside the dist/bin directory
@@ -532,13 +532,20 @@ function getProcessArgs() {
   return args;
 }
 
+function shouldAdjustPathsOnMac() {
+  // When running xpcshell tests locally, xpcshell and firefox-bin do not live
+  // in the same directory.
+  let dir = getCurrentProcessDir();
+  return (IS_MACOSX && dir.leafName != "MacOS");
+}
+
 /**
  * This function returns the current process directory on Windows and Linux, and
  * the application bundle directory on Mac.
  */
 function getAppDir() {
   let dir = getCurrentProcessDir();
-  if (IS_MACOSX) {
+  if (shouldAdjustPathsOnMac()) {
     // objdir/dist/bin/../NightlyDebug.app/Contents/MacOS
     dir = dir.parent;
     dir.append(BUNDLE_NAME);
