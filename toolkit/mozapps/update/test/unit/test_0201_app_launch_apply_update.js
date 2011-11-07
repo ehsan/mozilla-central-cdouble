@@ -184,6 +184,9 @@ function run_test() {
   removeUpdateDirsAndFiles();
 
   symlinkUpdateFilesIntoBundleDirectory();
+  if (IS_WIN) {
+    adjustPathsOnWindows();
+  }
 
   if (!gAppBinPath) {
     do_throw("Main application binary not found... expected: " +
@@ -270,16 +273,6 @@ function end_test() {
   }
 
   resetEnvironment();
-
-  if (IS_WIN) {
-    // Remove the copy of the application executable used for the test on
-    // Windows if it exists.
-    let appBinCopy = getAppDir();
-    appBinCopy.append(FILE_WIN_TEST_EXE);
-    if (appBinCopy.exists()) {
-      appBinCopy.remove(false);
-    }
-  }
 
   // Remove the files added by the update.
   let updateTestDir = getUpdateTestDir();
@@ -539,6 +532,53 @@ function shouldAdjustPathsOnMac() {
   return (IS_MACOSX && dir.leafName != "MacOS");
 }
 
+let gWindowsBinDir = null;
+
+/**
+ * This function copies the entire process directory over to a new one which we
+ * can write to, so that we can test under Windows which holds locks on opened
+ * files.
+ */
+function adjustPathsOnWindows() {
+  // We copy the entire GRE directory into another location so that xpcshell
+  // running doesn't prevent the updater from moving stuff around.
+  let tmpDir = do_get_profile();
+  tmpDir.append("ExecutableDir.tmp");
+  tmpDir.createUnique(tmpDir.DIRECTORY_TYPE, 0755);
+  let procDir = getCurrentProcessDir();
+  procDir.copyTo(tmpDir, "bin");
+  let newDir = tmpDir.clone();
+  newDir.append("bin");
+  gWindowsBinDir = newDir;
+  logTestInfo("Using this new bin directory: " + gWindowsBinDir.path);
+  // Note that this directory will be deleted as part of the xpcshell teardown,
+  // so we don't need to remove it explicitly.
+
+  // We need to make NS_GRE_DIR point to the new bindir, since
+  // nsUpdateProcessor::ProcessUpdate uses NS_GRE_DIR to construct the
+  // destination path name which would be passed to updater.exe.
+  let dirProvider = {
+    getFile: function DP_getFile(prop, persistent) {
+      persistent.value = true;
+      if (prop == NS_GRE_DIR)
+        return getAppDir();
+      return null;
+    },
+    QueryInterface: function(iid) {
+      if (iid.equals(AUS_Ci.nsIDirectoryServiceProvider) ||
+          iid.equals(AUS_Ci.nsISupports))
+        return this;
+      throw AUS_Cr.NS_ERROR_NO_INTERFACE;
+    }
+  };
+  let ds = Services.dirsvc.QueryInterface(AUS_Ci.nsIDirectoryService);
+  ds.QueryInterface(AUS_Ci.nsIProperties).undefine(NS_GRE_DIR);
+  ds.registerProvider(dirProvider);
+  do_register_cleanup(function() {
+    ds.unregisterProvider(dirProvider);
+  });
+}
+
 /**
  * This function returns the current process directory on Windows and Linux, and
  * the application bundle directory on Mac.
@@ -551,6 +591,8 @@ function getAppDir() {
     dir.append(BUNDLE_NAME);
     dir.append("Contents");
     dir.append("MacOS");
+  } else if (IS_WIN && gWindowsBinDir) {
+    dir = gWindowsBinDir.clone();
   }
   return dir;
 }
@@ -760,8 +802,15 @@ function checkUpdateFinished() {
   log = updatesDir.clone();
   log.append("0");
   log.append(FILE_UPDATE_LOG);
-  logTestInfo("testing " + log.path + " shouldn't exist");
-  do_check_false(log.exists());
+  if (IS_WIN) {
+    // On Windows, this log file is written to the AppData directory, and will
+    // therefore exist.
+    logTestInfo("testing " + log.path + " should exist");
+    do_check_true(log.exists());
+  } else {
+    logTestInfo("testing " + log.path + " shouldn't exist");
+    do_check_false(log.exists());
+  }
 
   log = updatesDir.clone();
   log.append(FILE_LAST_LOG);
@@ -774,8 +823,15 @@ function checkUpdateFinished() {
   do_check_false(log.exists());
 
   updatesDir.append("0");
-  logTestInfo("testing " + updatesDir.path + " shouldn't exist");
-  do_check_false(updatesDir.exists());
+  if (IS_WIN) {
+    // On Windows, this log file is written to the AppData directory, and will
+    // therefore exist.
+    logTestInfo("testing " + updatesDir.path + " should exist");
+    do_check_true(updatesDir.exists());
+  } else {
+    logTestInfo("testing " + updatesDir.path + " shouldn't exist");
+    do_check_false(updatesDir.exists());
+  }
 
   do_timeout(CHECK_TIMEOUT_MILLI, do_test_finished);
 }
