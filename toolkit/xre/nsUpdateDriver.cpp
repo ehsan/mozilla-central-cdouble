@@ -360,6 +360,56 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
   return NS_SUCCEEDED(rv); 
 }
 
+#if defined(XP_WIN)
+static bool
+CanWriteToOneDirectory(nsIFile* aDir)
+{
+  nsAutoString path;
+  if (NS_FAILED(aDir->GetPath(path)))
+    return false;
+  path.Append(NS_LITERAL_STRING("/updated.update_in_progress.lock"));
+  HANDLE file = CreateFileW(PromiseFlatString(path).get(),
+                            GENERIC_READ | GENERIC_WRITE,
+                            0,
+                            NULL,
+                            OPEN_ALWAYS,
+                            FILE_FLAG_DELETE_ON_CLOSE,
+                            NULL);
+  bool success = (file != INVALID_HANDLE_VALUE);
+  CloseHandle(file);
+  return success;
+}
+
+static bool
+CanWriteTo(nsIFile* aDir)
+{
+  nsCOMPtr<nsIFile> parent;
+  aDir->GetParent(getter_AddRefs(parent));
+  return CanWriteToOneDirectory(parent) &&
+         CanWriteToOneDirectory(aDir);
+}
+
+static bool
+OnSameVolume(nsIFile* aDir1, nsIFile* aDir2)
+{
+  nsAutoString path1, path2;
+  wchar_t volume1[MAX_PATH], volume2[MAX_PATH];
+
+  nsresult rv = aDir1->GetPath(path1);
+  rv |= aDir2->GetPath(path2);
+  if (NS_FAILED(rv))
+    return false;
+
+  if (!GetVolumePathNameW(PromiseFlatString(path1).get(), volume1,
+                          mozilla::ArrayLength(volume1)) ||
+      !GetVolumePathNameW(PromiseFlatString(path2).get(), volume2,
+                          mozilla::ArrayLength(volume2)))
+    return false;
+
+  return !wcscmp(volume1, volume2);
+}
+#endif
+
 static void
 SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
                    nsIFile *appDir, int appArgc, char **appArgv)
@@ -650,6 +700,38 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 #endif
   if (NS_FAILED(rv))
     return;
+
+#if defined(XP_WIN)
+  // If we're about to try to apply the update in the background, first make
+  // sure that we have write access to the directories in question.  If we
+  // don't, we just fall back to applying the update at the next startup
+  // using a UAC prompt.
+  if (!restart && !CanWriteTo(appDir)) {
+    // Try to see if we can write in the appdir
+    nsCOMPtr<nsILocalFile> alternateUpdatedDir;
+    if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
+      return;
+    if (CanWriteToOneDirectory(alternateUpdatedDir) &&
+        OnSameVolume(updatedDir, alternateUpdatedDir)) {
+      // Construct the new applyToDir string ("$INSTALLDIR;$APPDIR\updated").
+      rv = appDir->GetPath(applyToDirW);
+      if (NS_FAILED(rv))
+        return;
+      applyToDir.Assign(NS_ConvertUTF16toUTF8(applyToDirW));
+      applyToDir.AppendASCII(";");
+
+      rv = alternateUpdatedDir->GetPath(applyToDirW);
+      if (NS_FAILED(rv))
+        return;
+      NS_ConvertUTF16toUTF8 alternateUpdateDirPath(applyToDirW);
+      applyToDir.Append(alternateUpdateDirPath);
+      updatedDir = alternateUpdatedDir;
+    } else {
+      // Fall back to the startup updates
+      return;
+    }
+  }
+#endif
 
 #if defined(XP_WIN)
   nsAutoString updateDirPathW;
