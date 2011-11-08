@@ -713,7 +713,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
       return;
     if (CanWriteToOneDirectory(alternateUpdatedDir) &&
         OnSameVolume(updatedDir, alternateUpdatedDir)) {
-      // Construct the new applyToDir string ("$APPDIR\updated;$INSTALLDIR").
+      // Construct the new applyToDir string ("$UPDROOT\updated;$INSTALLDIR").
       rv = alternateUpdatedDir->GetPath(applyToDirW);
       if (NS_FAILED(rv))
         return;
