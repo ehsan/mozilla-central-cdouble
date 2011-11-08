@@ -686,6 +686,22 @@ XDRScriptState::~XDRScriptState()
 }
 
 JS_PUBLIC_API(JSBool)
+JS_XDRFunctionObject(JSXDRState *xdr, JSObject **objp)
+{
+    XDRScriptState fstate(xdr);
+
+    if (xdr->mode == JSXDR_ENCODE) {
+        JSFunction* fun = (*objp)->getFunctionPrivate();
+        if (!fun)
+            return false;
+
+        fstate.filename = fun->script()->filename;
+    }
+
+    return js_XDRFunctionObject(xdr, objp);
+}
+
+JS_PUBLIC_API(JSBool)
 JS_XDRScript(JSXDRState *xdr, JSScript **scriptp)
 {
     JS_ASSERT(!xdr->state);
@@ -723,10 +739,9 @@ JS_XDRScript(JSXDRState *xdr, JSScript **scriptp)
 
     if (xdr->mode == JSXDR_DECODE) {
         JS_ASSERT(!script->compileAndGo);
-        if (!js_NewScriptObject(xdr->cx, script))
-            return false;
+        script->u.globalObject = GetCurrentGlobal(xdr->cx);
         js_CallNewScriptHook(xdr->cx, script, NULL);
-        Debugger::onNewScript(xdr->cx, script, script->u.object, NULL);
+        Debugger::onNewScript(xdr->cx, script, NULL);
         *scriptp = script;
     }
 

@@ -52,7 +52,6 @@
 #include "nsIDOMEventTarget.h"
 #include "nsIWindowWatcher.h"
 #include "nsIDOMWindow.h"
-#include "nsIIdentityInfo.h"
 #include "nsPIDOMWindow.h"
 #include "TabChild.h"
 #include "nsIDOMEvent.h"
@@ -92,6 +91,7 @@ TabParent::TabParent()
   , mIMECompositionEnding(false)
   , mIMESeqno(0)
   , mDPI(0)
+  , mActive(false)
 {
 }
 
@@ -218,13 +218,21 @@ TabParent::UpdateDimensions(const nsRect& rect, const nsIntSize& size)
 void
 TabParent::Activate()
 {
+    mActive = true;
     unused << SendActivate();
 }
 
 void
 TabParent::Deactivate()
 {
+  mActive = false;
   unused << SendDeactivate();
+}
+
+bool
+TabParent::Active()
+{
+  return mActive;
 }
 
 NS_IMETHODIMP

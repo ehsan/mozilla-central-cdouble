@@ -117,9 +117,7 @@ tier_platform_dirs += \
 		$(NULL)
 endif
 
-ifdef MOZ_RDF
 tier_platform_dirs += rdf
-endif
 
 ifdef MOZ_JSDEBUGGER
 tier_platform_dirs += js/jsd
@@ -196,6 +194,8 @@ tier_platform_dirs += profile
 ifdef MOZ_JPROF
 tier_platform_dirs        += tools/jprof
 endif
+
+tier_platform_dirs  += tools/profiler
 
 tier_platform_dirs	+= xpfe/components
 

@@ -42,7 +42,7 @@
 
 #include "jslibmath.h"
 
-#include "frontend/BytecodeGenerator.h"
+#include "frontend/BytecodeEmitter.h"
 #include "frontend/ParseNode.h"
 
 #if JS_HAS_XML_SUPPORT
@@ -434,10 +434,8 @@ Boolish(ParseNode *pn)
     }
 }
 
-namespace js {
-
 bool
-FoldConstants(JSContext *cx, ParseNode *pn, TreeContext *tc, bool inCond)
+js::FoldConstants(JSContext *cx, ParseNode *pn, TreeContext *tc, bool inCond)
 {
     ParseNode *pn1 = NULL, *pn2 = NULL, *pn3 = NULL;
 
@@ -908,5 +906,3 @@ FoldConstants(JSContext *cx, ParseNode *pn, TreeContext *tc, bool inCond)
 
     return true;
 }
-
-} /* namespace js */

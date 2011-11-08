@@ -187,5 +187,4 @@ extern GeckoProcessType sChildProcessType;
  */
 void SetupErrorHandling(const char* progname);
 
-void TriggerQuirks();
 #endif // nsAppRunner_h__

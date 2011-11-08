@@ -72,7 +72,7 @@
 #include "jstracer.h"
 #include "jslibmath.h"
 
-#include "frontend/BytecodeGenerator.h"
+#include "frontend/BytecodeEmitter.h"
 #ifdef JS_METHODJIT
 #include "methodjit/MethodJIT.h"
 #include "methodjit/MethodJIT-inl.h"
@@ -1802,30 +1802,12 @@ js::Interpret(JSContext *cx, StackFrame *entryFrame, InterpMode interpMode)
             goto error;                                                       \
     JS_END_MACRO
 
-#if defined(JS_TRACER) && defined(JS_METHODJIT)
-# define LEAVE_ON_SAFE_POINT()                                                \
-    do {                                                                      \
-        JS_ASSERT_IF(leaveOnSafePoint, !TRACE_RECORDER(cx));                  \
-        JS_ASSERT_IF(leaveOnSafePoint, !TRACE_PROFILER(cx));                  \
-        JS_ASSERT_IF(leaveOnSafePoint, interpMode != JSINTERP_NORMAL);        \
-        if (leaveOnSafePoint && !regs.fp()->hasImacropc() &&                  \
-            script->maybeNativeCodeForPC(regs.fp()->isConstructing(), regs.pc)) { \
-            JS_ASSERT(!TRACE_RECORDER(cx));                                   \
-            interpReturnOK = true;                                            \
-            goto leave_on_safe_point;                                         \
-        }                                                                     \
-    } while (0)
-#else
-# define LEAVE_ON_SAFE_POINT() /* nop */
-#endif
-
 #define BRANCH(n)                                                             \
     JS_BEGIN_MACRO                                                            \
         regs.pc += (n);                                                       \
         op = (JSOp) *regs.pc;                                                 \
         if ((n) <= 0)                                                         \
             goto check_backedge;                                              \
-        LEAVE_ON_SAFE_POINT();                                                \
         DO_OP();                                                              \
     JS_END_MACRO
 
@@ -1860,13 +1842,6 @@ js::Interpret(JSContext *cx, StackFrame *entryFrame, InterpMode interpMode)
     ENABLE_PCCOUNT_INTERRUPTS();
     Value *argv = regs.fp()->maybeFormalArgs();
     CHECK_INTERRUPT_HANDLER();
-
-#if defined(JS_TRACER) && defined(JS_METHODJIT)
-    bool leaveOnSafePoint = (interpMode == JSINTERP_SAFEPOINT);
-# define CLEAR_LEAVE_ON_TRACE_POINT() ((void) (leaveOnSafePoint = false))
-#else
-# define CLEAR_LEAVE_ON_TRACE_POINT() ((void) 0)
-#endif
 
     if (!entryFrame)
         entryFrame = regs.fp();
@@ -2050,40 +2025,14 @@ js::Interpret(JSContext *cx, StackFrame *entryFrame, InterpMode interpMode)
             LoopProfile *prof = TRACE_PROFILER(cx);
             JS_ASSERT(!TRACE_RECORDER(cx));
             LoopProfile::ProfileAction act = prof->profileOperation(cx, op);
-            switch (act) {
-                case LoopProfile::ProfComplete:
-                    if (interpMode != JSINTERP_NORMAL) {
-                        leaveOnSafePoint = true;
-                        LEAVE_ON_SAFE_POINT();
-                    }
-                    break;
-                default:
-                    moreInterrupts = true;
-                    break;
-            }
+            if (act != LoopProfile::ProfComplete)
+                moreInterrupts = true;
         }
 #endif
         if (TraceRecorder* tr = TRACE_RECORDER(cx)) {
             JS_ASSERT(!TRACE_PROFILER(cx));
             AbortableRecordingStatus status = tr->monitorRecording(op);
             JS_ASSERT_IF(cx->isExceptionPending(), status == ARECORD_ERROR);
-
-            if (interpMode != JSINTERP_NORMAL) {
-                JS_ASSERT(interpMode == JSINTERP_RECORD || JSINTERP_SAFEPOINT);
-                switch (status) {
-                  case ARECORD_IMACRO_ABORTED:
-                  case ARECORD_ABORTED:
-                  case ARECORD_COMPLETED:
-                  case ARECORD_STOP:
-#ifdef JS_METHODJIT
-                    leaveOnSafePoint = true;
-                    LEAVE_ON_SAFE_POINT();
-#endif
-                    break;
-                  default:
-                    break;
-                }
-            }
 
             switch (status) {
               case ARECORD_CONTINUE:
@@ -2093,7 +2042,6 @@ js::Interpret(JSContext *cx, StackFrame *entryFrame, InterpMode interpMode)
               case ARECORD_IMACRO_ABORTED:
                 atoms = rt->atomState.commonAtomsStart();
                 op = JSOp(*regs.pc);
-                CLEAR_LEAVE_ON_TRACE_POINT();
                 if (status == ARECORD_IMACRO)
                     DO_OP();    /* keep interrupting for op. */
                 break;
@@ -2138,7 +2086,7 @@ END_EMPTY_CASES
 
 BEGIN_CASE(JSOP_TRACE)
 BEGIN_CASE(JSOP_NOTRACE)
-    LEAVE_ON_SAFE_POINT();
+    /* No-op */
 END_CASE(JSOP_TRACE)
 
 check_backedge:
@@ -2155,7 +2103,6 @@ check_backedge:
             JS_ASSERT(!TRACE_PROFILER(cx));
             MONITOR_BRANCH_TRACEVIS;
             ENABLE_INTERRUPTS();
-            CLEAR_LEAVE_ON_TRACE_POINT();
         }
         JS_ASSERT_IF(cx->isExceptionPending(), r == MONITOR_ERROR);
         RESTORE_INTERP_VARS_CHECK_EXCEPTION();
@@ -2280,7 +2227,6 @@ BEGIN_CASE(JSOP_STOP)
         if (js_CodeSpec[*imacpc].format & JOF_DECOMPOSE)
             regs.pc += GetDecomposeLength(imacpc, js_CodeSpec[*imacpc].length);
         regs.fp()->clearImacropc();
-        LEAVE_ON_SAFE_POINT();
         atoms = script->atoms;
         op = JSOp(*regs.pc);
         DO_OP();
@@ -4451,26 +4397,6 @@ BEGIN_CASE(JSOP_ARGUMENTS)
 }
 END_CASE(JSOP_ARGUMENTS)
 
-BEGIN_CASE(JSOP_ARGSUB)
-{
-    jsid id = INT_TO_JSID(GET_ARGNO(regs.pc));
-    Value rval;
-    if (!js_GetArgsProperty(cx, regs.fp(), id, &rval))
-        goto error;
-    PUSH_COPY(rval);
-}
-END_CASE(JSOP_ARGSUB)
-
-BEGIN_CASE(JSOP_ARGCNT)
-{
-    jsid id = ATOM_TO_JSID(rt->atomState.lengthAtom);
-    Value rval;
-    if (!js_GetArgsProperty(cx, regs.fp(), id, &rval))
-        goto error;
-    PUSH_COPY(rval);
-}
-END_CASE(JSOP_ARGCNT)
-
 BEGIN_CASE(JSOP_GETARG)
 BEGIN_CASE(JSOP_CALLARG)
 {
@@ -5349,12 +5275,6 @@ END_VARLEN_CASE
 BEGIN_CASE(JSOP_EXCEPTION)
     PUSH_COPY(cx->getPendingException());
     cx->clearPendingException();
-#if defined(JS_TRACER) && defined(JS_METHODJIT)
-    if (interpMode == JSINTERP_PROFILE) {
-        leaveOnSafePoint = true;
-        LEAVE_ON_SAFE_POINT();
-    }
-#endif
     CHECK_BRANCH();
 END_CASE(JSOP_EXCEPTION)
 

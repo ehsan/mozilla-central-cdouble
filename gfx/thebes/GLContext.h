@@ -532,7 +532,8 @@ public:
     GLContext(const ContextFormat& aFormat,
               bool aIsOffscreen = false,
               GLContext *aSharedContext = nsnull)
-      : mInitialized(false),
+      : mOffscreenFBOsDirty(false),
+        mInitialized(false),
         mIsOffscreen(aIsOffscreen),
 #ifdef USE_GLES2
         mIsGLES2(true),
@@ -550,7 +551,6 @@ public:
         mBlitFramebuffer(0),
         mOffscreenDrawFBO(0),
         mOffscreenReadFBO(0),
-        mOffscreenFBOsDirty(false),
         mOffscreenColorRB(0),
         mOffscreenDepthRB(0),
         mOffscreenStencilRB(0)
@@ -1151,12 +1151,29 @@ public:
                     GLint pixelsize, GLint border, GLenum format, 
                     GLenum type, const GLvoid *pixels);
 
-
     void TexSubImage2D(GLenum target, GLint level, 
                        GLint xoffset, GLint yoffset, 
                        GLsizei width, GLsizei height, GLsizei stride,
                        GLint pixelsize, GLenum format, 
                        GLenum type, const GLvoid* pixels);
+
+    /**
+     * Uses the Khronos GL_EXT_unpack_subimage extension, working around
+     * quirks in the Tegra implementation of this extension.
+     */
+    void TexSubImage2DWithUnpackSubimageGLES(GLenum target, GLint level,
+                                             GLint xoffset, GLint yoffset,
+                                             GLsizei width, GLsizei height,
+                                             GLsizei stride, GLint pixelsize,
+                                             GLenum format, GLenum type,
+                                             const GLvoid* pixels);
+
+    void TexSubImage2DWithoutUnpackSubimage(GLenum target, GLint level,
+                                            GLint xoffset, GLint yoffset,
+                                            GLsizei width, GLsizei height,
+                                            GLsizei stride, GLint pixelsize,
+                                            GLenum format, GLenum type,
+                                            const GLvoid* pixels);
 
     /** Helper for DecomposeIntoNoRepeatTriangles
      */
@@ -1242,6 +1259,7 @@ public:
         EXT_framebuffer_multisample,
         ANGLE_framebuffer_multisample,
         OES_rgb8_rgba8,
+        ARB_robustness,
         Extensions_Max
     };
 
@@ -1257,6 +1275,7 @@ public:
                                    const char *extension);
 
     GLint GetMaxTextureSize() { return mMaxTextureSize; }
+    GLint GetMaxTextureImageSize() { return mMaxTextureImageSize; }
     void SetFlipped(bool aFlipped) { mFlipped = aFlipped; }
 
     // this should just be a std::bitset, but that ended up breaking
@@ -1278,11 +1297,24 @@ public:
         bool values[setlen];
     };
 
+    /**
+     * Context reset constants.
+     * These are used to determine who is guilty when a context reset
+     * happens.
+     */
+    enum ContextResetARB {
+        CONTEXT_NO_ERROR = 0,
+        CONTEXT_GUILTY_CONTEXT_RESET_ARB = 0x8253,
+        CONTEXT_INNOCENT_CONTEXT_RESET_ARB = 0x8254,
+        CONTEXT_UNKNOWN_CONTEXT_RESET_ARB = 0x8255,
+    };
+
 protected:
     bool mInitialized;
     bool mIsOffscreen;
     bool mIsGLES2;
     bool mIsGlobalSharedContext;
+    bool mHasRobustness;
 
     PRInt32 mVendor;
 
@@ -1383,6 +1415,7 @@ protected:
     nsTArray<nsIntRect> mScissorStack;
 
     GLint mMaxTextureSize;
+    GLint mMaxTextureImageSize;
     GLint mMaxRenderbufferSize;
 
 public:
@@ -2498,6 +2531,14 @@ public:
          AFTER_GL_CALL;
          TRACKING_CONTEXT(DeletedRenderbuffers(this, n, names));
      }
+
+     GLenum GLAPIENTRY fGetGraphicsResetStatus() {
+         BEFORE_GL_CALL;
+         GLenum ret = mHasRobustness ? mSymbols.fGetGraphicsResetStatus() : 0;
+         AFTER_GL_CALL;
+         return ret;
+     }
+
 #ifdef DEBUG
     void THEBES_API CreatedProgram(GLContext *aOrigin, GLuint aName);
     void THEBES_API CreatedShader(GLContext *aOrigin, GLuint aName);

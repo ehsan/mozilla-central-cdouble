@@ -203,10 +203,9 @@ struct JSFunction : public JSObject_Slots2
     void setScript(JSScript *script) {
         JS_ASSERT(isInterpreted());
         u.i.script_ = script;
-        script->setOwnerObject(this);
     }
 
-    JSScript * maybeScript() const {
+    JSScript *maybeScript() const {
         return isInterpreted() ? script() : NULL;
     }
 
@@ -536,9 +535,6 @@ SetCallUpvar(JSContext *cx, JSObject *obj, jsid id, JSBool strict, js::Value *vp
 
 extern JSBool
 js_GetArgsValue(JSContext *cx, js::StackFrame *fp, js::Value *vp);
-
-extern JSBool
-js_GetArgsProperty(JSContext *cx, js::StackFrame *fp, jsid id, js::Value *vp);
 
 /*
  * Get the arguments object for the given frame.  If the frame is strict mode

@@ -148,8 +148,7 @@ HelperBase::WrapNative(JSContext* aCx,
   NS_ASSERTION(aResult, "Null pointer!");
   NS_ASSERTION(mRequest, "Null request!");
 
-  JSObject* global =
-    static_cast<JSObject*>(mRequest->ScriptContext()->GetNativeGlobal());
+  JSObject* global = mRequest->ScriptContext()->GetNativeGlobal();
   NS_ENSURE_TRUE(global, NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR);
 
   nsresult rv =
@@ -225,10 +224,9 @@ AsyncConnectionHelper::Run()
 {
   if (NS_IsMainThread()) {
     if (mTransaction &&
-        mTransaction->IsAborted() &&
-        NS_SUCCEEDED(mResultCode)) {
-      // Don't fire success events if the transaction has since been aborted.
-      // Instead convert to an error event.
+        mTransaction->IsAborted()) {
+      // Always fire a "error" event with ABORT_ERR if the transaction was
+      // aborted, even if the request succeeded or failed with another error.
       mResultCode = NS_ERROR_DOM_INDEXEDDB_ABORT_ERR;
     }
 
@@ -561,8 +559,6 @@ TransactionPoolEventTarget::Dispatch(nsIRunnable* aRunnable,
   NS_ASSERTION(aFlags == NS_DISPATCH_NORMAL, "Unsupported!");
 
   TransactionThreadPool* pool = TransactionThreadPool::GetOrCreate();
-  NS_ENSURE_TRUE(pool, NS_ERROR_FAILURE);
-
   return pool->Dispatch(mTransaction, aRunnable, false, nsnull);
 }
 

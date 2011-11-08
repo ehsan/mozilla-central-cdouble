@@ -56,8 +56,6 @@ JS_STATIC_ASSERT(pn_offsetof(pn_link) == pn_offsetof(dn_uses));
 
 #undef pn_offsetof
 
-namespace js {
-
 void
 ParseNode::become(ParseNode *pn2)
 {
@@ -214,8 +212,8 @@ class NodeStack {
 /*
  * Push the children of |pn| on |stack|. Return true if |pn| itself could be
  * safely recycled, or false if it must be cleaned later (pn_used and pn_defn
- * nodes, and all function nodes; see comments for
- * js::Parser::cleanFunctionList). Some callers want to free |pn|; others
+ * nodes, and all function nodes; see comments for CleanFunctionList in
+ * SemanticAnalysis.cpp). Some callers want to free |pn|; others
  * (js::ParseNodeAllocator::prepareNodeForMutation) don't care about |pn|, and
  * just need to take care of its children.
  */
@@ -230,12 +228,12 @@ PushNodeChildren(ParseNode *pn, NodeStack *stack)
          * update them now could result in quadratic behavior when recycling
          * trees containing many functions; and the lists can be very long. So
          * we put off cleaning the lists up until just before function
-         * analysis, when we call js::Parser::cleanFunctionList.
+         * analysis, when we call CleanFunctionList.
          *
          * In fact, we can't recycle the parse node yet, either: it may appear
          * on a method list, and reusing the node would corrupt that. Instead,
          * we clear its pn_funbox pointer to mark it as deleted;
-         * js::Parser::cleanFunctionList recycles it as well.
+         * CleanFunctionList recycles it as well.
          *
          * We do recycle the nodes around it, though, so we must clear pointers
          * to them to avoid leaving dangling references where someone can find
@@ -465,13 +463,9 @@ NameNode::create(JSAtom *atom, TreeContext *tc)
     return (NameNode *)pn;
 }
 
-} /* namespace js */
-
 const char js_argument_str[] = "argument";
 const char js_variable_str[] = "variable";
 const char js_unknown_str[]  = "unknown";
-
-namespace js {
 
 const char *
 Definition::kindString(Kind kind)
@@ -602,7 +596,7 @@ CloneParseTree(ParseNode *opn, TreeContext *tc)
  * the original tree.
  */
 ParseNode *
-CloneLeftHandSide(ParseNode *opn, TreeContext *tc)
+js::CloneLeftHandSide(ParseNode *opn, TreeContext *tc)
 {
     ParseNode *pn = tc->parser->new_<ParseNode>(opn->getKind(), opn->getOp(), opn->getArity(),
                                                 opn->pn_pos);
@@ -670,5 +664,3 @@ CloneLeftHandSide(ParseNode *opn, TreeContext *tc)
     }
     return pn;
 }
-
-} /* namespace js */

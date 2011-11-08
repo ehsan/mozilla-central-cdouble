@@ -453,6 +453,14 @@ nsXMLHttpRequest::~nsXMLHttpRequest()
   NS_ABORT_IF_FALSE(!(mState & XML_HTTP_REQUEST_SYNCLOOPING), "we rather crash than hang");
   mState &= ~XML_HTTP_REQUEST_SYNCLOOPING;
 
+  // This can happen if the XHR was only used by C++ (and so never created a JS
+  // wrapper) that also made an ArrayBuffer.
+  if (PreservingWrapper()) {
+    nsContentUtils::ReleaseWrapper(
+      static_cast<nsIDOMEventTarget*>(
+        static_cast<nsDOMEventTargetHelper*>(this)), this);
+  }
+
   nsLayoutStatics::Release();
 }
 
@@ -1690,7 +1698,7 @@ nsXMLHttpRequest::StreamReaderFunc(nsIInputStream* in,
   return rv;
 }
 
-void nsXMLHttpRequest::CreateResponseBlob(nsIRequest *request)
+bool nsXMLHttpRequest::CreateResponseBlob(nsIRequest *request)
 {
   nsCOMPtr<nsIFile> file;
   nsCOMPtr<nsICachingChannel> cc(do_QueryInterface(request));
@@ -1702,18 +1710,27 @@ void nsXMLHttpRequest::CreateResponseBlob(nsIRequest *request)
       fc->GetFile(getter_AddRefs(file));
     }
   }
+  bool fromFile = false;
   if (file) {
     nsCAutoString contentType;
     mChannel->GetContentType(contentType);
     nsCOMPtr<nsISupports> cacheToken;
     if (cc) {
       cc->GetCacheToken(getter_AddRefs(cacheToken));
+      // We need to call IsFromCache to determine whether the response is
+      // fully cached (i.e. whether we can skip reading the response).
+      cc->IsFromCache(&fromFile);
+    } else {
+      // If the response is coming from the local resource, we can skip
+      // reading the response unconditionally.
+      fromFile = true;
     }
 
     mResponseBlob =
       new nsDOMFileFile(file, NS_ConvertASCIItoUTF16(contentType), cacheToken);
     mResponseBody.Truncate();
   }
+  return fromFile;
 }
 
 NS_IMETHODIMP
@@ -1727,16 +1744,26 @@ nsXMLHttpRequest::OnDataAvailable(nsIRequest *request,
 
   NS_ABORT_IF_FALSE(mContext.get() == ctxt,"start context different from OnDataAvailable context");
 
-  if (mResponseType == XML_HTTP_RESPONSE_TYPE_BLOB && !mResponseBlob) {
-    CreateResponseBlob(request);
-  }
-
   mProgressSinceLastProgressEvent = true;
+
+  bool cancelable = false;
+  if (mResponseType == XML_HTTP_RESPONSE_TYPE_BLOB && !mResponseBlob) {
+    cancelable = CreateResponseBlob(request);
+    // The nsIStreamListener contract mandates us
+    // to read from the stream before returning.
+  }
 
   PRUint32 totalRead;
   nsresult rv = inStr->ReadSegments(nsXMLHttpRequest::StreamReaderFunc,
                                     (void*)this, count, &totalRead);
   NS_ENSURE_SUCCESS(rv, rv);
+
+  if (cancelable) {
+    // We don't have to read from the local file for the blob response
+    mResponseBlob->GetSize(&mLoadTransferred);
+    ChangeState(XML_HTTP_REQUEST_LOADING);
+    return request->Cancel(NS_OK);
+  }
 
   mLoadTransferred += totalRead;
 

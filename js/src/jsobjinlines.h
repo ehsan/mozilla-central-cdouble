@@ -1238,6 +1238,10 @@ JSObject::lookupSpecial(JSContext *cx, js::SpecialId sid, JSObject **objp, JSPro
 inline JSBool
 JSObject::getElement(JSContext *cx, JSObject *receiver, uint32 index, js::Value *vp)
 {
+    js::ElementIdOp op = getOps()->getElement;
+    if (op)
+        return op(cx, this, receiver, index, vp);
+
     jsid id;
     if (!js::IndexToId(cx, index, &id))
         return false;
@@ -1247,10 +1251,38 @@ JSObject::getElement(JSContext *cx, JSObject *receiver, uint32 index, js::Value 
 inline JSBool
 JSObject::getElement(JSContext *cx, uint32 index, js::Value *vp)
 {
+    return getElement(cx, this, index, vp);
+}
+
+inline JSBool
+JSObject::getElementIfPresent(JSContext *cx, JSObject *receiver, uint32 index, js::Value *vp,
+                              bool *present)
+{
+    js::ElementIfPresentOp op = getOps()->getElementIfPresent;
+    if (op)
+        return op(cx, this, receiver, index, vp, present);
+
+    /* For now, do the index-to-id conversion just once, then use
+     * lookupGeneric/getGeneric.  Once lookupElement and getElement stop both
+     * doing index-to-id conversions, we can use those here.
+     */
     jsid id;
     if (!js::IndexToId(cx, index, &id))
         return false;
-    return getGeneric(cx, id, vp);
+
+    JSObject *obj2;
+    JSProperty *prop;
+    if (!lookupGeneric(cx, id, &obj2, &prop))
+        return false;
+
+    if (!prop) {
+        *present = false;
+        js::Debug_SetValueRangeToCrashOnTouch(vp, 1);
+        return true;
+    }
+
+    *present = true;
+    return getGeneric(cx, receiver, id, vp);
 }
 
 inline JSBool
@@ -1470,6 +1502,13 @@ NewNativeClassInstance(JSContext *cx, Class *clasp, JSObject *proto, JSObject *p
 {
     gc::AllocKind kind = gc::GetGCObjectKind(JSCLASS_RESERVED_SLOTS(clasp));
     return NewNativeClassInstance(cx, clasp, proto, parent, kind);
+}
+
+inline GlobalObject *
+GetCurrentGlobal(JSContext *cx)
+{
+    JSObject *scopeChain = (cx->hasfp()) ? &cx->fp()->scopeChain() : cx->globalObject;
+    return scopeChain ? scopeChain->getGlobal() : NULL;
 }
 
 bool
