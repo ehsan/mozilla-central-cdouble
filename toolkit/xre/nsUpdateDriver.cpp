@@ -711,8 +711,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     nsCOMPtr<nsILocalFile> alternateUpdatedDir;
     if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
       return;
-    if (CanWriteToOneDirectory(alternateUpdatedDir) &&
-        OnSameVolume(updatedDir, alternateUpdatedDir)) {
+    if (OnSameVolume(updatedDir, alternateUpdatedDir)) {
       // Construct the new applyToDir string ("$UPDROOT\updated;$INSTALLDIR").
       rv = alternateUpdatedDir->GetPath(applyToDirW);
       if (NS_FAILED(rv))
