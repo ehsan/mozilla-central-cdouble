@@ -381,7 +381,7 @@ CanWriteToOneDirectory(nsIFile* aDir)
 }
 
 static bool
-CanWriteTo(nsIFile* aDir)
+CanWriteToDirectoryAndParent(nsIFile* aDir)
 {
   nsCOMPtr<nsIFile> parent;
   aDir->GetParent(getter_AddRefs(parent));
@@ -706,7 +706,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   // sure that we have write access to the directories in question.  If we
   // don't, we just fall back to applying the update at the next startup
   // using a UAC prompt.
-  if (!restart && !CanWriteTo(appDir)) {
+  if (!restart && !CanWriteToDirectoryAndParent(appDir)) {
     // Try to see if we can write in the appdir
     nsCOMPtr<nsILocalFile> alternateUpdatedDir;
     if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
