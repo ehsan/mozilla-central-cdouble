@@ -713,18 +713,17 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
       return;
     if (CanWriteToOneDirectory(alternateUpdatedDir) &&
         OnSameVolume(updatedDir, alternateUpdatedDir)) {
-      // Construct the new applyToDir string ("$INSTALLDIR;$APPDIR\updated").
-      rv = appDir->GetPath(applyToDirW);
+      // Construct the new applyToDir string ("$APPDIR\updated;$INSTALLDIR").
+      rv = alternateUpdatedDir->GetPath(applyToDirW);
       if (NS_FAILED(rv))
         return;
       applyToDir.Assign(NS_ConvertUTF16toUTF8(applyToDirW));
       applyToDir.AppendASCII(";");
 
-      rv = alternateUpdatedDir->GetPath(applyToDirW);
+      rv = appDir->GetPath(applyToDirW);
       if (NS_FAILED(rv))
         return;
-      NS_ConvertUTF16toUTF8 alternateUpdateDirPath(applyToDirW);
-      applyToDir.Append(alternateUpdateDirPath);
+      applyToDir.Append(NS_ConvertUTF16toUTF8(applyToDirW));
       updatedDir = alternateUpdatedDir;
     } else {
       // Fall back to the startup updates
