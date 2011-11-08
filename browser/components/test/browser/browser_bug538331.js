@@ -414,7 +414,7 @@ function writeUpdatesToXMLFile(aText)
 
   let file = Cc["@mozilla.org/file/directory_service;1"].
              getService(Ci.nsIProperties).
-             get("XCurProcD", Ci.nsIFile);
+             get("UpdRootD", Ci.nsIFile);
   file.append("updates.xml");
   let fos = Cc["@mozilla.org/network/file-output-stream;1"].
             createInstance(Ci.nsIFileOutputStream);
