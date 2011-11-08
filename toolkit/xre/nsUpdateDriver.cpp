@@ -428,6 +428,13 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
     return;
   }
 
+  // Try to create our own new temp directory in case there is already an
+  // updater binary in the OS temporary location which we cannot write to.
+  // Note that we don't check for errors here, as if this directory can't
+  // be created, the following CopyUpdaterIntoUpdateDir call will fail.
+  tmpDir->Append(NS_LITERAL_STRING("MozUpdater"));
+  tmpDir->CreateUnique(nsIFile::DIRECTORY_TYPE, 0755);
+
   nsCOMPtr<nsIFile> updater;
   if (!CopyUpdaterIntoUpdateDir(greDir, appDir, tmpDir, updater, false)) {
     LOG(("failed copying updater\n"));
