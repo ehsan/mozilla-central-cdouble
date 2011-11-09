@@ -525,6 +525,23 @@ mstrtok(const NS_tchar *delims, NS_tchar **str)
 
 #ifdef XP_WIN
 /**
+ * Finds the length of the longest common prefix between two strings.
+ */
+static size_t
+find_LCP_length(const NS_tchar *str1, const NS_tchar *str2)
+{
+  size_t i = 0;
+
+  for (; str1[i] && str2[i]; ++i) {
+    if (str1[i] != str2[i]) {
+      break;
+    }
+  }
+
+  return i;
+}
+
+/**
  * Coverts a relative update path to a full path for Windows.
  *
  * @param  relpath
@@ -2494,13 +2511,15 @@ int NS_main(int argc, NS_tchar **argv)
     if (sReplaceRequest) {
       // In case of replace requests, we should look for the callback file in
       // the destination directory.
-      NS_tchar *fileName = NS_tstrrchr(targetPath, NS_SLASH);
-      if (fileName && !fileName[1] && fileName > targetPath) {
-        fileName = NS_tstrrchr(fileName - 1, NS_SLASH);
-      }
-      ++fileName;
-      NS_tsnprintf(buffer, sizeof(buffer)/sizeof(buffer[0]),
-                   NS_T("%s/%s"), gDestinationPath, fileName);
+      size_t commonPrefixLength = find_LCP_length(argv[callbackIndex], gDestinationPath);
+      NS_tchar *p = buffer;
+      NS_tstrncpy(p, argv[callbackIndex], commonPrefixLength);
+      p += commonPrefixLength;
+      NS_tstrcpy(p, gDestinationPath + commonPrefixLength);
+      p += NS_tstrlen(gDestinationPath + commonPrefixLength);
+      *p = NS_T('\\');
+      ++p;
+      NS_tstrcpy(p, argv[callbackIndex] + commonPrefixLength);
       targetPath = buffer;
     }
     if (!GetLongPathNameW(targetPath, callbackLongPath,
