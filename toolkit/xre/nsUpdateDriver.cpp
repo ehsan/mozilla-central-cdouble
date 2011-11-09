@@ -408,6 +408,26 @@ OnSameVolume(nsIFile* aDir1, nsIFile* aDir2)
 
   return !wcscmp(volume1, volume2);
 }
+
+static bool
+ConstructCompoundApplyToString(nsIFile* aUpdatedDir, nsIFile* aAppDir,\
+                               nsACString& aApplyToDir)
+{
+  // Construct the new applyToDir string ("$UPDROOT\updated;$INSTALLDIR").
+  nsAutoString applyToDirW;
+  nsresult rv = aUpdatedDir->GetPath(applyToDirW);
+  if (NS_FAILED(rv))
+    return false;
+  aApplyToDir.Assign(NS_ConvertUTF16toUTF8(applyToDirW));
+  aApplyToDir.AppendASCII(";");
+
+  rv = aAppDir->GetPath(applyToDirW);
+  if (NS_FAILED(rv))
+    return false;
+  aApplyToDir.Append(NS_ConvertUTF16toUTF8(applyToDirW));
+
+  return true;
+}
 #endif
 
 static void
@@ -719,17 +739,8 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
       return;
     if (OnSameVolume(updatedDir, alternateUpdatedDir)) {
-      // Construct the new applyToDir string ("$UPDROOT\updated;$INSTALLDIR").
-      rv = alternateUpdatedDir->GetPath(applyToDirW);
-      if (NS_FAILED(rv))
+      if (!ConstructCompoundApplyToString(alternateUpdatedDir, appDir, applyToDir))
         return;
-      applyToDir.Assign(NS_ConvertUTF16toUTF8(applyToDirW));
-      applyToDir.AppendASCII(";");
-
-      rv = appDir->GetPath(applyToDirW);
-      if (NS_FAILED(rv))
-        return;
-      applyToDir.Append(NS_ConvertUTF16toUTF8(applyToDirW));
       updatedDir = alternateUpdatedDir;
     } else {
       // Fall back to the startup updates
