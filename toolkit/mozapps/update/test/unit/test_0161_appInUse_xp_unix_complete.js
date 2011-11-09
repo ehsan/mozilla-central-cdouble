@@ -252,16 +252,6 @@ function run_test() {
     applyToDir.lastModifiedTime = yesterday;
   }
 
-  // apply the complete mar
-  let exitValue = runUpdate();
-  logTestInfo("testing updater binary process exitValue for success when " +
-              "applying a complete mar");
-  do_check_eq(exitValue, 0);
-
-  logTestInfo("testing update.status should be " + STATE_APPLIED);
-  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED);
-
   // Launch the callback helper application so it is in use during the update
   let callbackApp = getApplyDirFile("a/b/" + gCallbackBinFile);
   callbackApp.permissions = PERMS_DIRECTORY;
@@ -275,6 +265,16 @@ function run_test() {
 }
 
 function doUpdate() {
+  // apply the complete mar
+  let exitValue = runUpdate();
+  logTestInfo("testing updater binary process exitValue for success when " +
+              "applying a complete mar");
+  do_check_eq(exitValue, 0);
+
+  logTestInfo("testing update.status should be " + STATE_APPLIED);
+  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
+  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED);
+
   let applyToDir = getApplyDirFile();
 
   // For Mac OS X check that the last modified time for a directory has been
