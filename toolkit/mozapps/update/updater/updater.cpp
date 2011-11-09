@@ -72,6 +72,7 @@
 
 #if defined(XP_WIN)
 # include <windows.h>
+# include <shlwapi.h>
 # include <direct.h>
 # include <io.h>
 # include <stdio.h>
@@ -524,23 +525,6 @@ mstrtok(const NS_tchar *delims, NS_tchar **str)
 }
 
 #ifdef XP_WIN
-/**
- * Finds the length of the longest common prefix between two strings.
- */
-static size_t
-find_LCP_length(const NS_tchar *str1, const NS_tchar *str2)
-{
-  size_t i = 0;
-
-  for (; str1[i] && str2[i]; ++i) {
-    if (str1[i] != str2[i]) {
-      break;
-    }
-  }
-
-  return i;
-}
-
 /**
  * Coverts a relative update path to a full path for Windows.
  *
@@ -2511,7 +2495,7 @@ int NS_main(int argc, NS_tchar **argv)
     if (sReplaceRequest) {
       // In case of replace requests, we should look for the callback file in
       // the destination directory.
-      size_t commonPrefixLength = find_LCP_length(argv[callbackIndex], gDestinationPath);
+      size_t commonPrefixLength = PathCommonPrefixW(argv[callbackIndex], gDestinationPath, NULL);
       NS_tchar *p = buffer;
       NS_tstrncpy(p, argv[callbackIndex], commonPrefixLength);
       p += commonPrefixLength;
