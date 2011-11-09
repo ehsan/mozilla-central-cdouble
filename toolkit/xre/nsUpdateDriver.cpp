@@ -410,7 +410,7 @@ OnSameVolume(nsIFile* aDir1, nsIFile* aDir2)
 }
 
 static bool
-ConstructCompoundApplyToString(nsIFile* aUpdatedDir, nsIFile* aAppDir,\
+ConstructCompoundApplyToString(nsIFile* aUpdatedDir, nsIFile* aAppDir,
                                nsACString& aApplyToDir)
 {
   // Construct the new applyToDir string ("$UPDROOT\updated;$INSTALLDIR").
