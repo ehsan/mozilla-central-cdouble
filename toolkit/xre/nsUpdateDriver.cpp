@@ -542,7 +542,21 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
   bool updatedDirExists = false;
   updatedDir->Exists(&updatedDirExists);
   if (!updatedDirExists) {
-    return;
+#if defined(XP_WIN)
+    // If we don't have write access to the appdir, we might have stored the
+    // updated dir inside the update root dir.  Test to see whether that's
+    // the case.
+    nsCOMPtr<nsILocalFile> alternateUpdatedDir;
+    if (GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir)) {
+      alternateUpdatedDir->Exists(&updatedDirExists);
+      if (!updatedDirExists)
+        return;
+      if (!ConstructCompoundApplyToString(alternateUpdatedDir, appDir, applyToDir))
+        return;
+      updatedDir = alternateUpdatedDir;
+    } else // continued after #ifdef
+#endif
+      return;
   }
 
 #if defined(XP_WIN)
