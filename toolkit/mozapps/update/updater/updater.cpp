@@ -137,6 +137,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_tstrcpy wcscpy
 # define NS_tstrncpy wcsncpy
 # define NS_tstrlen wcslen
+# define NS_tstrchr wcschr
 # define NS_tstrrchr wcsrchr
 # define NS_tstrstr wcsstr
 # include "win_dirent.h"
@@ -428,6 +429,7 @@ static bool sReplaceRequest = false;
 static NS_tchar* gDestPath;
 static NS_tchar gCallbackRelPath[MAXPATHLEN];
 static NS_tchar gCallbackBackupPath[MAXPATHLEN];
+static NS_tchar* gInstallPath = NULL;
 #endif
 
 static const NS_tchar kWhitespace[] = NS_T(" \t");
@@ -1898,6 +1900,13 @@ template <size_t N>
 static bool
 GetInstallationDir(NS_tchar (&installDir)[N])
 {
+#if defined(XP_WIN)
+  // If the installation directory has been explicitly specified, use it!
+  if (gInstallPath) {
+    NS_tsnprintf(installDir, N, NS_T("%s"), gInstallPath);
+    return true;
+  }
+#endif
   NS_tsnprintf(installDir, N, NS_T("%s"), gDestinationPath);
   NS_tchar *slash = (NS_tchar *) NS_tstrrchr(installDir, NS_SLASH);
   // Make sure we're not looking at a trailing slash
@@ -1979,13 +1988,21 @@ ProcessReplaceRequest()
                NS_T("%s.bak"), sourceDir);
 
   NS_tchar newDir[MAXPATHLEN];
-  NS_tsnprintf(newDir, sizeof(newDir)/sizeof(newDir[0]),
-#ifdef XP_MACOSX
-               NS_T("%s/Updated.app/Contents"),
-#else
-               NS_T("%s.bak/updated"),
+#ifdef XP_WIN
+  if (gInstallPath) {
+    // On Windows, if the updated directory has been written to the alternative
+    // location, just use its path.
+    NS_tsnprintf(newDir, sizeof(newDir)/sizeof(newDir[0]),
+                 NS_T("%s"), gDestinationPath);
+  } else // continued after #ifdef
 #endif
-               installDir);
+    NS_tsnprintf(newDir, sizeof(newDir)/sizeof(newDir[0]),
+#ifdef XP_MACOSX
+                 NS_T("%s/Updated.app/Contents"),
+#else
+                 NS_T("%s.bak/updated"),
+#endif
+                 installDir);
 #ifdef XP_MACOSX
   if (NS_taccess(newDir, F_OK)) {
     // For xpcshell tests, make newDir fall back to $sourceDir/updated
@@ -2213,7 +2230,18 @@ int NS_main(int argc, NS_tchar **argv)
   // standard says that it's always safe to write to strings pointed to by argv
   // elements, but I don't necessarily believe it.
   NS_tstrncpy(gDestinationPath, argv[2], MAXPATHLEN);
-  gDestinationPath[MAXPATHLEN] = NS_T('\0');
+#if defined(XP_WIN)
+  NS_tchar* pathSeparator = NS_tstrchr(gDestinationPath, NS_T(';'));
+  if (pathSeparator) {
+    *pathSeparator = NS_T('\0');
+    gInstallPath = (pathSeparator + 1);
+    NS_tchar *slash = NS_tstrrchr(gInstallPath, NS_SLASH);
+    if (slash && !slash[1]) {
+      *slash = NS_T('\0');
+    }
+  } else // continued after #ifdef
+#endif
+    gDestinationPath[MAXPATHLEN] = NS_T('\0');
   NS_tchar *slash = NS_tstrrchr(gDestinationPath, NS_SLASH);
   if (slash && !slash[1]) {
     *slash = NS_T('\0');
