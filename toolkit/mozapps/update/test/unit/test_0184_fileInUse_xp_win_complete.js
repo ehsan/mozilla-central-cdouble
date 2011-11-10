@@ -26,13 +26,13 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_precomplete",
-  compareFile      : "data/complete_precomplete"
+  compareFile      : "data/partial_precomplete"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "searchpluginstext0",
   relPathDir       : "a/b/searchplugins/",
   originalContents : "ToBeReplacedWithFromComplete\n",
-  compareContents  : "FromComplete\n",
+  compareContents  : "ToBeReplacedWithFromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
@@ -42,7 +42,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png"
+  compareFile      : null
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "searchpluginspng0.png",
@@ -50,7 +50,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial.png",
-  compareFile      : "data/complete.png"
+  compareFile      : "data/partial.png"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "removed-files",
@@ -58,14 +58,14 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_removed-files",
-  compareFile      : "data/complete_removed-files"
+  compareFile      : "data/partial_removed-files"
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
   fileName         : "extensions1text0",
   relPathDir       : "a/b/extensions/extensions1/",
   originalContents : null,
-  compareContents  : "FromComplete\n",
+  compareContents  : null,
   originalFile     : null,
   compareFile      : null
 }, {
@@ -76,7 +76,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial.png",
-  compareFile      : "data/complete.png"
+  compareFile      : "data/partial.png"
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -85,14 +85,14 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png"
+  compareFile      : null
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
   fileName         : "extensions0text0",
   relPathDir       : "a/b/extensions/extensions0/",
   originalContents : "ToBeReplacedWithFromComplete\n",
-  compareContents  : "FromComplete\n",
+  compareContents  : "ToBeReplacedWithFromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
@@ -103,7 +103,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png"
+  compareFile      : null
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -112,7 +112,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png"
+  compareFile      : null
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "exe0.exe",
@@ -120,13 +120,13 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : HELPER_BIN_FILE,
-  compareFile      : "data/complete.png"
+  compareFile      : HELPER_BIN_FILE
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "10text0",
   relPathDir       : "a/b/1/10/",
   originalContents : "ToBeReplacedWithFromComplete\n",
-  compareContents  : "FromComplete\n",
+  compareContents  : "ToBeReplacedWithFromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
@@ -136,13 +136,13 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : HELPER_BIN_FILE,
-  compareFile      : "data/complete.png"
+  compareFile      : HELPER_BIN_FILE
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "00text1",
   relPathDir       : "a/b/0/00/",
   originalContents : "ToBeReplacedWithFromComplete\n",
-  compareContents  : "FromComplete\n",
+  compareContents  : "ToBeReplacedWithFromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
@@ -150,7 +150,7 @@ const TEST_FILES = [
   fileName         : "00text0",
   relPathDir       : "a/b/0/00/",
   originalContents : "ToBeReplacedWithFromComplete\n",
-  compareContents  : "FromComplete\n",
+  compareContents  : "ToBeReplacedWithFromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
@@ -160,13 +160,13 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png"
+  compareFile      : null
 }, {
   description      : "Removed by precomplete (remove)",
   fileName         : "20text0",
   relPathDir       : "a/b/2/20/",
   originalContents : "ToBeDeleted\n",
-  compareContents  : null,
+  compareContents  : "ToBeDeleted\n",
   originalFile     : null,
   compareFile      : null
 }, {
@@ -174,7 +174,7 @@ const TEST_FILES = [
   fileName         : "20png0.png",
   relPathDir       : "a/b/2/20/",
   originalContents : "ToBeDeleted\n",
-  compareContents  : null,
+  compareContents  : "ToBeDeleted\n",
   originalFile     : null,
   compareFile      : null
 }];
@@ -224,24 +224,24 @@ function doUpdate() {
   gBackgroundUpdate = false;
   gSwitchApp = true;
   exitValue = runUpdate();
-  logTestInfo("testing updater binary process exitValue for success when " +
+  logTestInfo("testing updater binary process exitValue for failure when " +
               "switching to the updated application");
-  do_check_eq(exitValue, 0);
+  do_check_eq(exitValue, 1);
 
   setupHelperFinish();
 }
 
 function checkUpdate() {
-  logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
+  logTestInfo("testing update.status should be " + STATE_FAILED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
+  do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_FAILED);
 
-  checkFilesAfterUpdateSuccess();
-  checkUpdateLogContains(ERR_BACKUP_DISCARD);
+  checkFilesAfterUpdateFailure(getApplyDirFile);
+  checkUpdateLogContains(ERR_RENAME_FILE);
 
-  logTestInfo("testing tobedeleted directory exists");
+  logTestInfo("testing tobedeleted directory does not exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
-  do_check_true(toBeDeletedDir.exists());
+  do_check_false(toBeDeletedDir.exists());
 
   checkCallbackAppLog();
 }
