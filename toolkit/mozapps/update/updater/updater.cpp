@@ -2653,7 +2653,7 @@ int NS_main(int argc, NS_tchar **argv)
     LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
   }
 
-  return 0;
+  return gSucceeded ? 0 : 1;
 }
 
 class ActionList
