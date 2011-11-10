@@ -231,8 +231,8 @@ function checkUpdate() {
   // code for the failure.
   do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_FAILED);
 
-  checkFilesAfterUpdateFailure();
-  checkUpdateLogContains(ERR_CALLBACK_FILE_IN_USE);
+  checkFilesAfterUpdateFailure(getApplyDirFile);
+  checkUpdateLogContains(ERR_RENAME_FILE);
 
   logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);

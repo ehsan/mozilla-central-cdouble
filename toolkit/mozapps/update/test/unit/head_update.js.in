@@ -867,11 +867,15 @@ function checkFilesAfterUpdateSuccess() {
 /**
  * Helper function for updater binary tests for verifying the state of files and
  * directories after a failed update.
+ *
+ * @aGetDirectory: the function used to get the files in the target directory.
+ * Pass getApplyDirFile if you want to test the case of a failed switch request.
  */
-function checkFilesAfterUpdateFailure() {
+function checkFilesAfterUpdateFailure(aGetDirectory) {
+  let getdir = aGetDirectory || getTargetDirFile;
   logTestInfo("testing contents of files after a failed update");
   TEST_FILES.forEach(function CFAUF_TF_FE(aTestFile) {
-    let testFile = getTargetDirFile(aTestFile.relPathDir + aTestFile.fileName, true);
+    let testFile = getdir(aTestFile.relPathDir + aTestFile.fileName, true);
     logTestInfo("testing file: " + testFile.path);
     if (aTestFile.compareFile || aTestFile.compareContents) {
       do_check_true(testFile.exists());
@@ -906,13 +910,13 @@ function checkFilesAfterUpdateFailure() {
   logTestInfo("testing operations specified in removed-files were not " +
               "performed after a failed update");
   TEST_DIRS.forEach(function CFAUF_TD_FE(aTestDir) {
-    let testDir = getTargetDirFile(aTestDir.relPathDir, true);
+    let testDir = getdir(aTestDir.relPathDir, true);
     logTestInfo("testing directory file: " + testDir.path);
     do_check_true(testDir.exists());
 
     if (aTestDir.files) {
       aTestDir.files.forEach(function CFAUS_TD_F_FE(aTestFile) {
-        let testFile = getTargetDirFile(aTestDir.relPathDir + aTestFile, true);
+        let testFile = getdir(aTestDir.relPathDir + aTestFile, true);
         logTestInfo("testing directory file: " + testFile.path);
         do_check_true(testFile.exists());
       });
@@ -920,12 +924,12 @@ function checkFilesAfterUpdateFailure() {
 
     if (aTestDir.subDirs) {
       aTestDir.subDirs.forEach(function CFAUS_TD_SD_FE(aSubDir) {
-        let testSubDir = getTargetDirFile(aTestDir.relPathDir + aSubDir, true);
+        let testSubDir = getdir(aTestDir.relPathDir + aSubDir, true);
         logTestInfo("testing sub-directory: " + testSubDir.path);
         do_check_true(testSubDir.exists());
         if (aTestDir.subDirFiles) {
           aTestDir.subDirFiles.forEach(function CFAUS_TD_SDF_FE(aTestFile) {
-            let testFile = getTargetDirFile(aTestDir.relPathDir + aSubDir + aTestFile, true);
+            let testFile = getdir(aTestDir.relPathDir + aSubDir + aTestFile, true);
             logTestInfo("testing sub-directory file: " + testFile.path);
             do_check_true(testFile.exists());
           });
