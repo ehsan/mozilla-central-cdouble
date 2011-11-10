@@ -85,6 +85,8 @@ const IS_ANDROID = true;
 const IS_ANDROID = false;
 #endif
 
+const USE_EXECV = IS_UNIX && !IS_MACOSX;
+
 const URL_HOST = "http://localhost:4444/";
 const URL_PATH = "data";
 
