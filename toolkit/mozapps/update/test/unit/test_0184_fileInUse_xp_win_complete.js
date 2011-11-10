@@ -194,6 +194,7 @@ function run_test() {
   do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
+  gBackgroundUpdate = true;
   setupUpdaterTest(MAR_COMPLETE_FILE);
 
   // Launch an existing file so it is in use during the update
