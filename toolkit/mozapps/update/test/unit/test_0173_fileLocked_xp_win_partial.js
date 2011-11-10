@@ -214,13 +214,13 @@ function run_test() {
 function doUpdate() {
   // apply the complete mar
   let exitValue = runUpdate();
-  logTestInfo("testing updater binary process exitValue for success when " +
+  logTestInfo("testing updater binary process exitValue for failure when " +
               "applying a complete mar");
-  do_check_eq(exitValue, 0);
+  do_check_eq(exitValue, 1);
 
-  logTestInfo("testing update.status should be " + STATE_APPLIED);
+  logTestInfo("testing update.status should be " + STATE_FAILED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED);
+  do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_FAILED);
 
   // Now switch the application and its updated version
   gBackgroundUpdate = false;
