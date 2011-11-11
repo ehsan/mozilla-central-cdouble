@@ -66,6 +66,7 @@
 # include <direct.h>
 # include <process.h>
 # include <windows.h>
+# include <shlwapi.h>
 # define getcwd(path, size) _getcwd(path, size)
 # define getpid() GetCurrentProcessId()
 #elif defined(XP_OS2)
@@ -394,6 +395,7 @@ OnSameVolume(nsIFile* aDir1, nsIFile* aDir2)
 {
   nsAutoString path1, path2;
   wchar_t volume1[MAX_PATH], volume2[MAX_PATH];
+  size_t volume1Len, volume2Len;
 
   nsresult rv = aDir1->GetPath(path1);
   rv |= aDir2->GetPath(path2);
@@ -406,7 +408,10 @@ OnSameVolume(nsIFile* aDir1, nsIFile* aDir2)
                           mozilla::ArrayLength(volume2)))
     return false;
 
-  return !wcscmp(volume1, volume2);
+  volume1Len = wcslen(volume1);
+  volume2Len = wcslen(volume2);
+  return volume1Len == volume2Len &&
+         volume1Len == PathCommonPrefixW(volume1, volume2, NULL);
 }
 
 static bool
