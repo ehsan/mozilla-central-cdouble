@@ -411,7 +411,11 @@ function getApplyDirFile(aRelPath, allowNonexistent) {
 function getUpdatedDirPath() {
   if (gAlternateUpdatedDir) {
     do_check_true(IS_WIN); // only makes sense on Windows
-    return getUpdatesRootDir().path;
+    let dir = getUpdatesRootDir();
+    dir.append("updates");
+    dir.append("0");
+    dir.append(UPDATED_DIR_SUFFIX.replace("/", ""));
+    return dir.path;
   }
   let suffix = "";
   if (gBackgroundUpdate) {
