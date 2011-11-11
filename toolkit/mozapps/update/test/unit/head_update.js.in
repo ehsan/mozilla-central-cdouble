@@ -448,7 +448,7 @@ if (IS_WIN) {
     file.append(kLockFileName);
     file.create(file.NORMAL_FILE_TYPE, 0444);
     file.QueryInterface(AUS_Ci.nsILocalFileWin);
-    file.fileAttributesWin |= FILE_ATTRIBUTE_READONLY;
+    file.fileAttributesWin |= file.WFA_READONLY;
     do_check_true(file.exists());
     do_check_false(file.isWritable());
   }
@@ -459,7 +459,7 @@ if (IS_WIN) {
     var file = aDir.clone();
     file.append(kLockFileName);
     file.QueryInterface(AUS_Ci.nsILocalFileWin);
-    file.fileAttributesWin &= ~FILE_ATTRIBUTE_READONLY;
+    file.fileAttributesWin |= file.WFA_READWRITE;
     file.remove(false);
     do_check_false(file.exists());
   }
