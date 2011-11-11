@@ -707,7 +707,9 @@ function checkUpdateApplied() {
   logTestInfo("contents of " + log.path + ":\n" +
               contents.replace(/\r\n/g, "\n"));
 
-  let updatedDir = do_get_file(getUpdatedDirPath());
+  let updatedDir = AUS_Cc["@mozilla.org/file/local;1"].
+                   createInstance(AUS_Ci.nsILocalFile);
+  updatedDir.initWithPath(getUpdatedDirPath());
   if (IS_MACOSX) {
     updatedDir = updatedDir.parent.parent;
   }
@@ -780,7 +782,9 @@ function checkUpdateFinished() {
 
   // At this point we need to see if the application was switched successfully.
 
-  let updatedDir = do_get_file(getUpdatedDirPath());
+  let updatedDir = AUS_Cc["@mozilla.org/file/local;1"].
+                   createInstance(AUS_Ci.nsILocalFile);
+  updatedDir.initWithPath(getUpdatedDirPath());
   if (IS_MACOSX) {
     updatedDir = updatedDir.parent.parent;
   }
