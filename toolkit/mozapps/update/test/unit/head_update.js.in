@@ -124,6 +124,7 @@ var gCallbackBinFile = "callback_app" + BIN_SUFFIX;
 var gCallbackArgs = ["./", "callback.log", "Test Arg 2", "Test Arg 3"];
 var gBackgroundUpdate = false;
 var gSwitchApp = false;
+var gAlternateUpdatedDir = false; // only used on Windows
 
 // Time to wait for the test helper process before continuing the test
 const TEST_HELPER_TIMEOUT = 100;
@@ -337,6 +338,10 @@ function cleanUp() {
   }
 
   gTestserver    = null;
+
+  if (!IS_WIN) {
+    do_check_false(gAlternateUpdatedDir);
+  }
 }
 
 /**
@@ -401,6 +406,21 @@ function getApplyDirFile(aRelPath, allowNonexistent) {
 }
 
 /**
+ * Helper function for getting the updated directory.
+ */
+function getUpdatedDirPath() {
+  if (gAlternateUpdatedDir) {
+    do_check_true(IS_WIN); // only makes sense on Windows
+    return getUpdatesRootDir().path;
+  }
+  let suffix = "";
+  if (gBackgroundUpdate) {
+    suffix = UPDATED_DIR_SUFFIX;
+  }
+  return getApplyDirPath() + suffix;
+}
+
+/**
  * Helper function for getting the nsIFile for the directory where the update
  * has been applied.
  *
@@ -413,11 +433,7 @@ function getApplyDirFile(aRelPath, allowNonexistent) {
  * @return  The nsIFile for the directory where the update has been applied.
  */
 function getTargetDirFile(aRelPath, allowNonexistent) {
-  let suffix = "";
-  if (gBackgroundUpdate) {
-    suffix = UPDATED_DIR_SUFFIX;
-  }
-  let relpath = getApplyDirPath() + suffix + (aRelPath ? aRelPath : "");
+  let relpath = getUpdatedDirPath() + (aRelPath ? aRelPath : "");
   return do_get_file(relpath, allowNonexistent);
 }
 
@@ -458,7 +474,9 @@ function runUpdate() {
 
   let applyToDir = getApplyDirFile();
   let applyToDirPath = applyToDir.path;
-  if (gBackgroundUpdate || gSwitchApp) {
+  if (gAlternateUpdatedDir) {
+    applyToDirPath = getUpdatedDirPath();
+  } else if (gBackgroundUpdate || gSwitchApp) {
     applyToDirPath += "/" + UPDATED_DIR_SUFFIX;
   }
   if (IS_WIN) {
