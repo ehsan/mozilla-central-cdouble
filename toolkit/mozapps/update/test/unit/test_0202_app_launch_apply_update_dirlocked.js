@@ -220,6 +220,13 @@ function run_test() {
   writeVersionFile(version);
   writeStatusFile(STATE_PENDING);
 
+  // Remove the old updated directory which might be left over from previous tests.
+  let oldUpdatedDir = processDir.clone();
+  oldUpdatedDir.append(UPDATED_DIR_SUFFIX.replace("/", ""));
+  if (oldUpdatedDir.exists()) {
+    oldUpdatedDir.remove(true);
+  }
+
   // This is the directory where the update files will be located
   let updateTestDir = getUpdateTestDir();
   try {
