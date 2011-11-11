@@ -2505,11 +2505,12 @@ int NS_main(int argc, NS_tchar **argv)
       p += NS_tstrlen(gDestinationPath + commonPrefixLength);
       *p = NS_T('\\');
       ++p;
+      *p = NS_T('\0');
       NS_tchar installDir[MAXPATHLEN];
       if (!GetInstallationDir(installDir))
         return 1;
       size_t callbackPrefixLength = PathCommonPrefixW(argv[callbackIndex], installDir, NULL);
-      NS_tstrcpy(p, argv[callbackIndex] + callbackPrefixLength);
+      NS_tstrcpy(p, argv[callbackIndex] + max(callbackPrefixLength, commonPrefixLength));
       targetPath = buffer;
     }
     if (!GetLongPathNameW(targetPath, callbackLongPath,
