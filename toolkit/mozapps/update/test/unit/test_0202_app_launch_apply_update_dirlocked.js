@@ -98,7 +98,8 @@ XPCOMUtils.defineLazyGetter(this, "gAppBinPath", function test_gAppBinPath() {
   appBin.append(APP_BIN_NAME + APP_BIN_SUFFIX);
   if (appBin.exists()) {
     if (IS_WIN) {
-      let appBinCopy = processDir.clone();
+      // Use the test exe inside the new bin directory.
+      let appBinCopy = gWindowsBinDir.clone();
       appBinCopy.append(FILE_WIN_TEST_EXE);
       if (appBinCopy.exists()) {
         appBinCopy.remove(false);
@@ -189,15 +190,15 @@ function run_test() {
 
   removeUpdateDirsAndFiles();
 
+  symlinkUpdateFilesIntoBundleDirectory();
+  if (IS_WIN) {
+    adjustPathsOnWindows();
+  }
+
   if (!gAppBinPath) {
     do_throw("Main application binary not found... expected: " +
              APP_BIN_NAME + APP_BIN_SUFFIX);
     return;
-  }
-
-  symlinkUpdateFilesIntoBundleDirectory();
-  if (IS_WIN) {
-    adjustPathsOnWindows();
   }
 
   let channel = Services.prefs.getCharPref(PREF_APP_UPDATE_CHANNEL);
