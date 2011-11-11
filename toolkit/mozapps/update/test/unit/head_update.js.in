@@ -437,6 +437,34 @@ function getTargetDirFile(aRelPath, allowNonexistent) {
   return do_get_file(relpath, allowNonexistent);
 }
 
+if (IS_WIN) {
+  const kLockFileName = "updated.update_in_progress.lock";
+  const FILE_ATTRIBUTE_READONLY = 0x00000001;
+  /**
+   * Helper function for locking a directory on Windows.
+   */
+  function lockDirectory(aDir) {
+    var file = aDir.clone();
+    file.append(kLockFileName);
+    file.create(file.NORMAL_FILE_TYPE, 0444);
+    file.QueryInterface(AUS_Ci.nsILocalFileWin);
+    file.fileAttributesWin |= FILE_ATTRIBUTE_READONLY;
+    do_check_true(file.exists());
+    do_check_false(file.isWritable());
+  }
+  /**
+   * Helper function for unlocking a directory on Windows.
+   */
+  function unlockDirectory(aDir) {
+    var file = aDir.clone();
+    file.append(kLockFileName);
+    file.QueryInterface(AUS_Ci.nsILocalFileWin);
+    file.fileAttributesWin &= ~FILE_ATTRIBUTE_READONLY;
+    file.remove(false);
+    do_check_false(file.exists());
+  }
+}
+
 /**
  * Helper function for updater tests for launching the updater binary to apply
  * a mar file.
