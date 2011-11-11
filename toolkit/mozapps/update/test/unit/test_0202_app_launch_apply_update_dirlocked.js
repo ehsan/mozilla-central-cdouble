@@ -189,15 +189,15 @@ function run_test() {
 
   removeUpdateDirsAndFiles();
 
-  symlinkUpdateFilesIntoBundleDirectory();
-  if (IS_WIN) {
-    adjustPathsOnWindows();
-  }
-
   if (!gAppBinPath) {
     do_throw("Main application binary not found... expected: " +
              APP_BIN_NAME + APP_BIN_SUFFIX);
     return;
+  }
+
+  symlinkUpdateFilesIntoBundleDirectory();
+  if (IS_WIN) {
+    adjustPathsOnWindows();
   }
 
   let channel = Services.prefs.getCharPref(PREF_APP_UPDATE_CHANNEL);
