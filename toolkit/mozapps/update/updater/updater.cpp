@@ -135,6 +135,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_tlstat _wstat // No symlinks on Windows
 # define NS_tstrcat wcscat
 # define NS_tstrcmp wcscmp
+# define NS_tstricmp wcsicmp
 # define NS_tstrcpy wcscpy
 # define NS_tstrncpy wcsncpy
 # define NS_tstrlen wcslen
@@ -173,6 +174,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_tlstat lstat
 # define NS_tstrcat strcat
 # define NS_tstrcmp strcmp
+# define NS_tstricmp stricmp
 # define NS_tstrcpy strcpy
 # define NS_tstrncpy strncpy
 # define NS_tstrlen strlen
@@ -828,7 +830,7 @@ struct copy_recursive_skiplist {
   }
   bool find(const NS_tchar *path) {
     for (unsigned i = 0; i < N; ++i) {
-      if (!NS_tstrcmp(paths[i], path)) {
+      if (!NS_tstricmp(paths[i], path)) {
         return true;
       }
     }
