@@ -174,7 +174,7 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 # define NS_tlstat lstat
 # define NS_tstrcat strcat
 # define NS_tstrcmp strcmp
-# define NS_tstricmp stricmp
+# define NS_tstricmp strcasecmp
 # define NS_tstrcpy strcpy
 # define NS_tstrncpy strncpy
 # define NS_tstrlen strlen
