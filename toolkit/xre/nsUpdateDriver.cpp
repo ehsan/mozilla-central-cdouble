@@ -1052,6 +1052,18 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
   }
   mInfo.mAppVersion = appVersion;
 
+  mUpdate = aUpdate;
+
+  NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
+  return NS_NewThread(getter_AddRefs(mProcessWatcher),
+                      NS_NewRunnableMethod(this, &nsUpdateProcessor::StartBackgroundUpdate));
+}
+
+void
+nsUpdateProcessor::StartBackgroundUpdate()
+{
+  NS_ABORT_IF_FALSE(!NS_IsMainThread(), "main thread");
+
   nsresult rv = ProcessUpdates(mInfo.mGREDir,
                                mInfo.mAppDir,
                                mInfo.mUpdateRoot,
@@ -1060,18 +1072,28 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
                                PromiseFlatCString(mInfo.mAppVersion).get(),
                                false,
                                &mUpdaterPID);
-  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_SUCCESS(rv, );
 
   if (mUpdaterPID) {
-    mUpdate = aUpdate;
     // Track the state of the background updater process
-    NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
-    rv = NS_NewThread(getter_AddRefs(mProcessWatcher),
-                      NS_NewRunnableMethod(this, &nsUpdateProcessor::WaitForProcess));
-    NS_ENSURE_SUCCESS(rv, rv);
+    rv = NS_DispatchToCurrentThread(NS_NewRunnableMethod(this, &nsUpdateProcessor::WaitForProcess));
+    NS_ENSURE_SUCCESS(rv, );
+  } else {
+    // Failed to launch the background updater process for some reason.
+    // We need to shutdown the current thread as there isn't anything more for
+    // us to do...
+    rv = NS_DispatchToMainThread(NS_NewRunnableMethod(this, &nsUpdateProcessor::ShutdownWatcherThread));
+    NS_ENSURE_SUCCESS(rv, );
   }
+}
 
-  return rv;
+void
+nsUpdateProcessor::ShutdownWatcherThread()
+{
+  NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
+  mProcessWatcher->Shutdown();
+  mProcessWatcher = nsnull;
+  mUpdate = nsnull;
 }
 
 void
@@ -1086,14 +1108,13 @@ void
 nsUpdateProcessor::UpdateDone()
 {
   NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
-  mProcessWatcher->Shutdown();
-  mProcessWatcher = nsnull;
 
   nsCOMPtr<nsIUpdateManager> um =
     do_GetService("@mozilla.org/updates/update-manager;1");
   if (um) {
     um->RefreshUpdateStatus(mUpdate);
   }
-  mUpdate = nsnull;
+
+  ShutdownWatcherThread();
 }
 

@@ -126,6 +126,7 @@ private:
   void StartBackgroundUpdate();
   void WaitForProcess();
   void UpdateDone();
+  void ShutdownWatcherThread();
 
 private:
   ProcessType mUpdaterPID;
