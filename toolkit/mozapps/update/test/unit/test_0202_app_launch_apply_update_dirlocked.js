@@ -304,9 +304,6 @@ function end_test() {
                 ", exception: " + e);
   }
 
-  // This will delete the app console log file if it exists.
-  getAppConsoleLogPath();
-
   if (IS_UNIX) {
     // This will delete the launch script if it exists.
     getLaunchScript();
@@ -786,6 +783,20 @@ function checkUpdateFinished() {
     }
   } catch (e) {
     // Ignore exceptions if the status file is not found
+  }
+
+  try {
+    // This will delete the app console log file if it exists.
+    getAppConsoleLogPath();
+  } catch (e) {
+    if (e.result == Components.results.NS_ERROR_FILE_IS_LOCKED) {
+      // This might happen on Windows in case the callback application has not
+      // finished its job yet.  So, we'll wait some more.
+      do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateFinished);
+      return;
+    } else {
+      do_throw("getAppConsoleLogPath threw: " + e);
+    }
   }
 
   // At this point we need to see if the application was switched successfully.
