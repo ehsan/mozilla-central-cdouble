@@ -2899,7 +2899,7 @@ Downloader.prototype = {
       LOG("Downloader:onStopRequest - original URI spec: " + request.URI.spec +
           ", final URI spec: " + request.finalURI.spec + ", status: " + status);
 
-    // XXX ehsan shouldShowPrompt should always be false here, really.
+    // XXX ehsan shouldShowPrompt should always be false here.
     // But what happens when there is already a UI showing?
     var state = this._patch.state;
     var shouldShowPrompt = false;
@@ -2912,7 +2912,7 @@ Downloader.prototype = {
         // download, since otherwise some kind of UI is already visible and
         // that UI will notify.
         if (this.background)
-          shouldShowPrompt = true;
+          shouldShowPrompt = !getPref("getBoolPref", PREF_APP_UPDATE_BACKGROUND, false);
 
         // Tell the updater.exe we're ready to apply.
         writeStatusFile(getUpdatesDir(), state);
@@ -3025,7 +3025,6 @@ Downloader.prototype = {
     // Do this after *everything* else, since it will likely cause the app
     // to shut down.
     if (shouldShowPrompt) {
-      // XXX ehsan this code should probably go away...
       // Notify the user that an update has been downloaded and is ready for
       // installation (i.e. that they should restart the application). We do
       // not notify on failed update attempts.
