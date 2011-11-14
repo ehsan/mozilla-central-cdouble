@@ -3034,10 +3034,12 @@ Downloader.prototype = {
       prompter.showUpdateDownloaded(this._update, true);
     }
 
-    // XXX ehsan This is where the background update is initiated.
-    Cc["@mozilla.org/updates/update-service;1"].
-      getService(Ci.nsIApplicationUpdateService).
-      applyUpdateInBackground(this._update);
+    if (state == STATE_PENDING) {
+      // Initiate the background update job.
+      Cc["@mozilla.org/updates/update-service;1"].
+        getService(Ci.nsIApplicationUpdateService).
+        applyUpdateInBackground(this._update);
+    }
 
     // Prevent leaking the update object (bug 454964)
     this._update = null;
