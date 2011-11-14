@@ -275,8 +275,7 @@ class JSString : public js::gc::Cell
         JS_STATIC_ASSERT(((JSString::MAX_LENGTH << JSString::LENGTH_SHIFT) >>
                            JSString::LENGTH_SHIFT) == JSString::MAX_LENGTH);
         JS_STATIC_ASSERT(sizeof(JSString) ==
-                         offsetof(JSString, d.inlineStorage) +
-                         NUM_INLINE_CHARS * sizeof(jschar));
+                         offsetof(JSString, d.inlineStorage) + NUM_INLINE_CHARS * sizeof(jschar));
     }
 
     /* Avoid lame compile errors in JSRope::flatten */
@@ -419,10 +418,18 @@ class JSString : public js::gc::Cell
     static size_t offsetOfChars() {
         return offsetof(JSString, d.u1.chars);
     }
+
+    static inline void writeBarrierPre(JSString *str);
+    static inline void writeBarrierPost(JSString *str, void *addr);
+    static inline bool needWriteBarrierPre(JSCompartment *comp);
 };
 
 class JSRope : public JSString
 {
+    enum UsingBarrier { WithBarrier, NoBarrier };
+    template<UsingBarrier b>
+    JSFlatString *flattenInternal(JSContext *cx);
+
     friend class JSString;
     JSFlatString *flatten(JSContext *cx);
 
@@ -450,9 +457,9 @@ class JSLinearString : public JSString
     friend class JSString;
 
     /* Vacuous and therefore unimplemented. */
-    JSLinearString *ensureLinear(JSContext *cx);
-    bool isLinear() const;
-    JSLinearString &asLinear() const;
+    JSLinearString *ensureLinear(JSContext *cx) MOZ_DELETE;
+    bool isLinear() const MOZ_DELETE;
+    JSLinearString &asLinear() const MOZ_DELETE;
 
   public:
     void mark(JSTracer *trc);
@@ -474,8 +481,8 @@ class JSDependentString : public JSLinearString
     void init(JSLinearString *base, const jschar *chars, size_t length);
 
     /* Vacuous and therefore unimplemented. */
-    bool isDependent() const;
-    JSDependentString &asDependent() const;
+    bool isDependent() const MOZ_DELETE;
+    JSDependentString &asDependent() const MOZ_DELETE;
 
   public:
     static inline JSDependentString *new_(JSContext *cx, JSLinearString *base,
@@ -498,9 +505,9 @@ class JSFlatString : public JSLinearString
     }
 
     /* Vacuous and therefore unimplemented. */
-    JSFlatString *ensureFlat(JSContext *cx);
-    bool isFlat() const;
-    JSFlatString &asFlat() const;
+    JSFlatString *ensureFlat(JSContext *cx) MOZ_DELETE;
+    bool isFlat() const MOZ_DELETE;
+    JSFlatString &asFlat() const MOZ_DELETE;
 
   public:
     JS_ALWAYS_INLINE
@@ -534,8 +541,8 @@ JS_STATIC_ASSERT(sizeof(JSFlatString) == sizeof(JSString));
 class JSExtensibleString : public JSFlatString
 {
     /* Vacuous and therefore unimplemented. */
-    bool isExtensible() const;
-    JSExtensibleString &asExtensible() const;
+    bool isExtensible() const MOZ_DELETE;
+    JSExtensibleString &asExtensible() const MOZ_DELETE;
 
   public:
     JS_ALWAYS_INLINE
@@ -552,9 +559,9 @@ class JSFixedString : public JSFlatString
     void init(const jschar *chars, size_t length);
 
     /* Vacuous and therefore unimplemented. */
-    JSFlatString *ensureFixed(JSContext *cx);
-    bool isFixed() const;
-    JSFixedString &asFixed() const;
+    JSFlatString *ensureFixed(JSContext *cx) MOZ_DELETE;
+    bool isFixed() const MOZ_DELETE;
+    JSFixedString &asFixed() const MOZ_DELETE;
 
   public:
     static inline JSFixedString *new_(JSContext *cx, const jschar *chars, size_t length);
@@ -639,8 +646,8 @@ class JSExternalString : public JSFixedString
     void init(const jschar *chars, size_t length, intN type, void *closure);
 
     /* Vacuous and therefore unimplemented. */
-    bool isExternal() const;
-    JSExternalString &asExternal() const;
+    bool isExternal() const MOZ_DELETE;
+    JSExternalString &asExternal() const MOZ_DELETE;
 
   public:
     static inline JSExternalString *new_(JSContext *cx, const jschar *chars,
@@ -682,8 +689,8 @@ JS_STATIC_ASSERT(sizeof(JSExternalString) == sizeof(JSString));
 class JSAtom : public JSFixedString
 {
     /* Vacuous and therefore unimplemented. */
-    bool isAtom() const;
-    JSAtom &asAtom() const;
+    bool isAtom() const MOZ_DELETE;
+    JSAtom &asAtom() const MOZ_DELETE;
 
   public:
     /* Returns the PropertyName for this.  isIndex() must be false. */
