@@ -944,6 +944,8 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
   int argc;
   char **argv;
 
+  NS_ENSURE_ARG_POINTER(aUpdate);
+
   nsXREDirProvider* dirProvider = nsXREDirProvider::GetSingleton();
   if (dirProvider) { // Normal code path
     // Check for and process any available updates
@@ -1037,7 +1039,7 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
                                &mUpdaterPID);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (mUpdaterPID && aUpdate) {
+  if (mUpdaterPID) {
     mUpdate = aUpdate;
     // Track the state of the background updater process
     NS_ABORT_IF_FALSE(NS_IsMainThread(), "not main thread");
