@@ -1038,12 +1038,26 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
     argv = &binPathCString;
   }
 
-  nsresult rv = ProcessUpdates(greDir,
-                               appDir,
-                               updRoot,
-                               argc,
-                               argv,
-                               PromiseFlatCString(appVersion).get(),
+  // Copy the parameters to the BackgroundUpdateInfo structure shared with the
+  // watcher thread.
+  mInfo.mGREDir = greDir;
+  mInfo.mAppDir = appDir;
+  mInfo.mUpdateRoot = updRoot;
+  mInfo.mArgc = argc;
+  mInfo.mArgv = new char*[argc];
+  for (int i = 0; i < argc; ++i) {
+    const size_t length = strlen(argv[i]);
+    mInfo.mArgv[i] = new char[length + 1];
+    strcpy(mInfo.mArgv[i], argv[i]);
+  }
+  mInfo.mAppVersion = appVersion;
+
+  nsresult rv = ProcessUpdates(mInfo.mGREDir,
+                               mInfo.mAppDir,
+                               mInfo.mUpdateRoot,
+                               mInfo.mArgc,
+                               mInfo.mArgv,
+                               PromiseFlatCString(mInfo.mAppVersion).get(),
                                false,
                                &mUpdaterPID);
   NS_ENSURE_SUCCESS(rv, rv);

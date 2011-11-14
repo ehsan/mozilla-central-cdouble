@@ -46,6 +46,7 @@
 #include "nsIUpdateService.h"
 #include "nsIThread.h"
 #include "nsCOMPtr.h"
+#include "nsString.h"
 #endif
 
 class nsIFile;
@@ -101,6 +102,28 @@ public:
   NS_DECL_NSIUPDATEPROCESSOR
 
 private:
+  struct BackgroundUpdateInfo {
+    BackgroundUpdateInfo()
+      : mArgc(0),
+        mArgv(nsnull)
+    {}
+    ~BackgroundUpdateInfo() {
+      for (int i = 0; i < mArgc; ++i) {
+        delete[] mArgv[i];
+      }
+      delete[] mArgv;
+    }
+
+    nsCOMPtr<nsIFile> mGREDir;
+    nsCOMPtr<nsIFile> mAppDir;
+    nsCOMPtr<nsIFile> mUpdateRoot;
+    int mArgc;
+    char **mArgv;
+    nsCAutoString mAppVersion;
+  };
+
+private:
+  void StartBackgroundUpdate();
   void WaitForProcess();
   void UpdateDone();
 
@@ -108,6 +131,7 @@ private:
   ProcessType mUpdaterPID;
   nsCOMPtr<nsIThread> mProcessWatcher;
   nsCOMPtr<nsIUpdate> mUpdate;
+  BackgroundUpdateInfo mInfo;
 };
 #endif
 
