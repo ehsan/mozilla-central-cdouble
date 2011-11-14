@@ -1024,7 +1024,9 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
       appVersion = MOZ_APP_VERSION;
     }
 
-    // XXX ehsan is this correct?
+    // We need argv[0] to point to the current executable's name.  The rest of
+    // the entries in this array will be ignored if argc<2.  Therefore, for
+    // xpcshell, we only fill out that item, and leave the rest empty.
     argc = 1;
     nsCAutoString binPath;
     nsCOMPtr<nsIFile> binary;
