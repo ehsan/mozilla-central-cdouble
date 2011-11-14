@@ -55,6 +55,7 @@
 #include "SpecialSystemDirectory.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsThreadUtils.h"
+#include "nsIXULAppInfo.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -940,7 +941,7 @@ NS_IMETHODIMP
 nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
 {
   nsCOMPtr<nsIFile> greDir, appDir, updRoot;
-  const char* appVersion;
+  nsCAutoString appVersion;
   int argc;
   char **argv;
 
@@ -1014,8 +1015,14 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
     if (NS_FAILED(rv))
       updRoot = appDir;
 
-    // XXX ehsan what should the correct value here be?
-    appVersion = "";
+    nsCOMPtr<nsIXULAppInfo> appInfo =
+      do_GetService("@mozilla.org/xre/app-info;1");
+    if (appInfo) {
+      rv = appInfo->GetVersion(appVersion);
+      NS_ENSURE_SUCCESS(rv, rv);
+    } else {
+      appVersion = MOZ_APP_VERSION;
+    }
 
     // XXX ehsan is this correct?
     argc = 1;
@@ -1034,7 +1041,7 @@ nsUpdateProcessor::ProcessUpdate(nsIUpdate* aUpdate)
                                updRoot,
                                argc,
                                argv,
-                               appVersion,
+                               PromiseFlatCString(appVersion).get(),
                                false,
                                &mUpdaterPID);
   NS_ENSURE_SUCCESS(rv, rv);
