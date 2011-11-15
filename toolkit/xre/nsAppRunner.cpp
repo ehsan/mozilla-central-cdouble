@@ -3152,36 +3152,6 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
     }
 #endif
 
-#if defined(MOZ_UPDATER) && !defined(ANDROID)
-    // Check for and process any available updates
-    nsCOMPtr<nsIFile> updRoot;
-    bool persistent;
-    rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
-                             getter_AddRefs(updRoot));
-    // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
-    if (NS_FAILED(rv))
-      updRoot = dirProvider.GetAppDir();
-
-    // Support for processing an update and exiting. The MOZ_PROCESS_UPDATES
-    // environment variable will be part of the updater's environment and the
-    // application that is relaunched by the updater. When the application is
-    // relaunched by the updater it will be removed below and the application
-    // will exit.
-    if (CheckArg("process-updates")) {
-      SaveToEnv("MOZ_PROCESS_UPDATES=1");
-    }
-    ProcessUpdates(dirProvider.GetGREDir(),
-                   dirProvider.GetAppDir(),
-                   updRoot,
-                   gRestartArgc,
-                   gRestartArgv,
-                   appData.version);
-    if (EnvHasValue("MOZ_PROCESS_UPDATES")) {
-      SaveToEnv("MOZ_PROCESS_UPDATES=");
-      return 0;
-    }
-#endif
-
     nsCOMPtr<nsIProfileLock> profileLock;
     bool startOffline = false;
     nsCAutoString profileName;
@@ -3314,6 +3284,35 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
       NS_TIME_FUNCTION_MARK("ScopedXPCOMStartup: Initialize");
       NS_ENSURE_SUCCESS(rv, 1); 
 
+#if defined(MOZ_UPDATER) && !defined(ANDROID)
+      // Check for and process any available updates
+      nsCOMPtr<nsIFile> updRoot;
+      bool persistent;
+      rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
+                               getter_AddRefs(updRoot));
+      // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
+      if (NS_FAILED(rv))
+        updRoot = dirProvider.GetAppDir();
+
+      // Support for processing an update and exiting. The MOZ_PROCESS_UPDATES
+      // environment variable will be part of the updater's environment and the
+      // application that is relaunched by the updater. When the application is
+      // relaunched by the updater it will be removed below and the application
+      // will exit.
+      if (CheckArg("process-updates")) {
+        SaveToEnv("MOZ_PROCESS_UPDATES=1");
+      }
+      ProcessUpdates(dirProvider.GetGREDir(),
+                     dirProvider.GetAppDir(),
+                     updRoot,
+                     gRestartArgc,
+                     gRestartArgv,
+                     appData.version);
+      if (EnvHasValue("MOZ_PROCESS_UPDATES")) {
+        SaveToEnv("MOZ_PROCESS_UPDATES=");
+        return 0;
+      }
+#endif
 
 #ifdef NS_FUNCTION_TIMER
       // initialize some common services, so we don't pay the cost for these at odd times later on;

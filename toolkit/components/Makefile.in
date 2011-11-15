@@ -77,6 +77,10 @@ PARALLEL_DIRS += \
   viewsource \
   $(NULL)
 
+ifeq ($(OS_ARCH),WINNT)
+PARALLEL_DIRS += maintenanceservice
+endif
+
 ifdef BUILD_CTYPES
 PARALLEL_DIRS += \
   ctypes \

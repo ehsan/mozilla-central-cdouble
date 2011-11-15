@@ -131,6 +131,10 @@ WriteConsoleLog();
 BOOL
 WinLaunchChild(const PRUnichar *exePath, int argc,
                char **argv, HANDLE *hProcess = nsnull);
+BOOL
+WinLaunchServiceCommand(const PRUnichar *exePath, int argc,
+                        char **argv, HANDLE *hProcess = nsnull);
+BOOL WriteStatusPendingNoService(LPCWSTR updateDirPath);
 #endif
 
 #define NS_NATIVEAPPSUPPORT_CONTRACTID "@mozilla.org/toolkit/native-app-support;1"

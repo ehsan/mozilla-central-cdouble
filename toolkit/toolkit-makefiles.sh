@@ -617,6 +617,7 @@ MAKEFILES_xulapp="
   toolkit/components/find/Makefile
   toolkit/components/help/Makefile
   toolkit/components/intl/Makefile
+  toolkit/components/maintenanceservice/Makefile
   toolkit/components/microformats/Makefile
   toolkit/components/parentalcontrols/Makefile
   toolkit/components/passwordmgr/Makefile
