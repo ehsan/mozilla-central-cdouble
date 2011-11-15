@@ -19,6 +19,7 @@
 #
 # Contributor(s):
 #  Robert Strong <robert.bugzilla@gmail.com>
+#  Brian R. Bondy <netzen@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -105,6 +106,23 @@
   ${CleanVirtualStore}
 
   ${RemoveDeprecatedFiles}
+
+  ; We check to see if the maintenance service install was already attempted.
+  ; Since the Maintenance service can be installed either x86 or x64,
+  ; always use the 64-bit registry for checking if an attempt was made.
+  SetRegView 64
+  ReadRegDWORD $5 HKLM "Software\Mozilla\MaintenanceService" "Attempted"
+  ${If} $5 == ""
+    ; An install of maintenance service was never attempted.
+    ; We call ExecShell (which is ShellExecute) with the verb "runas"
+    ; to ask for elevation if the user isn't already elevated.  If the user 
+    ; is already elevated it will just launch the program.
+    ExecShell "runas" "$INSTDIR\maintenanceservice_installer.exe"
+  ${Else}
+    ; The maintenance service is already installed.
+    ; Do nothing, the maintenance service will launch the 
+    ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
+  ${EndIf}
 !macroend
 !define PostUpdate "!insertmacro PostUpdate"
 

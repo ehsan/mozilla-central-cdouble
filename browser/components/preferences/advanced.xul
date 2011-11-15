@@ -108,6 +108,12 @@
       <preference id="app.update.disable_button.showUpdateHistory"
                   name="app.update.disable_button.showUpdateHistory"
                   type="bool"/>
+
+#ifdef XP_WIN
+      <preference id="app.update.service"
+                  name="app.update.service"
+                  type="bool"/>
+#endif
 #endif
 
       <preference id="extensions.update.enabled"       name="extensions.update.enabled"       type="bool"
@@ -326,6 +332,13 @@
                       preference="app.update.disable_button.showUpdateHistory"
                       oncommand="gAdvancedPane.showUpdates();"/>
             </hbox>
+
+#ifdef XP_WIN
+            <checkbox id="useService"
+                      label="&useService.label;"
+                      accesskey="&useService.accesskey;"
+                      preference="app.update.service"/>
+#endif
           </groupbox>
 #endif
           <groupbox id="updateOthers">

@@ -138,6 +138,9 @@ WriteConsoleLog();
 #ifdef XP_WIN
 BOOL
 WinLaunchChild(const PRUnichar *exePath, int argc, char **argv);
+BOOL
+WinLaunchServiceCommand(const PRUnichar *exePath, int argc, char **argv);
+BOOL WriteStatusPendingNoService(LPCWSTR updateDirPath);
 #endif
 
 #define NS_NATIVEAPPSUPPORT_CONTRACTID "@mozilla.org/toolkit/native-app-support;1"

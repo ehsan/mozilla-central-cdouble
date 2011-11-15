@@ -33,6 +33,7 @@
 @BINPATH@/hyphenation/*
 #ifdef XP_WIN32
 @BINPATH@/uninstall/helper.exe
+@BINPATH@/maintenanceservice_installer.exe
 #endif
 
 [xpcom]
@@ -522,6 +523,12 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/updater.app/
 #else
 @BINPATH@/updater@BIN_SUFFIX@
+#endif
+
+; [MaintenanceService]
+;
+#ifdef XP_WIN32
+@BINPATH@/maintenanceservice.exe
 #endif
 
 ; [Crash Reporter]
