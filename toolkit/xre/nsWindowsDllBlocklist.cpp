@@ -144,13 +144,21 @@ static DllBlockInfo sWindowsDllBlocklist[] = {
 // define this for very verbose dll load debug spew
 #undef DEBUG_very_verbose
 
-typedef NTSTATUS (NTAPI *LdrLoadDll_func) (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileName, PHANDLE handle);
+typedef NTSTATUS (NTAPI *LdrLoadDll_func) (PWCHAR filePath, DWORD flags, PUNICODE_STRING moduleFileName, PHANDLE handle);
 
 static LdrLoadDll_func stub_LdrLoadDll = 0;
 
 static NTSTATUS NTAPI
-patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileName, PHANDLE handle)
+patched_LdrLoadDll (PWCHAR filePath, DWORD flags, PUNICODE_STRING moduleFileName, PHANDLE handle)
 {
+  // Don't attempt to block loading of DLLs as data files
+  if ((flags & LOAD_LIBRARY_AS_DATAFILE) ||
+      (flags & LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE) ||
+      (flags & DONT_RESOLVE_DLL_REFERENCES) ||
+      (flags & LOAD_LIBRARY_AS_IMAGE_RESOURCE)) {
+    goto continue_loading;
+  }
+
   // We have UCS2 (UTF16?), we want ASCII, but we also just want the filename portion
 #define DLLNAME_MAX 128
   char dllName[DLLNAME_MAX+1];
