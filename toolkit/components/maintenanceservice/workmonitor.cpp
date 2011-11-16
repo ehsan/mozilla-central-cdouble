@@ -61,18 +61,26 @@ extern BOOL gServiceStopping;
 // significantly large and safe amount of time to wait.
 static const int TIME_TO_WAIT_ON_UPDATER = 45 * 60 * 1000;
 PRUnichar* MakeCommandLine(int argc, PRUnichar **argv);
-BOOL WriteStatusPendingNoService(LPCWSTR updateDirPath);
+BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
+BOOL WriteStatusPending(LPCWSTR updateDirPath);
 BOOL StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID);
 BOOL StartSelfUpdate(int argcTmp, LPWSTR *argvTmp);
+void LaunchWinPostProcess(const WCHAR *appExe, HANDLE userToken = NULL);
+BOOL PathGetSiblingFilePath(LPWSTR destinationBuffer,  LPCWSTR siblingFilePath, 
+                            LPCWSTR newFileName);
+
+// Error codes is 16000 since Windows system error codes only go up to 15999.
+const int SERVICE_UPDATE_ERROR = 16000;
 
 /**
  * Runs an update process in the specified sessionID as an elevated process.
  *
- * @param  appToStart The path to the update process to start.
- * @param  workingDir The working directory to execute the update process in.
- * @param  cmdLine    The command line parameters to pass to the update
+ * @param  appToStart    The path to the update process to start.
+ * @param  workingDir    The working directory to execute the update process in.
+ * @param  cmdLine       The command line parameters to pass to the update
  *         process. If they specify a callback application, it will be
  *         executed with an associated unelevated token for the sessionID.
+ * @param processStarted Returns TRUE if the process was started.
  * @param  callbackSessionID 
  *         If 0 and Windows Vista, the callback application will
  *         not be run.  If non zero the callback application will
@@ -84,9 +92,9 @@ StartUpdateProcess(LPCWSTR appToStart,
                    LPCWSTR workingDir, 
                    int argcTmp,
                    LPWSTR *argvTmp,
+                   BOOL &processStarted,
                    DWORD callbackSessionID = 0)
 {
-  BOOL processStarted = FALSE;
   DWORD myProcessID = GetCurrentProcessId();
   DWORD mySessionID = 0;
   ProcessIdToSessionId(myProcessID, &mySessionID);
@@ -95,7 +103,6 @@ StartUpdateProcess(LPCWSTR appToStart,
   si.cb = sizeof(STARTUPINFO);
   si.lpDesktop = L"winsta0\\Default";
   PROCESS_INFORMATION pi = {0};
-  nsAutoHandle elevatedToken, unelevatedToken;
 
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
     ("Starting process in an elevated session.  Service "
@@ -112,15 +119,29 @@ StartUpdateProcess(LPCWSTR appToStart,
   LPWSTR cmdLineMinusCallback = MakeCommandLine(min(argcTmp, 4), argvTmp);
 
   // If we're about to start the update process from session 0 on Vista
-  // or later, then we should not show a GUI.  One way to disable the
-  // updater.exe GUI is to delete the updater.ini file.
+  // or later, then we should not show a GUI.
   if (UACHelper::IsVistaOrLater() && argcTmp >= 2 ) {
+    // Setting the desktop to blank will ensure no GUI is displayed
     si.lpDesktop = L"";
-    WCHAR updaterINI[MAX_PATH + 1];
-    wcscpy(updaterINI, argvTmp[1]);
-    if (PathAppendSafe(updaterINI, L"updater.ini")) {
-      DeleteFileW(updaterINI);
-    }
+    si.dwFlags |= STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+  }
+
+  // We move the updater.ini file out of the way because we will handle 
+  // executing PostUpdate through the service.  We handle PostUpdate from
+  // the service because there are some per user things that happen that
+  // can't run in session 0 which we run updater.exe in.
+  // Once we are done running updater.exe we rename updater.ini back so
+  // that if there were any errors the next updater.exe will run correctly.
+  WCHAR updaterINI[MAX_PATH + 1];
+  WCHAR updaterINITemp[MAX_PATH + 1];
+  BOOL selfHandlePostUpdate = FALSE;
+  // We use the updater.ini from the same directory as the updater.exe
+  // because of background updates.
+  if (PathGetSiblingFilePath(updaterINI, argvTmp[0], L"updater.ini") &&
+      PathGetSiblingFilePath(updaterINITemp, argvTmp[0], L"updater.tmp")) {
+    selfHandlePostUpdate = MoveFileEx(updaterINI, updaterINITemp, 
+                                      MOVEFILE_REPLACE_EXISTING);
   }
 
   processStarted = CreateProcessW(appToStart, cmdLineMinusCallback, 
@@ -152,12 +173,32 @@ StartUpdateProcess(LPCWSTR appToStart,
           ("Process finished but could not obtain return code.")); 
       }
     }
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
   } else {
     DWORD lastError = GetLastError();
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not create process as current user, last error: "
        "%d; appToStart: %ls; cmdLine: %ls", 
        lastError, appToStart, cmdLineMinusCallback));
+  }
+
+  // Now that we're done with the update, restore back the updater.ini file
+  // We use it ourselves, and also we want it back in case we had any type 
+  // of error so that the normal update process can use it.
+  if (selfHandlePostUpdate) {
+    MoveFileEx(updaterINITemp, updaterINI, MOVEFILE_REPLACE_EXISTING);
+
+    // Only run the PostUpdate if the update was successful and if we have
+    // a callback application.  This is the same thing updater.exe does.
+    if (updateWasSuccessful && argcTmp > 5) {
+      LPWSTR callbackApplication = argvTmp[5];
+      // Launch the PostProcess with admin access in session 0 followed 
+      // by user access with the user token.
+      LaunchWinPostProcess(callbackApplication);
+      nsAutoHandle userToken(UACHelper::OpenUserToken(callbackSessionID));
+      LaunchWinPostProcess(callbackApplication, userToken);
+    }
   }
 
   // The callback app Will not run if session ID is 0 and on Vista
@@ -296,17 +337,28 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       DoesBinaryMatchAllowedCertificates(argvTmp[2], appToStart)) {
 #endif
 
+    BOOL updateProcessWasStarted = FALSE;
     if (!StartUpdateProcess(appToStart, workingDirectory, 
-                            argcTmp, argvTmp, sessionID)) {
+                            argcTmp, argvTmp,
+                            updateProcessWasStarted,
+                            sessionID)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
         ("Error running process in session %d.  "
          "Updating update.status.  Last error: %d",
          sessionID, GetLastError()));
 
-      if (!WriteStatusPendingNoService(argvTmp[1])) {
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-          ("Could not write update.status pending-no-service.  Last error: %d",
-           GetLastError()));
+      // If the update process was started, then updater.exe is responsible for
+      // setting the failure code.  If it could not be started then we set the
+      // error code ourselves.   We set an error code instead of directly
+      // setting status pending so that the app.update.service.failcount
+      // pref can be updated.
+      if (!updateProcessWasStarted) {
+        if (!WriteStatusFailure(argvTmp[1], SERVICE_UPDATE_ERROR)) {
+          PR_LOG(gServiceLog, PR_LOG_ALWAYS,
+            ("Could not write update.status service update failure."
+             "Last error: %d",
+             GetLastError()));
+        }
       }
       StartCallbackApp(argcTmp, argvTmp, sessionID);
     } else {
@@ -322,9 +374,12 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       ("Could not start process due to certificate check."
        "Updating update.status.  Last error: %d", GetLastError()));
 
-    if (argcTmp < 2 || !WriteStatusPendingNoService(argvTmp[1])) {
+    // When there is a certificate error we just want to write pending and then 
+    // relaunch the callback app so that we will prompt as a usual update
+    // without the service.
+    if (argcTmp < 2 || !WriteStatusPending(argvTmp[1])) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not write update.status pending-no-service.  Last error: %d", 
+        ("Could not write update.status pending-service.  Last error: %d", 
          GetLastError()));
     }
     StartCallbackApp(argcTmp, argvTmp, sessionID);
@@ -442,14 +497,19 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
 
   WCHAR maintserviceInstallerPath[MAX_PATH + 1];
   wcscpy(maintserviceInstallerPath, argvTmp[2]);
-  PathAppendSafe(maintserviceInstallerPath, L"maintenanceservice_installer.exe");
-  BOOL processStarted = CreateProcessW(maintserviceInstallerPath, 
-                                       L"/Upgrade", 
-                                       NULL, NULL, FALSE, 
-                                       CREATE_DEFAULT_ERROR_MODE | 
-                                       CREATE_UNICODE_ENVIRONMENT, 
-                                       NULL, argvTmp[2], &si, &pi);
-  return processStarted;
+  PathAppendSafe(maintserviceInstallerPath, 
+                 L"maintenanceservice_installer.exe");
+  BOOL selfUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
+                                                 L"/Upgrade", 
+                                                 NULL, NULL, FALSE, 
+                                                 CREATE_DEFAULT_ERROR_MODE | 
+                                                 CREATE_UNICODE_ENVIRONMENT, 
+                                                 NULL, argvTmp[2], &si, &pi);
+  if (selfUpdateProcessStarted) {
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+  }
+  return selfUpdateProcessStarted;
 }
 
 /**
@@ -542,6 +602,8 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
       if (callbackArgs) {
         free(callbackArgs);
       }
+      CloseHandle(pi.hProcess);
+      CloseHandle(pi.hThread);
       return TRUE;
     } else {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,

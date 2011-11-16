@@ -27,6 +27,7 @@
 #  Alexander J. Vincent <ajvincent@gmail.com>
 #  Dão Gottwald <dao@mozilla.com>
 #  Robert Strong <robert.bugzilla@gmail.com>
+#  Brian R. Bondy <netzen@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -82,7 +83,9 @@ const PREF_APP_UPDATE_BACKGROUND          = "app.update.background";
 const PREF_APP_UPDATE_URL                 = "app.update.url";
 const PREF_APP_UPDATE_URL_DETAILS         = "app.update.url.details";
 const PREF_APP_UPDATE_URL_OVERRIDE        = "app.update.url.override";
-
+const PREF_APP_UPDATE_SERVICE             = "app.update.service";
+const PREF_APP_UPDATE_SERVICE_FAILCOUNT   = "app.update.service.failcount";
+const PREF_APP_UPDATE_SERVICE_MAXFAIL     = "app.update.service.maxfail";
 const PREF_PARTNER_BRANCH                 = "app.partner.";
 const PREF_APP_DISTRIBUTION               = "distribution.id";
 const PREF_APP_DISTRIBUTION_VERSION       = "distribution.version";
@@ -128,7 +131,7 @@ const FILE_UPDATE_LOCALE  = "update.locale";
 const STATE_NONE            = "null";
 const STATE_DOWNLOADING     = "downloading";
 const STATE_PENDING         = "pending";
-const STATE_PENDING_NO_SVC =  "pending-no-service";
+const STATE_PENDING_SVC     = "pending-service";
 const STATE_APPLYING        = "applying";
 const STATE_APPLIED         = "applied";
 const STATE_SUCCEEDED       = "succeeded";
@@ -136,8 +139,10 @@ const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
 
 // From updater/errors.h:
-const WRITE_ERROR        = 7;
-const ELEVATION_CANCELED = 9;
+const WRITE_ERROR          = 7;
+const ELEVATION_CANCELED   = 9;
+const SERVICE_UPDATE_ERROR = 16000;
+
 
 const CERT_ATTR_CHECK_FAILED_NO_UPDATE  = 100;
 const CERT_ATTR_CHECK_FAILED_HAS_UPDATE = 101;
@@ -148,6 +153,10 @@ const DOWNLOAD_BACKGROUND_INTERVAL  = 600;    // seconds
 const DOWNLOAD_FOREGROUND_INTERVAL  = 0;
 
 const UPDATE_WINDOW_NAME      = "Update:Wizard";
+
+// The default number of times the service can fail while 
+// still considering it for use.
+const DEFAULT_MAX_FAIL_COUNT = 10;
 
 var gLocale     = null;
 
@@ -460,7 +469,7 @@ function LOG(string) {
 #  @param   defaultValue
 #           The default value to return in the event the preference has
 #           no setting
-#  @returns The value of the preference, or undefined if there was no
+#  @return  The value of the preference, or undefined if there was no
 #           user or default value.
  */
 function getPref(func, preference, defaultValue) {
@@ -529,7 +538,7 @@ function getUpdateFile(pathArray) {
  * @param   defaultCode
  *          The default code to look up should human readable status text
  *          not exist for |code|
- * @returns A human readable status text string
+ * @return  A human readable status text string
  */
 function getStatusTextFromCode(code, defaultCode) {
   var reason;
@@ -549,7 +558,7 @@ function getStatusTextFromCode(code, defaultCode) {
 
 /**
  * Get the Active Updates directory
- * @returns The active updates directory, as a nsIFile object
+ * @return The active updates directory, as a nsIFile object
  */
 function getUpdatesDir() {
   // Right now, we only support downloading one patch at a time, so we always
@@ -562,7 +571,7 @@ function getUpdatesDir() {
  * directory.
  * @param   dir
  *          The dir to look for an update.status file in
- * @returns The status value of the update.
+ * @return  The status value of the update.
  */
 function readStatusFile(dir) {
   var statusFile = dir.clone();
@@ -586,6 +595,23 @@ function writeStatusFile(dir, state) {
   var statusFile = dir.clone();
   statusFile.append(FILE_UPDATE_STATUS);
   writeStringToFile(statusFile, state);
+}
+
+/**
+ * Determines if the service should be used to attempt an update
+ * or not.
+ *
+ * @return  true if app.update.service is true and max failures
+ *          have not been reached.
+ */
+function shouldUseService() {
+  var useService = getPref("getBoolPref", PREF_APP_UPDATE_SERVICE, true);
+  var failCount = getPref("getIntPref", 
+                          PREF_APP_UPDATE_SERVICE_FAILCOUNT, 0);
+  var maxFail = getPref("getIntPref", 
+                        PREF_APP_UPDATE_SERVICE_MAXFAIL, 
+                        DEFAULT_MAX_FAIL_COUNT);
+  return useService && failCount < maxFail;
 }
 
 /**
@@ -1419,6 +1445,15 @@ UpdateService.prototype = {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
+        else if (update.errorCode == SERVICE_UPDATE_ERROR) {
+          var failCount = getPref("getIntPref", 
+                                  PREF_APP_UPDATE_SERVICE_FAILCOUNT, 0);  
+          failCount++;
+          Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_FAILCOUNT, 
+                                    failCount);
+          writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
+          return;
+        }
       }
 
       // Something went wrong with the patch application process.
@@ -1513,7 +1548,7 @@ UpdateService.prototype = {
    * be offered.
    * @param   updates
    *          An array of available nsIUpdate items
-   * @returns The nsIUpdate to offer.
+   * @return  The nsIUpdate to offer.
    */
   selectUpdate: function AUS_selectUpdate(updates) {
     if (updates.length == 0)
@@ -2041,7 +2076,7 @@ UpdateManager.prototype = {
    * Loads an updates.xml formatted file into an array of nsIUpdate items.
    * @param   file
    *          A nsIFile for the updates.xml file
-   * @returns The array of nsIUpdate items held in the file.
+   * @return  The array of nsIUpdate items held in the file.
    */
   _loadXMLFileIntoArray: function UM__loadXMLFileIntoArray(file) {
     if (!file.exists()) {
@@ -2225,7 +2260,7 @@ UpdateManager.prototype = {
       for (let i = updates.length - 1; i >= 0; --i) {
         let state = updates[i].state;
         if (state == STATE_NONE || state == STATE_DOWNLOADING ||
-            state == STATE_PENDING) {
+            state == STATE_PENDING || state == STATE_PENDING_SVC) {
           updates.splice(i, 1);
         }
       }
@@ -2588,7 +2623,8 @@ Downloader.prototype = {
    * Whether or not a patch has been downloaded and staged for installation.
    */
   get patchIsStaged() {
-    return readStatusFile(getUpdatesDir()) == STATE_PENDING;
+    var readState = readStatusFile(getUpdatesDir()); 
+    return readState == STATE_PENDING || readState == STATE_PENDING_SVC;
   },
 
   /**
@@ -2640,7 +2676,7 @@ Downloader.prototype = {
    *          A nsIUpdate object to select a patch from
    * @param   updateDir
    *          A nsIFile representing the update directory
-   * @returns A nsIUpdatePatch object to download
+   * @return  A nsIUpdatePatch object to download
    */
   _selectPatch: function Downloader__selectPatch(update, updateDir) {
     // Given an update to download, we will always try to download the patch
@@ -2650,7 +2686,7 @@ Downloader.prototype = {
      * Return the first UpdatePatch with the given type.
      * @param   type
      *          The type of the patch ("complete" or "partial")
-     * @returns A nsIUpdatePatch object matching the type specified
+     * @return  A nsIUpdatePatch object matching the type specified
      */
     function getPatchOfType(type) {
       for (var i = 0; i < update.patchCount; ++i) {
@@ -2678,6 +2714,7 @@ Downloader.prototype = {
       case STATE_DOWNLOADING:
         LOG("Downloader:_selectPatch - resuming download");
         return selectedPatch;
+      case STATE_PENDING_SVC:
       case STATE_PENDING:
         LOG("Downloader:_selectPatch - already downloaded and staged");
         return null;
@@ -2907,7 +2944,7 @@ Downloader.prototype = {
     var deleteActiveUpdate = false;
     if (Components.isSuccessCode(status)) {
       if (this._verifyDownload()) {
-        state = STATE_PENDING;
+        state = shouldUseService() ? STATE_PENDING_SVC : STATE_PENDING
 
         // We only need to explicitly show the prompt if this is a background
         // download, since otherwise some kind of UI is already visible and

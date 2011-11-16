@@ -453,10 +453,23 @@
 ; Add uninstall registry entries. This macro tests for write access to determine
 ; if the uninstall keys should be added to HKLM or HKCU.
 !macro SetUninstallKeys
+  Call SetUninstallKeysFn
+!macroend
+!define SetUninstallKeys "!insertmacro SetUninstallKeys"
+
+Function SetuNinstallKeysFn
   StrCpy $0 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})"
 
   WriteRegStr HKLM "$0" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
+    ; If the uninstall keys already exist in HKLM don't create them in HKCU
+    ReadRegStr $2 "HKLM" $0 "DisplayName"
+    ${If} $2 != ""
+      return
+    ${EndIf}
+
+    ; Otherwise we don't have any keys for this product in HKLM so proceeed
+    ; to create them in HKCU.
     StrCpy $1 "HKCU"
     SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
   ${Else}
@@ -488,8 +501,7 @@
   ${Else}
     SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
   ${EndIf}
-!macroend
-!define SetUninstallKeys "!insertmacro SetUninstallKeys"
+FunctionEnd
 
 ; Add app specific handler registry entries under Software\Classes if they
 ; don't exist (does not use SHCTX).

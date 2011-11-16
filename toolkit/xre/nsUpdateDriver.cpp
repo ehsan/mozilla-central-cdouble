@@ -102,8 +102,6 @@
 // A similar #define lives in updater.cpp and should be kept in sync with this.
 //
 
-const char kPrefAppUpdateService[] = "app.update.service";
-
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
 #define USE_EXECV
 #endif
@@ -219,7 +217,7 @@ GetStatusFileContents(nsILocalFile *statusFile, char (&buf)[Size])
 typedef enum {
   eNoUpdateAction,
   ePendingUpdate,
-  ePendingNoService,
+  ePendingService,
   eAppliedUpdate
 } UpdateStatus;
 
@@ -230,12 +228,12 @@ GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
     char buf[32];
     if (GetStatusFileContents(statusFile, buf)) {
       const char kPending[] = "pending";
-      const char kPendingNoService[] = "pending-no-service";
+      const char kPendingService[] = "pending-service";
       const char kApplied[] = "applied";
       if (!strncmp(buf, kPending, sizeof(kPending) - 1)) {
         return ePendingUpdate;
       }
-      if (!strncmp(buf, kPending, sizeof(kPendingNoService) - 1)) {
+      if (!strncmp(buf, kPendingService, sizeof(kPendingService) - 1)) {
         return ePendingNoService;
       }
       if (!strncmp(buf, kApplied, sizeof(kApplied) - 1)) {
@@ -659,7 +657,7 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
 static void
 ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
             nsIFile *appDir, int appArgc, char **appArgv, bool restart,
-            ProcessType *outpid, bool isPendingNoService)
+            ProcessType *outpid, bool isPendingService)
 {
   nsresult rv;
 
@@ -863,14 +861,12 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     *outpid = PR_CreateProcess(updaterPath.get(), argv, NULL, NULL);
   }
 #elif defined(XP_WIN)
-  bool attemptToUseServicePreValue = 
-    mozilla::Preferences::GetBool(kPrefAppUpdateService, false);
-  // Launch the update operation using the service if enabled.
-  // We also set the status to pending-no-service to ensure we never
-  // attempt to use the service more than once in a row for a single update.
-  if (isPendingNoService || 
-      !attemptToUseServicePreValue || 
-      !WriteStatusPendingNoService(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
+
+  // Launch the update operation using the service if the status file said so.
+  // We also set the status to pending to ensure we never attempt to use the 
+  // service more than once in a row for a single update.
+  if (!isPendingService || 
+      !WriteStatusPending(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
       !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
     // Launch the update using updater.exe
     if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
@@ -941,7 +937,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
   UpdateStatus status = GetUpdateStatus(updatesDir, statusFile);
   switch (status) {
   case ePendingUpdate:
-  case ePendingNoService: {
+  case ePendingService: {
     nsCOMPtr<nsILocalFile> versionFile;
     nsCOMPtr<nsILocalFile> channelChangeFile;
     // Remove the update if the update application version file doesn't exist
@@ -954,7 +950,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
     } else {
       ApplyUpdate(greDir, updatesDir, statusFile,
                   appDir, argc, argv, restart, pid,
-                  status == ePendingNoService);
+                  status == ePendingService);
     }
     break;
   }

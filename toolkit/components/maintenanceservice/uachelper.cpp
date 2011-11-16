@@ -71,7 +71,7 @@ UACHelper::OpenUserToken(DWORD sessionID)
   if (wtsQueryUserToken) {
     wtsQueryUserToken(sessionID, &token);
   }
-  FreeModule(module);
+  FreeLibrary(module);
   return token;
 }
 

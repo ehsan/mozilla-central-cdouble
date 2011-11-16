@@ -237,10 +237,13 @@ Section "MaintenanceService"
   ; Write out that a maintenance service was attempted.
   ; We do this because on upgrades we will check this value and we only
   ; want to install once on the first upgrade to maintenance service.
+  ; Also write out that we are currently installed, preferences will check
+  ; this value to determine if we should show the service update pref.
   ; Since the Maintenance service can be installed either x86 or x64,
   ; always use the 64-bit registry for checking if an attempt was made.
   SetRegView 64
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
+  WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
 
   # Make the update directory read/write for all users.
   # This is to avoid permission problems from multiple users doing updates.
@@ -260,5 +263,6 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
 
+  DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
   DeleteRegKey HKLM "${MaintUninstallKey}"
 SectionEnd
