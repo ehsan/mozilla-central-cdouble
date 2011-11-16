@@ -553,6 +553,27 @@ get_full_path(const NS_tchar *relpath)
   c++;
   return s;
 }
+
+/**
+ * An object which notifies the parent process when updater is finished.
+ */
+class ParentProcessNotifier {
+public:
+  ParentProcessNotifier() : mEvent(NULL) {}
+  ~ParentProcessNotifier() {
+    if (mEvent) {
+      SetEvent(mEvent);
+      CloseHandle(mEvent);
+    }
+  }
+  void Init(HANDLE hEvent) {
+    mEvent = hEvent;
+  }
+
+private:
+  HANDLE mEvent;
+};
+static ParentProcessNotifier gParentProcessNotifier;
 #endif
 
 /**
@@ -2249,6 +2270,11 @@ int NS_main(int argc, NS_tchar **argv)
   if (slash && !slash[1]) {
     *slash = NS_T('\0');
   }
+
+#ifdef XP_WIN
+  // Notify the parent process when we're done
+  gParentProcessNotifier.Init(OpenUpdaterSignalEvent(gDestinationPath, false));
+#endif
 
   LogInit();
 
