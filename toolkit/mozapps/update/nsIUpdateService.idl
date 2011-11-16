@@ -247,8 +247,7 @@ interface nsIUpdate : nsISupports
    * The state of the selected patch:
    *   "downloading"        The update is being downloaded.
    *   "pending"            The update is ready to be applied.
-   *   "pending-no-service" The update is ready to be applied but should not 
-   *                        use the update service.
+   *   "pending-service"    The update is ready to be applied with the service.
    *   "applying"           The update is being applied.
    *   "succeeded"          The update was successfully applied.
    *   "download-failed"    The update failed to be downloaded.

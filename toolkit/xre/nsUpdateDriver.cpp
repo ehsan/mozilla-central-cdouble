@@ -95,8 +95,6 @@
 // A similar #define lives in updater.cpp and should be kept in sync with this.
 //
 
-const char kPrefAppUpdateService[] = "app.update.service";
-
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
 #define USE_EXECV
 #endif
@@ -195,7 +193,7 @@ GetStatusFile(nsIFile *dir, nsCOMPtr<nsILocalFile> &result)
 }
 
 static bool
-IsPending(nsILocalFile *statusFile, bool &isPendingNoService)
+IsPending(nsILocalFile *statusFile, bool &isPendingService)
 {
   PRFileDesc *fd = nsnull;
   nsresult rv = statusFile->OpenNSPRFileDesc(PR_RDONLY, 0660, &fd);
@@ -212,11 +210,11 @@ IsPending(nsILocalFile *statusFile, bool &isPendingNoService)
   const char kPending[] = "pending";
   bool isPending = (strncmp(buf, kPending, sizeof(kPending) - 1) == 0);
 
-  const char kPendingNoService[] = "pending-no-service";
-  isPendingNoService = (strncmp(buf, kPendingNoService, 
-                        sizeof(kPendingNoService) - 1) == 0);
+  const char kPendingService[] = "pending-service";
+  isPendingService = (strncmp(buf, kPendingService, 
+                      sizeof(kPendingService) - 1) == 0);
 
-  return isPending || isPendingNoService;
+  return isPending || isPendingService;
 }
 
 static bool
@@ -348,7 +346,7 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
 
 static void
 ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
-            nsIFile *appDir, int appArgc, char **appArgv, bool isPendingNoService)
+            nsIFile *appDir, int appArgc, char **appArgv, bool isPendingService)
 {
   nsresult rv;
 
@@ -495,14 +493,11 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
 
-  bool attemptToUseServicePreValue = 
-    mozilla::Preferences::GetBool(kPrefAppUpdateService, false);
-  // Launch the update operation using the service if enabled.
-  // We also set the status to pending-no-service to ensure we never
-  // attempt to use the service more than once in a row for a single update.
-  if (isPendingNoService || 
-      !attemptToUseServicePreValue || 
-      !WriteStatusPendingNoService(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
+  // Launch the update operation using the service if the status file said so.
+  // We also set the status to pending to ensure we never attempt to use the 
+  // service more than once in a row for a single update.
+  if (!isPendingService || 
+      !WriteStatusPending(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
       !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
     // Launch the update using updater.exe
     if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
@@ -545,9 +540,9 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
     return rv;
 
   nsCOMPtr<nsILocalFile> statusFile;
-  bool isPendingNoService;
+  bool isPendingService;
   if (GetStatusFile(updatesDir, statusFile) && 
-      IsPending(statusFile, isPendingNoService)) {
+      IsPending(statusFile, isPendingService)) {
     nsCOMPtr<nsILocalFile> versionFile;
     nsCOMPtr<nsILocalFile> channelChangeFile;
     // Remove the update if the update application version file doesn't exist
@@ -558,7 +553,8 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
          IsOlderVersion(versionFile, appVersion))) {
       updatesDir->Remove(true);
     } else {
-      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv, isPendingNoService);
+      ApplyUpdate(greDir, updatesDir, statusFile, appDir, 
+                  argc, argv, isPendingService);
     }
   }
 
