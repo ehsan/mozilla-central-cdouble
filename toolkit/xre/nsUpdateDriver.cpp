@@ -24,6 +24,7 @@
  *  Ben Turner <mozilla@songbirdnest.com>
  *  Robert Strong <robert.bugzilla@gmail.com>
  *  Josh Aas <josh@mozilla.com>
+ *  Brian R. Bondy <netzen@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -51,6 +52,7 @@
 #include "prlog.h"
 #include "prenv.h"
 #include "nsVersionComparator.h"
+#include "mozilla/Preferences.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -92,6 +94,9 @@
 //
 // A similar #define lives in updater.cpp and should be kept in sync with this.
 //
+
+const char kPrefAppUpdateService[] = "app.update.service";
+
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
 #define USE_EXECV
 #endif
@@ -190,7 +195,7 @@ GetStatusFile(nsIFile *dir, nsCOMPtr<nsILocalFile> &result)
 }
 
 static bool
-IsPending(nsILocalFile *statusFile)
+IsPending(nsILocalFile *statusFile, bool &isPendingNoService)
 {
   PRFileDesc *fd = nsnull;
   nsresult rv = statusFile->OpenNSPRFileDesc(PR_RDONLY, 0660, &fd);
@@ -205,14 +210,23 @@ IsPending(nsILocalFile *statusFile)
     return false;
   
   const char kPending[] = "pending";
-  return (strncmp(buf, kPending, sizeof(kPending) - 1) == 0);
+  bool isPending = (strncmp(buf, kPending, sizeof(kPending) - 1) == 0);
+
+  const char kPendingNoService[] = "pending-no-service";
+  isPendingNoService = (strncmp(buf, kPendingNoService, 
+                        sizeof(kPendingNoService) - 1) == 0);
+
+  return isPending || isPendingNoService;
 }
 
 static bool
 SetStatusApplying(nsILocalFile *statusFile)
 {
   PRFileDesc *fd = nsnull;
-  nsresult rv = statusFile->OpenNSPRFileDesc(PR_WRONLY, 0660, &fd);
+  nsresult rv = statusFile->OpenNSPRFileDesc(PR_WRONLY | 
+                                             PR_TRUNCATE | 
+                                             PR_CREATE_FILE, 
+                                             0660, &fd);
   if (NS_FAILED(rv))
     return false;
 
@@ -334,7 +348,7 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
 
 static void
 ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
-            nsIFile *appDir, int appArgc, char **appArgv)
+            nsIFile *appDir, int appArgc, char **appArgv, bool isPendingNoService)
 {
   nsresult rv;
 
@@ -480,8 +494,23 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 #if defined(USE_EXECV)
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
-  if (!WinLaunchChild(updaterPathW.get(), argc, argv))
-    return;
+
+  bool attemptToUseServicePreValue = 
+    mozilla::Preferences::GetBool(kPrefAppUpdateService, false);
+  // Launch the update operation using the service if enabled.
+  // We also set the status to pending-no-service to ensure we never
+  // attempt to use the service more than once in a row for a single update.
+  if (isPendingNoService || 
+      !attemptToUseServicePreValue || 
+      !WriteStatusPendingNoService(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
+      !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
+    // Launch the update using updater.exe
+    if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
+      return;
+    }
+  }
+
+  // We are going to process an update so we should exit now
   _exit(0);
 #elif defined(XP_MACOSX)
   CommandLineServiceMac::SetupMacCommandLine(argc, argv, true);
@@ -516,7 +545,9 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
     return rv;
 
   nsCOMPtr<nsILocalFile> statusFile;
-  if (GetStatusFile(updatesDir, statusFile) && IsPending(statusFile)) {
+  bool isPendingNoService;
+  if (GetStatusFile(updatesDir, statusFile) && 
+      IsPending(statusFile, isPendingNoService)) {
     nsCOMPtr<nsILocalFile> versionFile;
     nsCOMPtr<nsILocalFile> channelChangeFile;
     // Remove the update if the update application version file doesn't exist
@@ -527,7 +558,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
          IsOlderVersion(versionFile, appVersion))) {
       updatesDir->Remove(true);
     } else {
-      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv);
+      ApplyUpdate(greDir, updatesDir, statusFile, appDir, argc, argv, isPendingNoService);
     }
   }
 

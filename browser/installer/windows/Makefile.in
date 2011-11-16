@@ -57,6 +57,7 @@ DEFINES += -DPRE_RELEASE_SUFFIX="$(PRE_RELEASE_SUFFIX)"
 INSTALLER_FILES = \
 	app.tag \
 	nsis/installer.nsi \
+	nsis/maintenanceservice_installer.nsi \
 	nsis/uninstaller.nsi \
 	nsis/shared.nsh \
 	$(NULL)
@@ -103,6 +104,16 @@ uninstaller::
 	$(PYTHON) $(topsrcdir)/toolkit/mozapps/installer/windows/nsis/preprocess-locale.py \
 	  --preprocess-locale $(topsrcdir) \
 	  $(PPL_LOCALE_ARGS) $(AB_CD) $(CONFIG_DIR)
+
+# For building the maintenanceservice installer
+maintenanceservice_installer::
+	$(INSTALL) $(addprefix $(srcdir)/,$(INSTALLER_FILES)) $(CONFIG_DIR)
+	$(PYTHON) $(topsrcdir)/config/Preprocessor.py -Fsubstitution $(DEFINES) $(ACDEFINES) \
+	  $(srcdir)/nsis/defines.nsi.in > $(CONFIG_DIR)/defines.nsi
+	$(PYTHON) $(topsrcdir)/toolkit/mozapps/installer/windows/nsis/preprocess-locale.py \
+	  --preprocess-locale $(topsrcdir) \
+	  $(PPL_LOCALE_ARGS) $(AB_CD) $(CONFIG_DIR)
+
 
 $(CONFIG_DIR)/setup.exe::
 	$(RM) -r $(CONFIG_DIR)

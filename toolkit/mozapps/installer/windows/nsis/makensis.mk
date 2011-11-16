@@ -61,6 +61,7 @@ CUSTOM_NSIS_PLUGINS = \
 	InvokeShellVerb.dll \
 	ShellLink.dll \
 	UAC.dll \
+	ServicesHelper.dll \
 	$(NULL)
 
 $(CONFIG_DIR)/setup.exe::
@@ -91,3 +92,8 @@ uninstaller::
 	cd $(CONFIG_DIR) && $(MAKENSISU) uninstaller.nsi
 	$(NSINSTALL) -D $(DIST)/bin/uninstall
 	cp $(CONFIG_DIR)/helper.exe $(DIST)/bin/uninstall
+
+maintenanceservice_installer::
+	cd $(CONFIG_DIR) && $(MAKENSISU) maintenanceservice_installer.nsi
+	$(NSINSTALL) -D $(DIST)/bin/
+	cp $(CONFIG_DIR)/maintenanceservice_installer.exe $(DIST)/bin
