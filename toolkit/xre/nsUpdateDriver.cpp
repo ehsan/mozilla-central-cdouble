@@ -234,7 +234,7 @@ GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
         return ePendingUpdate;
       }
       if (!strncmp(buf, kPendingService, sizeof(kPendingService) - 1)) {
-        return ePendingNoService;
+        return ePendingService;
       }
       if (!strncmp(buf, kApplied, sizeof(kApplied) - 1)) {
         return eAppliedUpdate;
