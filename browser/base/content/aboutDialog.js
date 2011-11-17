@@ -192,7 +192,9 @@ appUpdater.prototype =
   get isPending() {
     if (this.update)
       return this.update.state == "pending";
-    return this.um.activeUpdate && this.um.activeUpdate.state == "pending";
+    return this.um.activeUpdate &&
+           (this.um.activeUpdate.state == "pending" ||
+            this.um.activeUpdate.state == "pending-service");
   },
 
   // true when there is an update already installed in the background.
