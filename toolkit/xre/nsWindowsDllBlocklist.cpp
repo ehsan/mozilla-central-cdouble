@@ -115,6 +115,9 @@ static DllBlockInfo sWindowsDllBlocklist[] = {
   
   // radhslib.dll - Naomi internet filter - unmaintained since 2006
   {"radhslib.dll", UNVERSIONED},
+  
+  {"rf-firefox.dll", MAKE_VERSION(7,6,1,0)},
+  {"roboform.dll", MAKE_VERSION(7,6,1,0)},
 
   // Music download filter for vkontakte.ru - old instances
   // of this DLL cause crashes
