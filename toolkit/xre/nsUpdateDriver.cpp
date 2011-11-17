@@ -230,11 +230,11 @@ GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
       const char kPending[] = "pending";
       const char kPendingService[] = "pending-service";
       const char kApplied[] = "applied";
-      if (!strncmp(buf, kPending, sizeof(kPending) - 1)) {
-        return ePendingUpdate;
-      }
       if (!strncmp(buf, kPendingService, sizeof(kPendingService) - 1)) {
         return ePendingService;
+      }
+      if (!strncmp(buf, kPending, sizeof(kPending) - 1)) {
+        return ePendingUpdate;
       }
       if (!strncmp(buf, kApplied, sizeof(kApplied) - 1)) {
         return eAppliedUpdate;
