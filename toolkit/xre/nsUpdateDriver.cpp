@@ -784,7 +784,9 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   }
 
   nsAutoHandle watchEvent;
-  watchEvent.own(OpenUpdaterSignalEvent(PromiseFlatString(applyToDirW).get(), true));
+  if (outpid) {
+    watchEvent.own(OpenUpdaterSignalEvent(PromiseFlatString(applyToDirW).get(), true));
+  }
 #endif
 
 #if defined(XP_WIN)
