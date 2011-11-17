@@ -338,7 +338,7 @@ CopyFileIntoUpdateDir(nsIFile *parentDir, const char *leafName, nsIFile *updateD
 
 static bool
 CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
-                         nsCOMPtr<nsIFile> &updater, bool showUI)
+                         nsCOMPtr<nsIFile> &updater)
 {
   // Copy the updater application from the GRE and the updater ini from the app
 #if defined(XP_MACOSX)
@@ -348,10 +348,7 @@ CopyUpdaterIntoUpdateDir(nsIFile *greDir, nsIFile *appDir, nsIFile *updateDir,
   if (!CopyFileIntoUpdateDir(greDir, kUpdaterBin, updateDir))
     return false;
 #endif
-  if (showUI) {
-    // Only copy updater.ini if we need to display the UI
-    CopyFileIntoUpdateDir(appDir, kUpdaterINI, updateDir);
-  }
+  CopyFileIntoUpdateDir(appDir, kUpdaterINI, updateDir);
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
   nsCOMPtr<nsIFile> iconDir;
   appDir->Clone(getter_AddRefs(iconDir));
@@ -474,7 +471,7 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
   tmpDir->CreateUnique(nsIFile::DIRECTORY_TYPE, 0755);
 
   nsCOMPtr<nsIFile> updater;
-  if (!CopyUpdaterIntoUpdateDir(greDir, appDir, tmpDir, updater, false)) {
+  if (!CopyUpdaterIntoUpdateDir(greDir, appDir, tmpDir, updater)) {
     LOG(("failed copying updater\n"));
     return;
   }
@@ -667,7 +664,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   //  - run updater w/ appDir as the current working dir
 
   nsCOMPtr<nsIFile> updater;
-  if (!CopyUpdaterIntoUpdateDir(greDir, appDir, updateDir, updater, restart)) {
+  if (!CopyUpdaterIntoUpdateDir(greDir, appDir, updateDir, updater)) {
     LOG(("failed copying updater\n"));
     return;
   }

@@ -2539,10 +2539,12 @@ int NS_main(int argc, NS_tchar **argv)
 
   // Run update process on a background thread.  ShowProgressUI may return
   // before QuitProgressUI has been called, so wait for UpdateThreadFunc to
-  // terminate.
+  // terminate.  Avoid showing the progress UI for background updates.
   Thread t;
   if (t.Run(UpdateThreadFunc, NULL) == 0) {
-    ShowProgressUI();
+    if (!sBackgroundUpdate && !sReplaceRequest) {
+      ShowProgressUI();
+    }
   }
   t.Join();
 
