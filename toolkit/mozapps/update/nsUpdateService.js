@@ -3071,7 +3071,7 @@ Downloader.prototype = {
       prompter.showUpdateDownloaded(this._update, true);
     }
 
-    if (state == STATE_PENDING) {
+    if (state == STATE_PENDING || state == STATE_PENDING_SVC) {
       // Initiate the background update job.
       Cc["@mozilla.org/updates/update-service;1"].
         getService(Ci.nsIApplicationUpdateService).
