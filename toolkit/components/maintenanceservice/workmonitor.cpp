@@ -73,6 +73,41 @@ BOOL PathGetSiblingFilePath(LPWSTR destinationBuffer,  LPCWSTR siblingFilePath,
 const int SERVICE_UPDATE_ERROR = 16000;
 
 /**
+ * Gets the installation directory from the arguments passed to updater.exe.
+ *
+ * @param argcTmp    The argc value normally sent to updater.exe
+ * @param argvTmp    The argv value normally sent to updater.exe
+ * @param installDir Buffer to hold the installation directory.
+ *                   The size of the buffer should be 2 * MAX_PATH.
+ */
+bool
+GetInstallationDir(int argcTmp, LPWSTR *argvTmp, LPWSTR installDir)
+{
+  if (argcTmp < 2) {
+    return false;
+  }
+  wcscpy(installDir, argvTmp[2]);
+  bool backgroundUpdate = (argcTmp == 4 && !wcscmp(argvTmp[3], L"-1"));
+  bool replaceRequest = (argcTmp >= 4 && wcsstr(argvTmp[3], L"/replace"));
+  if (backgroundUpdate || replaceRequest) {
+    LPWSTR pathSeparator = wcschr(installDir, L';');
+    if (pathSeparator) {
+      wcscpy(installDir, pathSeparator + 1);
+    }
+    LPWSTR backSlash = wcsrchr(installDir, L'\\');
+    // Go one level up, ignoring trailing backslashes
+    if (backSlash && !backSlash[1]) {
+      *backSlash = L'\0';
+      backSlash = wcsrchr(installDir, L'\\');
+    }
+    if (!pathSeparator) {
+      *backSlash = L'\0';
+    }
+  }
+  return true;
+}
+
+/**
  * Runs an update process in the specified sessionID as an elevated process.
  *
  * @param  appToStart    The path to the update process to start.
@@ -330,11 +365,17 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   int argcTmp = 0;
   LPWSTR* argvTmp = CommandLineToArgvW(cmdlineBufferWide, &argcTmp);
 
+  WCHAR installDir[2 * MAX_PATH];
+  ZeroMemory(installDir, 2 * MAX_PATH * sizeof(WCHAR));
+  if (!GetInstallationDir(argcTmp, argvTmp, installDir)) {
+    return false;
+  }
+
   // Validate the certificate of the app the user wants us to start.
   // Also check to make sure the certificate is trusted.
 #ifndef DISABLE_SERVICE_AUTHENTICODE_CHECK
   if (argcTmp > 2 && 
-      DoesBinaryMatchAllowedCertificates(argvTmp[2], appToStart)) {
+      DoesBinaryMatchAllowedCertificates(installDir, appToStart)) {
 #endif
 
     BOOL updateProcessWasStarted = FALSE;
@@ -570,9 +611,15 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
     return FALSE;
   }
 
+  WCHAR installDir[2 * MAX_PATH];
+  ZeroMemory(installDir, 2 * MAX_PATH * sizeof(WCHAR));
+  if (!GetInstallationDir(argcTmp, argvTmp, installDir)) {
+    return false;
+  }
+
 #ifdef ENABLE_CALLBACK_AUTHENTICODE_CHECK
   if (argcTmp > 2 && 
-      DoesBinaryMatchAllowedCertificates(argvTmp[2], callbackApplication)) {
+      DoesBinaryMatchAllowedCertificates(installDir, callbackApplication)) {
 #endif
 
     // Create an environment block for the process we're about to start using
