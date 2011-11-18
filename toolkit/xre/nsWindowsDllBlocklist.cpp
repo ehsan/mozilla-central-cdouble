@@ -40,6 +40,8 @@
 
 #include <stdio.h>
 
+#include <map>
+
 #ifdef XRE_WANT_DLL_BLOCKLIST
 #define XRE_SetupDllBlocklist SetupDllBlocklist
 #else
@@ -140,6 +142,47 @@ static DllBlockInfo sWindowsDllBlocklist[] = {
   { NULL, 0 }
 };
 
+// Some versions of Windows call LoadLibraryEx to get the version information
+// for a DLL, which could cause our patched LdrLoadDll implementation to re-enter
+// its execution and cause an infinite loop leading to a stack exhaustion.
+// This class is supposed to protect against this case by making sure that there
+// is only ever one LdrLoadDll check for each DLL.  Subsequent calls permit
+// the loading of the DLL.
+//
+// Ideally Windows would give us the flags passed to LoadLibraryEx so that we
+// could detect whether we're dealing with a DLL loaded as a data file or not.
+// But Windows doesn't provide us with that information, so we need to hack
+// our way around it.
+class ReentrancySentinel {
+public:
+  explicit ReentrancySentinel(const char* dllName) {
+    DWORD currentThreadId = GetCurrentThreadId();
+    mBackupDLLName = sLastDLLName[currentThreadId];
+    mReentered = mBackupDLLName.EqualsIgnoreCase(dllName);
+    sLastDLLName[currentThreadId].Assign(dllName);
+  }
+  ~ReentrancySentinel() {
+    DWORD currentThreadId = GetCurrentThreadId();
+    sLastDLLName[currentThreadId] = mBackupDLLName;
+  }
+
+  // If this function returns true, we have re-entered LdrLoadLibrary.
+  bool BailOut() const {
+    return mReentered;
+  }
+
+private:
+  // Note that we don't use the Windows provided TLS facilities because using
+  // them is risky since Windows has a limited number of TLS slots.  So, we
+  // roll our own.
+  typedef std::map<DWORD, nsCAutoString> DLLNameTLS;
+  static DLLNameTLS sLastDLLName;
+  nsCAutoString mBackupDLLName;
+  bool mReentered;
+};
+
+ReentrancySentinel::DLLNameTLS ReentrancySentinel::sLastDLLName;
+
 #ifndef STATUS_DLL_NOT_FOUND
 #define STATUS_DLL_NOT_FOUND ((DWORD)0xC0000135L)
 #endif
@@ -221,6 +264,12 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
   printf_stderr("LdrLoadDll: dll name '%s'\n", dllName);
 #endif
 
+  { // sentiel block
+  ReentrancySentinel sentinel(dllName);
+  if (sentinel.BailOut()) {
+    goto continue_loading;
+  }
+
   // then compare to everything on the blocklist
   info = &sWindowsDllBlocklist[0];
   while (info->name) {
@@ -293,6 +342,8 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
       return STATUS_DLL_NOT_FOUND;
     }
   }
+
+  } // end of sentinel block
 
 continue_loading:
 #ifdef DEBUG_very_verbose
