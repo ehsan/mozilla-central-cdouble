@@ -108,6 +108,41 @@ GetInstallationDir(int argcTmp, LPWSTR *argvTmp, LPWSTR installDir)
 }
 
 /**
+ * Gets the destination directory from the arguments passed to updater.exe.
+ *
+ * @param argcTmp The argc value normally sent to updater.exe
+ * @param argvTmp The argv value normally sent to updater.exe
+ * @param destDir Buffer to hold the destination directory.
+ *                The size of the buffer should be 2 * MAX_PATH.
+ */
+bool
+GetDestinationDir(int argcTmp, LPWSTR *argvTmp, LPWSTR destDir)
+{
+  if (argcTmp < 2) {
+    return false;
+  }
+  wcscpy(destDir, argvTmp[2]);
+  bool backgroundUpdate = (argcTmp == 4 && !wcscmp(argvTmp[3], L"-1"));
+  bool replaceRequest = (argcTmp >= 4 && wcsstr(argvTmp[3], L"/replace"));
+  if (backgroundUpdate || replaceRequest) {
+    LPWSTR pathSeparator = wcschr(destDir, L';');
+    if (pathSeparator) {
+      *pathSeparator = L'\0';
+    }
+    LPWSTR backSlash = wcsrchr(destDir, L'\\');
+    // Go one level up, ignoring trailing backslashes
+    if (backSlash && !backSlash[1]) {
+      *backSlash = L'\0';
+      backSlash = wcsrchr(destDir, L'\\');
+    }
+    if (!pathSeparator) {
+      *backSlash = L'\0';
+    }
+  }
+  return true;
+}
+
+/**
  * Runs an update process in the specified sessionID as an elevated process.
  *
  * @param  appToStart    The path to the update process to start.
@@ -535,6 +570,12 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
   // No particular desktop because no UI
   si.lpDesktop = L"";
   PROCESS_INFORMATION pi = {0};
+
+  WCHAR destDir[2 * MAX_PATH];
+  ZeroMemory(destDir, 2 * MAX_PATH * sizeof(WCHAR));
+  if (!GetDestinationDir(argcTmp, argvTmp, destDir)) {
+    return false;
+  }
 
   WCHAR maintserviceInstallerPath[MAX_PATH + 1];
   wcscpy(maintserviceInstallerPath, argvTmp[2]);
