@@ -459,7 +459,7 @@ WriteStatusFile(LPCWSTR updateDirPath, const char* contents,
   }
 
   DWORD wrote;
-  BOOL ok = WriteFile(statusFile, content,
+  BOOL ok = WriteFile(statusFile, contents,
                       length, &wrote, NULL);
   return ok && (wrote == length);
 }
