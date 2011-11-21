@@ -130,12 +130,8 @@ GetDestinationDir(int argcTmp, LPWSTR *argvTmp, LPWSTR destDir)
       *pathSeparator = L'\0';
     }
     LPWSTR backSlash = wcsrchr(destDir, L'\\');
-    // Go one level up, ignoring trailing backslashes
+    // Trim any trailing slashes
     if (backSlash && !backSlash[1]) {
-      *backSlash = L'\0';
-      backSlash = wcsrchr(destDir, L'\\');
-    }
-    if (!pathSeparator) {
       *backSlash = L'\0';
     }
   }
@@ -578,7 +574,7 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
   }
 
   WCHAR maintserviceInstallerPath[MAX_PATH + 1];
-  wcscpy(maintserviceInstallerPath, argvTmp[2]);
+  wcscpy(maintserviceInstallerPath, destDir);
   PathAppendSafe(maintserviceInstallerPath, 
                  L"maintenanceservice_installer.exe");
   BOOL selfUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
