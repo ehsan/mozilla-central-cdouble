@@ -262,9 +262,9 @@ function run_test() {
               "applying a complete mar");
   do_check_eq(exitValue, 0);
 
-  logTestInfo("testing update.status should be " + STATE_APPLIED);
+  logTestInfo("testing update.status should be " + getAppliedState());
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED);
+  do_check_eq(readStatusFile(updatesDir), getAppliedState());
 
   // For Mac OS X check that the last modified time for a directory has been
   // updated after a successful update (bug 600098).
