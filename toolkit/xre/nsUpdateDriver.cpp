@@ -218,7 +218,8 @@ typedef enum {
   eNoUpdateAction,
   ePendingUpdate,
   ePendingService,
-  eAppliedUpdate
+  eAppliedUpdate,
+  eAppliedService
 } UpdateStatus;
 
 static UpdateStatus
@@ -230,11 +231,15 @@ GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
       const char kPending[] = "pending";
       const char kPendingService[] = "pending-service";
       const char kApplied[] = "applied";
+      const char kAppliedService[] = "applied-service";
       if (!strncmp(buf, kPendingService, sizeof(kPendingService) - 1)) {
         return ePendingService;
       }
       if (!strncmp(buf, kPending, sizeof(kPending) - 1)) {
         return ePendingUpdate;
+      }
+      if (!strncmp(buf, kAppliedService, sizeof(kAppliedService) - 1)) {
+        return eAppliedService;
       }
       if (!strncmp(buf, kApplied, sizeof(kApplied) - 1)) {
         return eAppliedUpdate;
@@ -954,6 +959,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
     break;
   }
   case eAppliedUpdate:
+  case eAppliedService:
     // An update was applied in the background, so we need to switch to using
     // it now.
     SwitchToUpdatedApp(greDir, updatesDir, statusFile, appDir, argc, argv);

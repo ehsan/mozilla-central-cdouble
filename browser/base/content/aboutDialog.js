@@ -200,8 +200,11 @@ appUpdater.prototype =
   // true when there is an update already installed in the background.
   get isApplied() {
     if (this.update)
-      return this.update.state == "applied";
-    return this.um.activeUpdate && this.um.activeUpdate.state == "applied";
+      return this.update.state == "applied" ||
+             this.update.state == "applied-service";
+    return this.um.activeUpdate &&
+           (this.um.activeUpdate.state == "applied" ||
+            this.um.activeUpdate.state == "applied-service");
   },
 
   // true when there is an update download in progress.
@@ -567,7 +570,7 @@ appUpdater.prototype =
         timer.initWithCallback(function () {
           // Update the UI when the background updater is finished
           let status = update.state;
-          if (status == "applied") {
+          if (status == "applied" || status == "applied-service") {
             self.selectPanel("updateButtonBox");
             self.setupUpdateButton("update.restart." +
                                    (self.isMajor ? "upgradeButton" : "restartButton"));

@@ -134,6 +134,7 @@ const STATE_PENDING         = "pending";
 const STATE_PENDING_SVC     = "pending-service";
 const STATE_APPLYING        = "applying";
 const STATE_APPLIED         = "applied";
+const STATE_APPLIED_SVC     = "applied-service";
 const STATE_SUCCEEDED       = "succeeded";
 const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
@@ -2261,6 +2262,7 @@ UpdateManager.prototype = {
       for (let i = updates.length - 1; i >= 0; --i) {
         let state = updates[i].state;
         if (state == STATE_NONE || state == STATE_DOWNLOADING ||
+            state == STATE_APPLIED || state == STATE_APPLIED_SVC ||
             state == STATE_PENDING || state == STATE_PENDING_SVC) {
           updates.splice(i, 1);
         }
@@ -2624,8 +2626,12 @@ Downloader.prototype = {
    * Whether or not a patch has been downloaded and staged for installation.
    */
   get patchIsStaged() {
-    var readState = readStatusFile(getUpdatesDir()); 
-    return readState == STATE_PENDING || readState == STATE_PENDING_SVC;
+    var readState = readStatusFile(getUpdatesDir());
+    // Note that if we decide to download and apply new updates after another
+    // update has been successfully applied in the background, we need to stop
+    // checking for the APPLIED state here.
+    return readState == STATE_PENDING || readState == STATE_PENDING_SVC ||
+           readState == STATE_APPLIED || readState == STATE_APPLIED_SVC;
   },
 
   /**

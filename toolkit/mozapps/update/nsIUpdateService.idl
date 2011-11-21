@@ -249,7 +249,8 @@ interface nsIUpdate : nsISupports
    *   "pending"            The update is ready to be applied.
    *   "pending-service"    The update is ready to be applied with the service.
    *   "applying"           The update is being applied.
-   *   "applied"            The update has been applied in the background.
+   *   "applied"            The update is ready to be switched to.
+   *   "applied-service"    The update is ready to be switched to with the service.
    *   "succeeded"          The update was successfully applied.
    *   "download-failed"    The update failed to be downloaded.
    *   "failed"             The update failed to be applied.
