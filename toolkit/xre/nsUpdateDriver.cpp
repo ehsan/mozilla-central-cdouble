@@ -452,7 +452,8 @@ ConstructCompoundApplyToString(nsIFile* aUpdatedDir, nsIFile* aAppDir,
 
 static void
 SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
-                   nsIFile *appDir, int appArgc, char **appArgv)
+                   nsIFile *appDir, int appArgc, char **appArgv,
+                   bool isAppliedService)
 {
   nsresult rv;
 
@@ -640,8 +641,17 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
 #if defined(USE_EXECV)
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
-  if (!WinLaunchChild(updaterPathW.get(), argc, argv))
-    return;
+  // Launch the update operation using the service if the status file said so.
+  // We also set the status to pending to ensure we never attempt to use the
+  // service more than once in a row for a single update.
+  if (!isAppliedService ||
+      !WriteStatusApplied(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
+      !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
+    // Launch the update using updater.exe
+    if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
+      return;
+    }
+  }
   _exit(0);
 #elif defined(XP_MACOSX)
   CommandLineServiceMac::SetupMacCommandLine(argc, argv, true);
@@ -962,7 +972,9 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
   case eAppliedService:
     // An update was applied in the background, so we need to switch to using
     // it now.
-    SwitchToUpdatedApp(greDir, updatesDir, statusFile, appDir, argc, argv);
+    SwitchToUpdatedApp(greDir, updatesDir, statusFile,
+                       appDir, argc, argv,
+                       status == eAppliedService);
     break;
   case eNoUpdateAction:
     // We don't need to do any special processing here, we'll just continue to

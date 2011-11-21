@@ -1819,7 +1819,11 @@ WriteStatusFile(int status)
   char buf[32];
   if (status == OK) {
     if (sBackgroundUpdate) {
+#if defined(XP_WIN)
+      text = "applied-service\n";
+#else
       text = "applied\n";
+#endif
     } else {
       text = "succeeded\n";
     }

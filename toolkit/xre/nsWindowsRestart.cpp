@@ -442,6 +442,28 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
                      MOVEFILE_REPLACE_EXISTING);
 }
 
+static BOOL
+WriteStatusFile(LPCWSTR updateDirPath, const char* contents,
+                size_t length)
+{
+  WCHAR updateStatusFilePath[MAX_PATH + 1];
+  wcscpy(updateStatusFilePath, updateDirPath);
+  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
+    return FALSE;
+  }
+
+  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
+                                      NULL, CREATE_ALWAYS, 0, NULL));
+  if (statusFile == INVALID_HANDLE_VALUE) {
+    return FALSE;
+  }
+
+  DWORD wrote;
+  BOOL ok = WriteFile(statusFile, content,
+                      length, &wrote, NULL);
+  return ok && (wrote == length);
+}
+
 /**
  * Sets update.status to pending so that the next startup will not use
  * the service and instead will attempt an update the with a UAC prompt.
@@ -452,23 +474,24 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
 BOOL
 WriteStatusPending(LPCWSTR updateDirPath)
 {
-  WCHAR updateStatusFilePath[MAX_PATH + 1];
-  wcscpy(updateStatusFilePath, updateDirPath);
-  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
-    return FALSE;
-  }
-
   const char pending[] = "pending";
-  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
-                                      NULL, CREATE_ALWAYS, 0, NULL));
-  if (statusFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
+  return WriteStatusFile(updateDirPath, pending,
+                         sizeof(pending) - 1);
+}
 
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, pending, 
-                      sizeof(pending) - 1, &wrote, NULL); 
-  return ok && (wrote == sizeof(pending) - 1);
+/**
+ * Sets update.status to applied so that the next startup will not use
+ * the service and instead will attempt an update the with a UAC prompt.
+ *
+ * @param  updateDirPath The path of the update directory
+ * @return TRUE if successful
+ */
+BOOL
+WriteStatusApplied(LPCWSTR updateDirPath)
+{
+  const char applied[] = "applied";
+  return WriteStatusFile(updateDirPath, applied,
+                         sizeof(applied) - 1);
 }
 
 /**

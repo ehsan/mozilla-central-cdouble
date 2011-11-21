@@ -133,6 +133,7 @@ WinLaunchChild(const PRUnichar *exePath, int argc, char **argv);
 BOOL
 WinLaunchServiceCommand(const PRUnichar *exePath, int argc, char **argv);
 BOOL WriteStatusPending(LPCWSTR updateDirPath);
+BOOL WriteStatusApplied(LPCWSTR updateDirPath);
 HANDLE
 OpenUpdaterSignalEvent(const wchar_t *destinationPath, bool create);
 #endif
