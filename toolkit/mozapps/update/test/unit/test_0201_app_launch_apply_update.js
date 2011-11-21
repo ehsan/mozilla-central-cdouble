@@ -687,6 +687,14 @@ function checkUpdateApplied() {
   let status = readStatusFile();
   do_check_eq(status, getAppliedState());
 
+  // On Windows, make sure not to use the maintenance service for switching
+  // the app.
+  if (IS_WIN) {
+    writeStatusFile(STATE_APPLIED);
+    status = readStatusFile();
+    do_check_eq(status, STATE_APPLIED);
+  }
+
   // Log the contents of the update.log so it is simpler to diagnose a test
   // failure.
   let contents = readFile(log);
