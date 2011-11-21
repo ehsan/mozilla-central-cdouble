@@ -561,6 +561,15 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
     return FALSE;
   }
 
+  bool backgroundUpdate = (argcTmp == 4 && !wcscmp(argvTmp[3], L"-1"));
+  if (backgroundUpdate) {
+    // Skip updating the service for background updates.  We'll do this when
+    // switching to the updated application later on.
+    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
+      ("Skipping self update in background update mode"));
+    return false;
+  }
+
   STARTUPINFO si = {0};
   si.cb = sizeof(STARTUPINFO);
   // No particular desktop because no UI
