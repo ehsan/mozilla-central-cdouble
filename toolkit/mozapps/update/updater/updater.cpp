@@ -449,7 +449,6 @@ static void LogInit()
   if (gLogFP)
     return;
 
-  // XXX ehsan make sure that the log should go inside gSourcePath
   NS_tchar logFile[MAXPATHLEN];
   NS_tsnprintf(logFile, sizeof(logFile)/sizeof(logFile[0]),
                NS_T("%s/update.log"), gSourcePath);
