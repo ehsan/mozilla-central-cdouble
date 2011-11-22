@@ -314,11 +314,23 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     return TRUE;
   }
 
-  nsAutoHandle metaUpdateFile(CreateFile(fullMetaUpdateFilePath, 
-                                         GENERIC_READ, 
-                                         0, NULL, 
-                                         OPEN_EXISTING,
-                                         0, NULL));
+  // When the file is renamed, it is possible for the handle to not be closed.
+  // Therefore we need to retry multiple times to open the file.
+  nsAutoHandle metaUpdateFile;
+  int retries = 5;
+  do {
+    metaUpdateFile.own(CreateFile(fullMetaUpdateFilePath,
+                                  GENERIC_READ,
+                                  FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                  NULL, OPEN_EXISTING,
+                                  0, NULL));
+    if (metaUpdateFile != INVALID_HANDLE_VALUE) {
+      break;
+    }
+
+    Sleep(50);
+  } while (retries--);
+
   if (metaUpdateFile == INVALID_HANDLE_VALUE) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not open command meta file: %S, error: %d", notifyInfo.FileName,

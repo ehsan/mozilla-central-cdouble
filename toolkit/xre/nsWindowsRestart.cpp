@@ -378,8 +378,8 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
   }
   
   const int FILE_SHARE_NONE = 0;
-  nsAutoHandle updateMetaFile(CreateFileW(tempFilePath, GENERIC_WRITE, 
-                                          FILE_SHARE_NONE, NULL, CREATE_ALWAYS, 
+  nsAutoHandle updateMetaFile(CreateFileW(tempFilePath, GENERIC_WRITE,
+                                          FILE_SHARE_READ, NULL, CREATE_ALWAYS,
                                           0, NULL));
   if (updateMetaFile == INVALID_HANDLE_VALUE) {
     return FALSE;
