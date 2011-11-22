@@ -172,7 +172,7 @@ StartUpdateProcess(LPCWSTR appToStart,
 
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
     ("Starting process in an elevated session.  Service "
-     "session ID: %d; Requested callback session ID: %d", 
+     "session ID: %d; Requested callback session ID: %d\n", 
      mySessionID, callbackSessionID));
 
   // The updater command line is of the form:
@@ -218,7 +218,7 @@ StartUpdateProcess(LPCWSTR appToStart,
   BOOL updateWasSuccessful = FALSE;
   if (processStarted) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Process was started... waiting on result.")); 
+      ("Process was started... waiting on result.\n")); 
 
     // Wait for the updater process to finish
     DWORD waitRes = WaitForSingleObject(pi.hProcess, TIME_TO_WAIT_ON_UPDATER);
@@ -231,12 +231,12 @@ StartUpdateProcess(LPCWSTR appToStart,
       DWORD returnCode;
       if (GetExitCodeProcess(pi.hProcess, &returnCode)) {
         PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-          ("Process finished with return code %d.", returnCode)); 
+          ("Process finished with return code %d.\n", returnCode)); 
         // updater returns 0 if successful.
         updateWasSuccessful = (returnCode == 0);
       } else {
         PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-          ("Process finished but could not obtain return code.")); 
+          ("Process finished but could not obtain return code.\n")); 
       }
     }
     CloseHandle(pi.hProcess);
@@ -245,7 +245,7 @@ StartUpdateProcess(LPCWSTR appToStart,
     DWORD lastError = GetLastError();
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not create process as current user, last error: "
-       "%d; appToStart: %S; cmdLine: %S",
+       "%d; appToStart: %S; cmdLine: %S\n",
        lastError, appToStart, cmdLineMinusCallback));
   }
 
@@ -290,7 +290,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   notifyInfo.FileName[filenameLength] = L'\0';
 
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-    ("Processing new command meta file: %S", notifyInfo.FileName));
+    ("Processing new command meta file: %S\n", notifyInfo.FileName));
 
   // When the file is ready for processing it will be renamed 
   // to have a .mz extension
@@ -333,7 +333,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
   if (metaUpdateFile == INVALID_HANDLE_VALUE) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open command meta file: %S, error: %d", notifyInfo.FileName,
+      ("Could not open command meta file: %S, error: %d\n", notifyInfo.FileName,
        GetLastError()));
     return TRUE;
   }
@@ -349,7 +349,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       fileSize < sizeof(DWORD)) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not obtain file size or an improper file size was encountered "
-       "for command meta file: %S",
+       "for command meta file: %S\n",
        notifyInfo.FileName));
     return TRUE;
   }
@@ -393,7 +393,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       workingDirectoryCount != MAX_PATH * sizeof(WCHAR) ||
       fileSize != 0) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not read command data for command meta file: %S",
+      ("Could not read command data for command meta file: %S\n",
        notifyInfo.FileName));
     return TRUE;
   }
@@ -403,7 +403,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
     ("An update command was detected and is being processed for command meta "
-     "file: %S",
+     "file: %S\n",
      notifyInfo.FileName));
 
   int argcTmp = 0;
@@ -429,7 +429,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
                             sessionID)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
         ("Error running process in session %d.  "
-         "Updating update.status.  Last error: %d",
+         "Updating update.status.  Last error: %d\n",
          sessionID, GetLastError()));
 
       // If the update process was started, then updater.exe is responsible for
@@ -441,7 +441,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
         if (!WriteStatusFailure(argvTmp[1], SERVICE_UPDATE_ERROR)) {
           PR_LOG(gServiceLog, PR_LOG_ALWAYS,
             ("Could not write update.status service update failure."
-             "Last error: %d",
+             "Last error: %d\n",
              GetLastError()));
         }
       }
@@ -449,7 +449,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     } else {
       // The update was executed and run successfully
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("updater.exe was launched and run successfully"));
+        ("updater.exe was launched and run successfully\n"));
 
       StartSelfUpdate(argcTmp, argvTmp);
     }
@@ -457,14 +457,14 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   } else {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not start process due to certificate check."
-       "Updating update.status.  Last error: %d", GetLastError()));
+       "Updating update.status.  Last error: %d\n", GetLastError()));
 
     // When there is a certificate error we just want to write pending and then 
     // relaunch the callback app so that we will prompt as a usual update
     // without the service.
     if (argcTmp < 2 || !WriteStatusPending(argvTmp[1])) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not write update.status pending-service.  Last error: %d", 
+        ("Could not write update.status pending-service.  Last error: %d\n", 
          GetLastError()));
     }
     StartCallbackApp(argcTmp, argvTmp, sessionID);
@@ -485,7 +485,7 @@ BOOL
 StartDirectoryChangeMonitor() 
 {
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-    ("Starting directory change monitor..."));
+    ("Starting directory change monitor...\n"));
 
   // Init the update directory path and ensure it exists.
   // Example: C:\programData\Mozilla\Firefox\updates\[channel]
@@ -493,7 +493,7 @@ StartDirectoryChangeMonitor()
   WCHAR updateData[MAX_PATH + 1];
   if (!GetUpdateDirectoryPath(updateData)) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not obtain update directory path"));
+      ("Could not obtain update directory path\n"));
 
     return FALSE;
   }
@@ -508,7 +508,7 @@ StartDirectoryChangeMonitor()
                                           NULL));
   if (directoryHandle == INVALID_HANDLE_VALUE) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not obtain directory handle to monitor"));
+      ("Could not obtain directory handle to monitor\n"));
 
     return FALSE;
   }
@@ -537,7 +537,7 @@ StartDirectoryChangeMonitor()
       fileNotifyInfoBufferLocation += notifyInfo .NextEntryOffset;
       bytesReturned -= notifyInfo .NextEntryOffset;
       if (!wcscmp(notifyInfo.FileName, L"stop") && gServiceStopping) {
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, ("A stop command was issued."));
+        PR_LOG(gServiceLog, PR_LOG_ALWAYS, ("A stop command was issued.\n"));
         return TRUE;
       }
 
@@ -579,7 +579,7 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
     // Skip updating the service for background updates.  We'll do this when
     // switching to the updated application later on.
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Skipping self update in background update mode"));
+      ("Skipping self update in background update mode\n"));
     return false;
   }
 
@@ -625,13 +625,13 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
 {
   if (0 == callbackSessionID  && UACHelper::IsVistaOrLater()) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Attempted to run callback application in session 0, not allowed."));
+      ("Attempted to run callback application in session 0, not allowed.\n"));
     return FALSE;
   }
 
   if (argcTmp < 5) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("No callback application specified."));
+      ("No callback application specified.\n"));
     return FALSE;
   }
 
@@ -653,7 +653,7 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
 
   if (!callbackApplication) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Callback application is NULL."));
+      ("Callback application is NULL.\n"));
     if (callbackArgs) {
       free(callbackArgs);
     }
@@ -663,7 +663,7 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
   nsAutoHandle unelevatedToken(UACHelper::OpenUserToken(callbackSessionID));
   if (!unelevatedToken) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not obtain unelevated token for callback app."));
+      ("Could not obtain unelevated token for callback app.\n"));
     if (callbackArgs) {
       free(callbackArgs);
     }
@@ -686,7 +686,7 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
     LPVOID environmentBlock = NULL;
     if (!CreateEnvironmentBlock(&environmentBlock, unelevatedToken, TRUE)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not create an environment block, setting it to NULL."));
+        ("Could not create an environment block, setting it to NULL.\n"));
       environmentBlock = NULL;
     }
 
@@ -704,7 +704,7 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
                              callbackDirectory, 
                              &si, &pi)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Callback app was run successfully."));
+        ("Callback app was run successfully.\n"));
       if (callbackArgs) {
         free(callbackArgs);
       }
@@ -713,13 +713,13 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
       return TRUE;
     } else {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not run callback app, last error: %d", GetLastError()));
+        ("Could not run callback app, last error: %d\n", GetLastError()));
     }
 #ifdef ENABLE_CALLBACK_AUTHENTICODE_CHECK
   } else {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not start callback process due to certificate check."
-       " Last error: %d", GetLastError()));
+       " Last error: %d\n", GetLastError()));
   }
 #endif
   if (callbackArgs) {

@@ -73,7 +73,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
   nsAutoRegKey baseKey(baseKeyRaw);
   if (retCode != ERROR_SUCCESS) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open key: %d", retCode));
+      ("Could not open key: %d\n", retCode));
     return FALSE;
   }
 
@@ -83,7 +83,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                              NULL, NULL, NULL, NULL, NULL, NULL);
   if (retCode != ERROR_SUCCESS) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not query info key: %d", retCode));
+      ("Could not query info key: %d\n", retCode));
     return FALSE;
   }
 
@@ -96,7 +96,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                             NULL, NULL, NULL); 
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not enum Certs: %d", retCode));
+        ("Could not enum Certs: %d\n", retCode));
       return FALSE;
     }
 
@@ -106,7 +106,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
     nsAutoRegKey subKey(subKeyRaw);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not open subkey: %d", retCode));
+        ("Could not open subkey: %d\n", retCode));
       continue; // Try the next subkey
     }
 
@@ -123,7 +123,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                                (LPBYTE)name, &valueBufSize);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain name from registry: %d", retCode));
+        ("Could not obtain name from registry: %d\n", retCode));
       continue; // Try the next subkey
     }
 
@@ -133,7 +133,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                                (LPBYTE)issuer, &valueBufSize);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain issuer from registry: %d", retCode));
+        ("Could not obtain issuer from registry: %d\n", retCode));
       continue; // Try the next subkey
     }
 
@@ -143,7 +143,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                                (LPBYTE)programName, &valueBufSize);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain program name from registry: %d", retCode));
+        ("Could not obtain program name from registry: %d\n", retCode));
       continue; // Try the next subkey
     }
 
@@ -153,7 +153,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                                (LPBYTE)publisherLink, &valueBufSize);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain publisher link from registry: %d", retCode));
+        ("Could not obtain publisher link from registry: %d\n", retCode));
       continue; // Try the next subkey
     }
 
@@ -162,7 +162,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
                                      (LPBYTE)moreInfoLink,  &valueBufSize);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain more info link from registry: %d", retCode));
+        ("Could not obtain more info link from registry: %d\n", retCode));
       continue; // Try the next subkey
     }
 
@@ -178,14 +178,14 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
     retCode = CheckCertificateForPEFile(filePath, allowedCertificate);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Error on certificate check: %d", retCode));
+        ("Error on certificate check: %d\n", retCode));
       continue; // Try the next subkey
     }
 
     retCode = VerifyCertificateTrustForFile(filePath);
     if (retCode != ERROR_SUCCESS) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Error on certificate trust check: %d", retCode));
+        ("Error on certificate trust check: %d\n", retCode));
       continue; // Try the next subkey
     }
 

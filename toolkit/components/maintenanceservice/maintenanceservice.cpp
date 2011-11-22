@@ -69,53 +69,53 @@ wmain(int argc, WCHAR **argv)
   // Otherwise, the service is probably being started by the SCM.
   if (lstrcmpi(argv[1], L"install") == 0) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Installing service..."));
+      ("Installing service...\n"));
 
     if (!SvcInstall(FALSE)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not install service (%d)", GetLastError()));
+        ("Could not install service (%d)\n", GetLastError()));
       return 1;
     }
 
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("The service was installed successfully"));
+      ("The service was installed successfully\n"));
 
     return 0;
   } else if (lstrcmpi(argv[1], L"upgrade") == 0) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Upgrading service if installed..."));
+      ("Upgrading service if installed...\n"));
 
     if (!SvcInstall(TRUE)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not upgrade service (%d)", GetLastError()));
+        ("Could not upgrade service (%d)\n", GetLastError()));
       return 1;
     }
 
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("The service was upgraded successfully"));
+      ("The service was upgraded successfully\n"));
     return 0;
   } else if (lstrcmpi(argv[1], L"uninstall") == 0) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Uninstalling service..."));
+      ("Uninstalling service...\n"));
 
     if (!SvcUninstall()) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not uninstall service (%d)", GetLastError()));
+        ("Could not uninstall service (%d)\n", GetLastError()));
       return 1;
     }
 
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("The service was uninstalled successfully"));
+      ("The service was uninstalled successfully\n"));
 
     return 0;
   } else if (lstrcmpi(argv[1], L"debug") == 0) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Starting service as a process in debug mode..."));
+      ("Starting service as a process in debug mode...\n"));
 
     StartDirectoryChangeMonitor();
 
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Exiting service as a process in debug mode..."));
+      ("Exiting service as a process in debug mode...\n"));
 
     return 0;
   }
@@ -129,7 +129,7 @@ wmain(int argc, WCHAR **argv)
   // The process should simply terminate when the call returns.
   if (!StartServiceCtrlDispatcher(DispatchTable)) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("StartServiceCtrlDispatcher failed (%d)", GetLastError()));
+      ("StartServiceCtrlDispatcher failed (%d)\n", GetLastError()));
   }
 
   return 0;
@@ -163,7 +163,7 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);
   if (!gSvcStatusHandle) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("RegisterServiceCtrlHandler failed (%d)", GetLastError()));
+      ("RegisterServiceCtrlHandler failed (%d)\n", GetLastError()));
     return; 
   } 
 
@@ -208,7 +208,7 @@ SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
     if (!GetUpdateDirectoryPath(stopFilePath)) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
         ("Could not obtain update directory path, terminating thread "
-         "forcefully."));
+         "forcefully.\n"));
       TerminateThread(thread, 1);
     }
 
@@ -223,7 +223,7 @@ SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
                                  NULL, CREATE_ALWAYS, 0, NULL);
     if (stopFile == INVALID_HANDLE_VALUE) {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not create stop file, terminating thread forcefully."));
+        ("Could not create stop file, terminating thread forcefully.\n"));
       TerminateThread(thread, 3);
     } else {
       CloseHandle(stopFile);
