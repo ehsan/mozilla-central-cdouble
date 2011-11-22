@@ -768,7 +768,7 @@ OpenUpdaterSignalEvent(const wchar_t *destinationPath, bool create)
                                   0, 0, 0, 0, 0, 0, 0, &pSidEveryone))
       return NULL;
     EXPLICIT_ACCESS ea = {
-      EVENT_MODIFY_STATE,            // grfAccessPermissions 
+      EVENT_MODIFY_STATE,            // grfAccessPermissions
       SET_ACCESS,                    // grfAccessMode
       NO_INHERITANCE,                // grfInheritance
       {                              // Trustee
