@@ -773,28 +773,6 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     return;
 
 #if defined(XP_WIN)
-  // If we're about to try to apply the update in the background, first make
-  // sure that we have write access to the directories in question.  If we
-  // don't, we just fall back to applying the update at the next startup
-  // using a UAC prompt.
-  if (!restart && !CanWriteToDirectoryAndParent(appDir)) {
-    // Try to see if we can write in the appdir
-    nsCOMPtr<nsILocalFile> alternateUpdatedDir;
-    if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
-      return;
-    if (OnSameVolume(updatedDir, alternateUpdatedDir)) {
-      if (!ConstructCompoundApplyToString(alternateUpdatedDir, appDir, applyToDir))
-        return;
-      updatedDir = alternateUpdatedDir;
-      rv = updatedDir->GetPath(applyToDirW);
-      if (NS_FAILED(rv))
-        return;
-    } else {
-      // Fall back to the startup updates
-      return;
-    }
-  }
-
   nsAutoHandle watchEvent;
   if (outpid) {
     watchEvent.own(OpenUpdaterSignalEvent(PromiseFlatString(applyToDirW).get(), true));
@@ -881,6 +859,36 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   if (!isPendingService || 
       !WriteStatusPending(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
       !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
+    // If we're about to try to apply the update in the background, first make
+    // sure that we have write access to the directories in question.  If we
+    // don't, we just fall back to applying the update at the next startup
+    // using a UAC prompt.
+    if (!restart && !CanWriteToDirectoryAndParent(appDir)) {
+      // Try to see if we can write in the appdir
+      nsCOMPtr<nsILocalFile> alternateUpdatedDir;
+      if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
+        return;
+      if (OnSameVolume(updatedDir, alternateUpdatedDir)) {
+        if (!ConstructCompoundApplyToString(alternateUpdatedDir, appDir, applyToDir))
+          return;
+        updatedDir = alternateUpdatedDir;
+        rv = updatedDir->GetPath(applyToDirW);
+        if (NS_FAILED(rv))
+          return;
+
+        // Readjust argv[2]
+        argv[2] = (char*) applyToDir.get();
+
+        // Readjust the event name if needed
+        if (outpid) {
+          watchEvent.own(OpenUpdaterSignalEvent(PromiseFlatString(applyToDirW).get(), true));
+        }
+      } else {
+        // Fall back to the startup update
+        return;
+      }
+    }
+
     // Launch the update using updater.exe
     if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
       return;
