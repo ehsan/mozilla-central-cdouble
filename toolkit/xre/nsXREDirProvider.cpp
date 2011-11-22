@@ -949,7 +949,6 @@ nsXREDirProvider::GetUpdateRootDir(nsIFile* *aResult)
     // directory, because otherwise the updater writing the log file can cause
     // the directory to be locked, which prevents it from being replaced after
     // background updates.
-    // XXX ehsan is this a good choice?
     programName.AssignASCII(MOZ_APP_NAME);
   }
 
