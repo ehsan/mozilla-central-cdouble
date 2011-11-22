@@ -837,7 +837,6 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   if (!restart) {
     // Signal the updater application that it should apply the update in the
     // background.
-    // XXX ehsan is there a better way to do this?
     pid.AssignASCII("-1");
   }
 
