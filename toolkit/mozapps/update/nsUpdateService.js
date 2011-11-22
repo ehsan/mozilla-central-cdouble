@@ -1912,33 +1912,8 @@ UpdateService.prototype = {
       return;
     }
 
-    // XXX ehsan this extensive level of logging might not be quite necessary
-    function updateDetails(update) {
-      var res = "\n";
-      res += "Type: " + update.type + "\n";
-      res += "Name: " + update.name + "\n";
-      res += "DisplayVersion: " + update.displayVersion + "\n";
-      res += "BuildID: " + update.buildID + "\n";
-      res += "Channel: " + update.channel + "\n";
-      res += "ShowPrompt: " + update.showPrompt + "\n";
-      res += "IsCompleteUpdate: " + update.isCompleteUpdate + "\n";
-      res += "State: " + update.state + "\n";
-      res += "ErrorCode: " + update.errorCode + "\n";
-      res += "PatchCount: " + update.patchCount + "\n"; //XXX ehsan what happens with multiple patches?
-      var patch = update.selectedPatch;
-      res += "\nPatch:\n";
-      res += "Type: " + patch.type + "\n";
-      res += "URL: " + patch.URL + "\n";
-      res += "finalURL: " + patch.finalURL + "\n";
-      res += "HashFunction: " + patch.hashFunction + "\n";
-      res += "hashValue: " + patch.hashValue + "\n";
-      res += "size: " + patch.size + "\n";
-      res += "state: " + patch.state + "\n";
-      res += "selected: " + patch.selected + "\n";
-      return res;
-    }
     LOG("UpdateService:applyUpdateInBackground called with the following update: " +
-        updateDetails(update));
+        update.name);
 
     // Initiate the update in the background
     try {
