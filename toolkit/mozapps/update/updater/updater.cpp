@@ -1927,8 +1927,6 @@ GetInstallationDir(NS_tchar (&installDir)[N])
 static int
 CopyInstallDirToDestDir()
 {
-  // XXX ehsan make sure not to copy the update files
-
   // First extract the installation directory from gSourcePath by going two
   // levels above it.  This is effectively skipping over "updates/0".
   NS_tchar installDir[MAXPATHLEN];
