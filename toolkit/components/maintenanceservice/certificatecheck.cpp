@@ -508,7 +508,7 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
       // The hash that represents the subject is trusted and there were no
       // verification errors.  No publisher nor time stamp chain errors.
       PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The file \"%S\" is signed and the signature was verified.\n",
+             ("The file \"%ls\" is signed and the signature was verified.\n",
               filePath));
       validated = TRUE;
       break;
@@ -518,19 +518,19 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
       if (TRUST_E_TIME_STAMP == dwLastError) {
         // The file was not signed.
         PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("The file \"%S\" has a timestamp error.\n", filePath));
+               ("The file \"%ls\" has a timestamp error.\n", filePath));
       } else if (TRUST_E_NOSIGNATURE == dwLastError ||
                 TRUST_E_SUBJECT_FORM_UNKNOWN == dwLastError ||
                 TRUST_E_PROVIDER_UNKNOWN == dwLastError) {
         // The file was not signed.
         PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("The file \"%S\" is not signed.\n", filePath));
+               ("The file \"%ls\" is not signed.\n", filePath));
       } else {
         // The signature was not valid or there was an error 
         // opening the file.
         PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
                ("An unknown error occurred trying to verify the signature of "
-                "the \"%S\" file.\n", filePath));
+                "the \"%ls\" file.\n", filePath));
       }
       break;
     case TRUST_E_EXPLICIT_DISTRUST:
