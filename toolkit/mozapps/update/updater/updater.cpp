@@ -2201,7 +2201,6 @@ int NS_main(int argc, NS_tchar **argv)
       // in the background.
       // For now, we just print some debugging information to see if this works
       // at all.
-      // XXX ehsan add more code
 
       // We're processing the update in the background
       sBackgroundUpdate = true;
