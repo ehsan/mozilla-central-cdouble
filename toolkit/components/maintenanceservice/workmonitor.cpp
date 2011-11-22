@@ -245,7 +245,7 @@ StartUpdateProcess(LPCWSTR appToStart,
     DWORD lastError = GetLastError();
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not create process as current user, last error: "
-       "%d; appToStart: %ls; cmdLine: %ls", 
+       "%d; appToStart: %S; cmdLine: %S",
        lastError, appToStart, cmdLineMinusCallback));
   }
 
@@ -290,7 +290,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   notifyInfo.FileName[filenameLength] = L'\0';
 
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-    ("Processing new command meta file: %ls", notifyInfo.FileName));
+    ("Processing new command meta file: %S", notifyInfo.FileName));
 
   // When the file is ready for processing it will be renamed 
   // to have a .mz extension
@@ -321,7 +321,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
                                          0, NULL));
   if (metaUpdateFile == INVALID_HANDLE_VALUE) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open command meta file: %ls", notifyInfo.FileName));
+      ("Could not open command meta file: %S", notifyInfo.FileName));
     return TRUE;
   }
 
@@ -336,7 +336,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       fileSize < sizeof(DWORD)) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
       ("Could not obtain file size or an improper file size was encountered "
-       "for command meta file: %ls", 
+       "for command meta file: %S",
        notifyInfo.FileName));
     return TRUE;
   }
@@ -380,7 +380,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       workingDirectoryCount != MAX_PATH * sizeof(WCHAR) ||
       fileSize != 0) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not read command data for command meta file: %ls", 
+      ("Could not read command data for command meta file: %S",
        notifyInfo.FileName));
     return TRUE;
   }
@@ -390,7 +390,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
   PR_LOG(gServiceLog, PR_LOG_ALWAYS,
     ("An update command was detected and is being processed for command meta "
-     "file: %ls", 
+     "file: %S",
      notifyInfo.FileName));
 
   int argcTmp = 0;
