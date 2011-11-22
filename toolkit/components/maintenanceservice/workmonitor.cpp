@@ -321,7 +321,8 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
                                          0, NULL));
   if (metaUpdateFile == INVALID_HANDLE_VALUE) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open command meta file: %S", notifyInfo.FileName));
+      ("Could not open command meta file: %S, error: %d", notifyInfo.FileName,
+       GetLastError()));
     return TRUE;
   }
 
