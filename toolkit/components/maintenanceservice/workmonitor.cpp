@@ -408,6 +408,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   int argcTmp = 0;
   LPWSTR* argvTmp = CommandLineToArgvW(cmdlineBufferWide, &argcTmp);
 
+#ifndef DISABLE_SERVICE_AUTHENTICODE_CHECK
   WCHAR installDir[2 * MAX_PATH];
   ZeroMemory(installDir, 2 * MAX_PATH * sizeof(WCHAR));
   if (!GetInstallationDir(argcTmp, argvTmp, installDir)) {
@@ -416,7 +417,6 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
   // Validate the certificate of the app the user wants us to start.
   // Also check to make sure the certificate is trusted.
-#ifndef DISABLE_SERVICE_AUTHENTICODE_CHECK
   if (argcTmp > 2 && 
       DoesBinaryMatchAllowedCertificates(installDir, appToStart)) {
 #endif
@@ -669,13 +669,13 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
     return FALSE;
   }
 
+#ifdef ENABLE_CALLBACK_AUTHENTICODE_CHECK
   WCHAR installDir[2 * MAX_PATH];
   ZeroMemory(installDir, 2 * MAX_PATH * sizeof(WCHAR));
   if (!GetInstallationDir(argcTmp, argvTmp, installDir)) {
     return false;
   }
 
-#ifdef ENABLE_CALLBACK_AUTHENTICODE_CHECK
   if (argcTmp > 2 && 
       DoesBinaryMatchAllowedCertificates(installDir, callbackApplication)) {
 #endif
