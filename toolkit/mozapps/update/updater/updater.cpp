@@ -2428,7 +2428,7 @@ int NS_main(int argc, NS_tchar **argv)
   }
 
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
-  if (argc > callbackIndex || sReplaceRequest) {
+  if (argc > callbackIndex) {
     // If the callback executable is specified it must exist for a successful
     // update.
     NS_tchar callbackLongPath[MAXPATHLEN];
