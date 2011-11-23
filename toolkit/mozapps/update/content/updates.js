@@ -1676,7 +1676,7 @@ var gErrorPatchingPage = {
   onWizardNext: function() {
     switch (gUpdates.update.selectedPatch.state) {
     case STATE_PENDING:
-    case STATE_PENDING_SVC:
+    case STATE_PENDING_SVC: 
       gUpdates.wiz.goTo("finished");
       break;
     case STATE_DOWNLOADING:
