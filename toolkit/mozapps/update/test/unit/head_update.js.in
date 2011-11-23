@@ -1474,3 +1474,27 @@ function getAppDir() {
   }
   return dir;
 }
+
+/**
+ * Gets the nsIFile references for the shell script to retrieve the Mac OS X
+ * version and the nsIFile to pipe the output of the shell script. If either of
+ * these files exist they will be removed by this function.
+ *
+ * @return  array containing two nsIFile references. The first array member is
+ *          the nsIFile for the shell script to launch to get the Mac OS X
+ *          version and the second array member is the nsIFile for the piped
+ *          output from the shell script.
+ */
+function getVersionScriptAndFile() {
+  let versionScript = do_get_file("/", true);
+  let versionFile = versionScript.clone();
+  versionScript.append("get_version.sh");
+  if (versionScript.exists()) {
+    versionScript.remove(false);
+  }
+  versionFile.append("version.out");
+  if (versionFile.exists()) {
+    versionFile.remove(false);
+  }
+  return [versionScript, versionFile];
+}
