@@ -709,10 +709,12 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
       }
       CloseHandle(pi.hProcess);
       CloseHandle(pi.hThread);
+      DestroyEnvironmentBlock(environmentBlock);
       return TRUE;
     } else {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
         ("Could not run callback app, last error: %d\n", GetLastError()));
+      DestroyEnvironmentBlock(environmentBlock);
     }
 #ifdef ENABLE_CALLBACK_AUTHENTICODE_CHECK
   } else {
