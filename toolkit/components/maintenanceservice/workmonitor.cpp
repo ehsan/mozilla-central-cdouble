@@ -250,7 +250,10 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
   nsAutoHandle metaUpdateFile(CreateFile(fullMetaUpdateFilePath, 
                                          GENERIC_READ, 
-                                         0, NULL, 
+                                         FILE_SHARE_READ | 
+                                         FILE_SHARE_WRITE | 
+                                         FILE_SHARE_DELETE, 
+                                         NULL, 
                                          OPEN_EXISTING,
                                          0, NULL));
   if (metaUpdateFile == INVALID_HANDLE_VALUE) {
