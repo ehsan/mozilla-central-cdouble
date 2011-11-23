@@ -129,6 +129,10 @@ var gAlternateUpdatedDir = false; // only used on Windows
 // Time to wait for the test helper process before continuing the test
 const TEST_HELPER_TIMEOUT = 100;
 
+// Use a copy of the main application executable for the test to avoid main
+// executable in use errors.
+const FILE_WIN_TEST_EXE = "aus_test_app.exe";
+
 var gTestserver;
 
 var gXHR;
@@ -1410,3 +1414,63 @@ XPCOMUtils.defineLazyGetter(this, "gIsLessThanMacOSX_10_6", function test_gMacVe
 
   return (Services.vc.compare(version, "10.6") < 0)
 });
+
+/**
+ * Checks for the existence of a platform specific application binary that can
+ * be used for the test and gets its path if it is found.
+ *
+ * Note: The application shell scripts for launching the application work on all
+ * platforms that provide a launch shell script except for Mac OS X 10.5 which
+ * is why this test uses the binaries to launch the application.
+ */
+XPCOMUtils.defineLazyGetter(this, "gAppBinPath", function test_gAppBinPath() {
+  let processDir = getAppDir();
+  let appBin = processDir.clone();
+  appBin.append(APP_BIN_NAME + APP_BIN_SUFFIX);
+  if (appBin.exists()) {
+    if (IS_WIN) {
+      let appBinCopy = processDir.clone();
+      appBinCopy.append(FILE_WIN_TEST_EXE);
+      if (appBinCopy.exists()) {
+        appBinCopy.remove(false);
+      }
+      appBin.copyTo(processDir, FILE_WIN_TEST_EXE);
+      appBin = processDir.clone();
+      appBin.append(FILE_WIN_TEST_EXE);
+    }
+    let appBinPath = appBin.path;
+    if (/ /.test(appBinPath)) {
+      appBinPath = '"' + appBinPath + '"';
+    }
+    return appBinPath;
+  }
+  return null;
+});
+
+let gWindowsBinDir = null;
+
+/**
+ * This dummy function just returns false.  Tests which wish to adjust the app
+ * directory on Mac OS X should define a real version of this function.
+ */
+function shouldAdjustPathsOnMac() {
+  return false;
+}
+
+/**
+ * This function returns the current process directory on Windows and Linux, and
+ * the application bundle directory on Mac.
+ */
+function getAppDir() {
+  let dir = getCurrentProcessDir();
+  if (shouldAdjustPathsOnMac()) {
+    // objdir/dist/bin/../NightlyDebug.app/Contents/MacOS
+    dir = dir.parent;
+    dir.append(BUNDLE_NAME);
+    dir.append("Contents");
+    dir.append("MacOS");
+  } else if (IS_WIN && gWindowsBinDir) {
+    dir = gWindowsBinDir.clone();
+  }
+  return dir;
+}

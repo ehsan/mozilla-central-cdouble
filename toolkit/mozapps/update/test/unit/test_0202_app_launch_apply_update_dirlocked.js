@@ -45,39 +45,6 @@ let gEnvXPCOMMemLeakLog;
 let gEnvDyldLibraryPath;
 let gEnvLdLibraryPath;
 
-/**
- * Checks for the existence of a platform specific application binary that can
- * be used for the test and gets its path if it is found.
- *
- * Note: The application shell scripts for launching the application work on all
- * platforms that provide a launch shell script except for Mac OS X 10.5 which
- * is why this test uses the binaries to launch the application.
- */
-XPCOMUtils.defineLazyGetter(this, "gAppBinPath", function test_gAppBinPath() {
-  let processDir = getAppDir();
-  let appBin = processDir.clone();
-  appBin.append(APP_BIN_NAME + APP_BIN_SUFFIX);
-  if (appBin.exists()) {
-    if (IS_WIN) {
-      // Use the test exe inside the new bin directory.
-      let appBinCopy = gWindowsBinDir.clone();
-      appBinCopy.append(FILE_WIN_TEST_EXE);
-      if (appBinCopy.exists()) {
-        appBinCopy.remove(false);
-      }
-      appBin.copyTo(processDir, FILE_WIN_TEST_EXE);
-      appBin = processDir.clone();
-      appBin.append(FILE_WIN_TEST_EXE);
-    }
-    let appBinPath = appBin.path;
-    if (/ /.test(appBinPath)) {
-      appBinPath = '"' + appBinPath + '"';
-    }
-    return appBinPath;
-  }
-  return null;
-});
-
 // Override getUpdatesRootDir on Mac because we need to apply the update
 // inside the bundle directory.
 function symlinkUpdateFilesIntoBundleDirectory() {
@@ -457,8 +424,6 @@ function shouldAdjustPathsOnMac() {
   return (IS_MACOSX && dir.leafName != "MacOS");
 }
 
-let gWindowsBinDir = null;
-
 /**
  * This function copies the entire process directory over to a new one which we
  * can write to, so that we can test under Windows which holds locks on opened
@@ -502,24 +467,6 @@ function adjustPathsOnWindows() {
   do_register_cleanup(function() {
     ds.unregisterProvider(dirProvider);
   });
-}
-
-/**
- * This function returns the current process directory on Windows and Linux, and
- * the application bundle directory on Mac.
- */
-function getAppDir() {
-  let dir = getCurrentProcessDir();
-  if (shouldAdjustPathsOnMac()) {
-    // objdir/dist/bin/../NightlyDebug.app/Contents/MacOS
-    dir = dir.parent;
-    dir.append(BUNDLE_NAME);
-    dir.append("Contents");
-    dir.append("MacOS");
-  } else if (IS_WIN && gWindowsBinDir) {
-    dir = gWindowsBinDir.clone();
-  }
-  return dir;
 }
 
 /**
