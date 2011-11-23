@@ -489,58 +489,6 @@ function resetEnvironment() {
   }
 }
 
-/**
- * Returns the platform specific arguments used by nsIProcess when launching
- * the application.
- *
- * @return  an array of arguments to be passed to nsIProcess.
- *
- * Notes:
- * 1. Mozilla universal binaries that contain both i386 and x86_64 on Mac OS X
- *    10.5.x must be launched using the i386 architecture.
- * 2. A shell is necessary to pipe the application's console output which
- *    would otherwise pollute the xpcshell log.
- *
- * Command line arguments used when launching the application:
- * -no-remote prevents shell integration from being affected by an existing
- * application process.
- * -process-updates makes the application exits after being relaunched by the
- * updater.
- * 1> pipes stdout to a file.
- * appConsoleLogPath is the file path to pipe the output from the shell.
- * Otherwise the output from the application will end up in the xpchsell log.
- * 2>&1 pipes stderr to sdout.
- */
-function getProcessArgs() {
-  // Pipe the output from the launched application to a file so the output from
-  // its console isn't present in the xpcshell log.
-  let appConsoleLogPath = getAppConsoleLogPath();
-
-  let args;
-  if (IS_UNIX) {
-    let launchScript = getLaunchScript();
-    // Precreate the script with executable permissions
-    launchScript.create(AUS_Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_DIRECTORY);
-
-    let scriptContents = "#! /bin/sh\n";
-    // On Mac OS X versions prior to 10.6 the i386 acrhitecture must be used.
-    if (gIsLessThanMacOSX_10_6) {
-      scriptContents += "arch -arch i386 ";
-    }
-    scriptContents += gAppBinPath + " -no-remote -process-updates 1> " +
-                      appConsoleLogPath + " 2>&1";
-    writeFile(launchScript, scriptContents);
-    logTestInfo("created " + launchScript.path + " containing:\n" +
-                scriptContents);
-    args = [launchScript.path];
-  }
-  else {
-    args = ["/D", "/Q", "/C", gAppBinPath, "-no-remote", "-process-updates",
-            "1>", appConsoleLogPath, "2>&1"];
-  }
-  return args;
-}
-
 function shouldAdjustPathsOnMac() {
   // When running xpcshell tests locally, xpcshell and firefox-bin do not live
   // in the same directory.
