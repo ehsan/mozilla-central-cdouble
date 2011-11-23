@@ -209,11 +209,19 @@ StartUpdateProcess(LPCWSTR appToStart,
                                       MOVEFILE_REPLACE_EXISTING);
   }
 
+  // Set an environment variable signalling the updater that it has been
+  // launched from the maintenance service.
+  SetEnvironmentVariableW(L"MOZ_UPDATE_USE_SERVICE", L"");
+
   processStarted = CreateProcessW(appToStart, cmdLineMinusCallback, 
                                   NULL, NULL, FALSE, 
                                   CREATE_DEFAULT_ERROR_MODE | 
                                   CREATE_UNICODE_ENVIRONMENT, 
                                   NULL, workingDir, &si, &pi);
+
+  // Unset that environment variable
+  SetEnvironmentVariableW(L"MOZ_UPDATE_USE_SERVICE", NULL);
+
   BOOL updateWasSuccessful = FALSE;
   if (processStarted) {
     PR_LOG(gServiceLog, PR_LOG_ALWAYS,
