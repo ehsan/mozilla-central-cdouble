@@ -115,7 +115,6 @@ StartUpdateProcess(LPCWSTR appToStart,
   // are the 6th index.  So that we can execute the callback out of line we
   // won't call updater.exe with those callback args and we will manage the
   // callback ourselves.
-  LPVOID environmentBlock = NULL;
   LPWSTR cmdLineMinusCallback = MakeCommandLine(min(argcTmp, 4), argvTmp);
 
   // If we're about to start the update process from session 0 on Vista
@@ -607,10 +606,12 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
       }
       CloseHandle(pi.hProcess);
       CloseHandle(pi.hThread);
+      DestroyEnvironmentBlock(environmentBlock);
       return TRUE;
     } else {
       PR_LOG(gServiceLog, PR_LOG_ALWAYS,
         ("Could not run callback app, last error: %d", GetLastError()));
+      DestroyEnvironmentBlock(environmentBlock);
     }
 #ifdef ENABLE_CALLBACK_AUTHENTICODE_CHECK
   } else {
