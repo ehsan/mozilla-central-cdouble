@@ -602,21 +602,6 @@ function getVersionScriptAndFile() {
 }
 
 /**
- * Gets the nsIFile reference for the shell script to launch the application. If
- * the file exists it will be removed by this function.
- *
- * @return  the nsIFile for the shell script to launch the application.
- */
-function getLaunchScript() {
-  let launchScript = do_get_file("/", true);
-  launchScript.append("launch.sh");
-  if (launchScript.exists()) {
-    launchScript.remove(false);
-  }
-  return launchScript;
-}
-
-/**
  * Checks if the update has finished being applied in the background.
  */
 function checkUpdateApplied() {
