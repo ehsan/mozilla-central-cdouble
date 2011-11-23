@@ -18,10 +18,6 @@
  * manifest file (e.g. updatev2.manifest).
  */
 
-// Use a copy of the main application executable for the test to avoid main
-// executable in use errors.
-const FILE_WIN_TEST_EXE = "aus_test_app.exe";
-
 // Backup the updater.ini and use a custom one to prevent the updater from
 // launching a post update executable.
 const FILE_UPDATER_INI_BAK = "updater.ini.bak";
