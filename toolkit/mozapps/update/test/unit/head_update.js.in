@@ -450,6 +450,85 @@ function runUpdate() {
 }
 
 /**
+ * Helper function for updater tests for launching the updater using the
+ * maintenance service to apply a mar file.
+ *
+ * @param aInitialStatus  the initial value of update.status
+ * @param aExpectedStatus the expected value of update.status when the test finishes
+ * @param aCallback       the function to be called when the update is finished
+ */
+function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
+  // Prevent the cleanup function from begin run more than once
+  if (gRegisteredServiceCleanup === undefined) {
+    gRegisteredServiceCleanup = true;
+
+    do_register_cleanup(function serviceCleanup() {
+      resetEnvironment();
+
+      if (IS_WIN) {
+        // Remove the copy of the application executable used for the test on
+        // Windows if it exists.
+        let appBinCopy = processDir.clone();
+        appBinCopy.append(FILE_WIN_TEST_EXE);
+        if (appBinCopy.exists()) {
+          appBinCopy.remove(false);
+        }
+      }
+
+      // This will delete the app console log file if it exists.
+      getAppConsoleLogPath();
+
+      if (IS_UNIX) {
+        // This will delete the launch script if it exists.
+        getLaunchScript();
+        if (IS_MACOSX) {
+          // This will delete the version script and version file if they exist.
+          getVersionScriptAndFile();
+        }
+      }
+    });
+  }
+
+  let launchBin = getLaunchBin();
+  let args = getProcessArgs();
+  logTestInfo("launching " + launchBin.path + " " + args.join(" "));
+
+  writeStatusFile(aInitialStatus);
+  // sanity check
+  do_check_eq(readStatusFile(), aInitialStatus);
+
+  let process = AUS_Cc["@mozilla.org/process/util;1"].
+                   createInstance(AUS_Ci.nsIProcess);
+  process.init(launchBin);
+
+  setEnvironment();
+
+  // We can't get sync behavior here since Firefox does not wait for the
+  // process launched through the service to finish.  Since the service
+  // launches the updater in the background, providing an observer argument
+  // doesn't solve anything either, so we will rely on watching the
+  // update.status file instead.
+  process.runAsync(args, args.length);
+
+  resetEnvironment();
+
+  function timerCallback() {
+    // Wait for the expected status
+    let status = readStatusFile();
+    if (status != aExpectedStatus) {
+      logTestInfo("Still waiting to see the " + aExpectedStatus +
+                  " status, got " + status + " for now...");
+      return;
+    }
+
+    aCallback();
+  }
+
+  let timer = AUS_Cc["@mozilla.org/timer;1"].createInstance(AUS_Ci.nsITimer);
+  timer.initWithCallback(timerCallback, 1000, timer.TYPE_REPEATING_SLACK);
+}
+
+/**
  * Gets the platform specific shell binary that is launched using nsIProcess and
  * in turn launches the updater.
  *
