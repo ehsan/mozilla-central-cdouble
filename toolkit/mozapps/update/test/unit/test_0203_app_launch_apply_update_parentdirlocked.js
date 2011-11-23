@@ -578,25 +578,6 @@ function getUpdateTestDir() {
 }
 
 /**
- * Gets a file path for piping the console output from the application so it
- * doesn't appear in the xpcshell log file.
- *
- * @return  path to the file for piping the console output from the application.
- */
-function getAppConsoleLogPath() {
-  let appConsoleLog = do_get_file("/", true);
-  appConsoleLog.append("app_console_log");
-  if (appConsoleLog.exists()) {
-    appConsoleLog.remove(false);
-  }
-  let appConsoleLogPath = appConsoleLog.path;
-  if (/ /.test(appConsoleLogPath)) {
-    appConsoleLogPath = '"' + appConsoleLogPath + '"';
-  }
-  return appConsoleLogPath;
-}
-
-/**
  * Gets the nsIFile references for the shell script to retrieve the Mac OS X
  * version and the nsIFile to pipe the output of the shell script. If either of
  * these files exist they will be removed by this function.
