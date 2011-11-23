@@ -39,45 +39,6 @@ let gEnvXPCOMMemLeakLog;
 let gEnvDyldLibraryPath;
 let gEnvLdLibraryPath;
 
-// A shell script is used to get the OS version due to nsSystemInfo not
-// returning the actual OS version. It is possible to get the actual OS version
-// using ctypes but it would be more complicated than using a shell script.
-XPCOMUtils.defineLazyGetter(this, "gIsLessThanMacOSX_10_6", function test_gMacVer() {
-  if (!IS_MACOSX) {
-    return false;
-  }
-
-  let [versionScript, versionFile] = getVersionScriptAndFile();
-  // Precreate the script with executable permissions
-  versionScript.create(AUS_Ci.nsILocalFile.NORMAL_FILE_TYPE, PERMS_DIRECTORY);
-  let scriptContents = "#! /bin/sh\nsw_vers -productVersion >> " + versionFile.path;
-  writeFile(versionScript, scriptContents);
-  logTestInfo("created " + versionScript.path + " shell script containing:\n" +
-              scriptContents);
-
-  let versionScriptPath = versionScript.path;
-  if (/ /.test(versionScriptPath)) {
-    versionScriptPath = '"' + versionScriptPath + '"';
-  }
-
-
-  let launchBin = getLaunchBin();
-  let args = [versionScriptPath];
-  let process = AUS_Cc["@mozilla.org/process/util;1"].
-                createInstance(AUS_Ci.nsIProcess);
-  process.init(launchBin);
-  process.run(true, args, args.length);
-  if (process.exitValue != 0) {
-    do_throw("Version script exited with " + process.exitValue + "... unable " +
-             "to get Mac OS X version!");
-  }
-
-  let version = readFile(versionFile).split("\n")[0];
-  logTestInfo("executing on Mac OS X verssion " + version);
-
-  return (Services.vc.compare(version, "10.6") < 0)
-});
-
 /**
  * Checks for the existence of a platform specific application binary that can
  * be used for the test and gets its path if it is found.
