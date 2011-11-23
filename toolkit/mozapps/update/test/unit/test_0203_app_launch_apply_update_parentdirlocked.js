@@ -692,7 +692,7 @@ function getLaunchScript() {
  */
 function checkUpdateApplied() {
   // Don't proceed until the update has been applied.
-  if (gUpdateManager.activeUpdate.state != getAppliedState()) {
+  if (gUpdateManager.activeUpdate.state != STATE_APPLIED) {
     do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateApplied);
     return;
   }
@@ -704,7 +704,7 @@ function checkUpdateApplied() {
 
   // Don't proceed until the update status is no longer pending or applying.
   let status = readStatusFile();
-  do_check_eq(status, getAppliedState());
+  do_check_eq(status, STATE_APPLIED);
 
   // On Windows, make sure not to use the maintenance service for switching
   // the app.

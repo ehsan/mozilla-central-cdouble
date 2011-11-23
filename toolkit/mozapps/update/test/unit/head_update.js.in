@@ -375,17 +375,6 @@ function pathHandler(metadata, response) {
 }
 
 /**
- * Get the APPLIED state expected after a successful background update
- * depending on the platform.
- *
- * This is needed because on Windows, the updater uses the STATE_APPLIED_SVC
- * status instead of the STATE_APPLIED status.
- */
-function getAppliedState() {
-  return IS_WIN ? STATE_APPLIED_SVC : STATE_APPLIED;
-}
-
-/**
  * Helper function for getting the relative path to the directory where the
  * update will be applied.
  *

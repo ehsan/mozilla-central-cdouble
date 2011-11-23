@@ -206,9 +206,9 @@ function run_test() {
               "applying a complete mar");
   do_check_eq(exitValue, 0);
 
-  logTestInfo("testing update.status should be " + getAppliedState());
+  logTestInfo("testing update.status should be " + STATE_APPLIED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), getAppliedState());
+  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED);
 
   // Now switch the application and its updated version
   gBackgroundUpdate = false;
