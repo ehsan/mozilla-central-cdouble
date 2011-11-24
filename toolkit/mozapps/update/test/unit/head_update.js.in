@@ -489,13 +489,13 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
     });
   }
 
-  let launchBin = getLaunchBin();
-  let args = getProcessArgs();
-  logTestInfo("launching " + launchBin.path + " " + args.join(" "));
-
   writeStatusFile(aInitialStatus);
   // sanity check
   do_check_eq(readStatusFile(), aInitialStatus);
+
+  let launchBin = getLaunchBin();
+  let args = getProcessArgs();
+  logTestInfo("launching " + launchBin.path + " " + args.join(" "));
 
   let process = AUS_Cc["@mozilla.org/process/util;1"].
                    createInstance(AUS_Ci.nsIProcess);
