@@ -292,6 +292,7 @@ function run_test() {
 }
 
 function checkUpdateApplied() {
+  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   logTestInfo("testing update.status should be " + STATE_FAILED);
   // The update status format for a failure is failed: # where # is the error
   // code for the failure.
