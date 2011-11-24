@@ -20,168 +20,174 @@ const TEST_FILES = [
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "precomplete",
   relPathDir       : "",
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_precomplete",
-  compareFile      : "data/partial_precomplete"
+  compareFile      : "data/complete_precomplete"
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "searchpluginstext0",
   relPathDir       : "a/b/searchplugins/",
-  originalContents : "ShouldNotBeReplaced\n",
-  compareContents  : "ShouldNotBeReplaced\n",
+  originalContents : "ToBeReplacedWithFromComplete\n",
+  compareContents  : "FromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "searchpluginspng1.png",
   relPathDir       : "a/b/searchplugins/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial.png",
-  compareFile      : "data/partial.png"
+  originalFile     : null,
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "searchpluginspng0.png",
   relPathDir       : "a/b/searchplugins/",
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial.png",
-  compareFile      : "data/partial.png"
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "removed-files",
   relPathDir       : "a/b/",
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_removed-files",
-  compareFile      : "data/partial_removed-files"
+  compareFile      : "data/complete_removed-files"
 }, {
-  description      : "Not added for failed update (add-if)",
+  description      : "Added by update.manifest if the parent directory " +
+                     "exists (add-if)",
   fileName         : "extensions1text0",
   relPathDir       : "a/b/extensions/extensions1/",
   originalContents : null,
-  compareContents  : null,
+  compareContents  : "FromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add-if)",
+  description      : "Added by update.manifest if the parent directory " +
+                     "exists (add-if)",
   fileName         : "extensions1png1.png",
   relPathDir       : "a/b/extensions/extensions1/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : null,
-  compareFile      : null
+  originalFile     : "data/partial.png",
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add-if)",
+  description      : "Added by update.manifest if the parent directory " +
+                     "exists (add-if)",
   fileName         : "extensions1png0.png",
   relPathDir       : "a/b/extensions/extensions1/",
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : null
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add-if)",
+  description      : "Added by update.manifest if the parent directory " +
+                     "exists (add-if)",
   fileName         : "extensions0text0",
   relPathDir       : "a/b/extensions/extensions0/",
-  originalContents : "ShouldNotBeReplaced\n",
-  compareContents  : "ShouldNotBeReplaced\n",
+  originalContents : "ToBeReplacedWithFromComplete\n",
+  compareContents  : "FromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add-if)",
+  description      : "Added by update.manifest if the parent directory " +
+                     "exists (add-if)",
   fileName         : "extensions0png1.png",
   relPathDir       : "a/b/extensions/extensions0/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial.png",
-  compareFile      : "data/partial.png"
+  originalFile     : null,
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add-if)",
+  description      : "Added by update.manifest if the parent directory " +
+                     "exists (add-if)",
   fileName         : "extensions0png0.png",
   relPathDir       : "a/b/extensions/extensions0/",
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : null
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "exe0.exe",
   relPathDir       : "a/b/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial.png",
-  compareFile      : "data/partial.png"
+  originalFile     : "data/partial_in_use_win_before.exe",
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "10text0",
   relPathDir       : "a/b/1/10/",
-  originalContents : "ShouldNotBeReplaced\n",
-  compareContents  : "ShouldNotBeReplaced\n",
+  originalContents : "ToBeReplacedWithFromComplete\n",
+  compareContents  : "FromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add) file in use",
   fileName         : "0exe0.exe",
   relPathDir       : "a/b/0/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : null,
-  compareFile      : null
+  originalFile     : "data/partial_in_use_win_after.exe",
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "00text1",
   relPathDir       : "a/b/0/00/",
-  originalContents : "ShouldNotBeReplaced\n",
-  compareContents  : "ShouldNotBeReplaced\n",
+  originalContents : "ToBeReplacedWithFromComplete\n",
+  compareContents  : "FromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "00text0",
   relPathDir       : "a/b/0/00/",
-  originalContents : "ShouldNotBeReplaced\n",
-  compareContents  : "ShouldNotBeReplaced\n",
+  originalContents : "ToBeReplacedWithFromComplete\n",
+  compareContents  : "FromComplete\n",
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not added for failed update (add)",
+  description      : "Added by update.manifest (add)",
   fileName         : "00png0.png",
   relPathDir       : "a/b/0/00/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial.png",
-  compareFile      : "data/partial.png"
+  originalFile     : null,
+  compareFile      : "data/complete.png"
 }, {
-  description      : "Not removed for failed update (remove)",
+  description      : "Removed by precomplete (remove)",
   fileName         : "20text0",
   relPathDir       : "a/b/2/20/",
-  originalContents : "ShouldNotBeDeleted\n",
-  compareContents  : "ShouldNotBeDeleted\n",
+  originalContents : "ToBeDeleted\n",
+  compareContents  : null,
   originalFile     : null,
   compareFile      : null
 }, {
-  description      : "Not removed for failed update (remove)",
+  description      : "Removed by precomplete (remove)",
   fileName         : "20png0.png",
   relPathDir       : "a/b/2/20/",
-  originalContents : "ShouldNotBeDeleted\n",
-  compareContents  : "ShouldNotBeDeleted\n",
+  originalContents : "ToBeDeleted\n",
+  compareContents  : null,
   originalFile     : null,
   compareFile      : null
 }];
 
 ADDITIONAL_TEST_DIRS = [
 {
-  description  : "Not removed for failed update (rmdir)",
+  description  : "Removed for complete update (rmdir)",
   relPathDir   : "a/b/2/20/",
-  dirRemoved   : false
+  dirRemoved   : true
 }, {
-  description  : "Not removed for failed update (rmdir)",
+  description  : "Removed for complete update (rmdir)",
   relPathDir   : "a/b/2/",
-  dirRemoved   : false
+  dirRemoved   : true
 }];
 
 function run_test() {
@@ -203,7 +209,7 @@ function run_test() {
 
 function doUpdate() {
   // apply the complete mar
-  runUpdateUsingService(STATE_PENDING_SVC, STATE_FAILED, checkUpdateApplied);
+  runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
 }
 
 function checkUpdateApplied() {
@@ -211,14 +217,14 @@ function checkUpdateApplied() {
 }
 
 function checkUpdate() {
-  logTestInfo("testing update.status should be " + STATE_FAILED);
+  logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   // The update status format for a failure is failed: # where # is the error
   // code for the failure.
-  do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_FAILED);
+  do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_SUCCEEDED);
 
-  checkFilesAfterUpdateFailure();
-  checkUpdateLogContains(ERR_CALLBACK_FILE_IN_USE);
+  checkFilesAfterUpdateSuccess();
+  checkUpdateLogContents(LOG_COMPLETE_SUCCESS);
 
   logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
