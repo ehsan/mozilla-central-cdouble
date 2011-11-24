@@ -449,6 +449,9 @@ function runUpdate() {
   return process.exitValue;
 }
 
+let gServiceLaunchedCallbackLog = null;
+let gServiceLaunchedCallbackArgs = null;
+
 /**
  * Helper function for updater tests for launching the updater using the
  * maintenance service to apply a mar file.
@@ -478,6 +481,9 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
       // This will delete the app console log file if it exists.
       getAppConsoleLogPath();
 
+      // This will delete the app arguments log file if it exists.
+      getAppArgsLogPath();
+
       if (IS_UNIX) {
         // This will delete the launch script if it exists.
         getLaunchScript();
@@ -489,6 +495,9 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
     });
   }
 
+  let appArgsLogPath = getAppArgsLogPath();
+  gServiceLaunchedCallbackLog = appArgsLogPath.replace(/^"|"$/g, "");
+
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   let file = updatesDir.clone();
   file.append(FILE_UPDATE_STATUS);
@@ -497,8 +506,15 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
   // sanity check
   do_check_eq(readStatusFile(updatesDir), aInitialStatus);
 
+  gServiceLaunchedCallbackArgs = [
+    "-no-remote",
+    "-process-updates",
+    "-dump-args",
+    appArgsLogPath
+  ];
+
   let launchBin = getLaunchBin();
-  let args = getProcessArgs();
+  let args = getProcessArgs(["-dump-args", appArgsLogPath]);
   logTestInfo("launching " + launchBin.path + " " + args.join(" "));
 
   let process = AUS_Cc["@mozilla.org/process/util;1"].
@@ -1004,6 +1020,27 @@ function checkCallbackAppLog() {
 }
 
 /**
+ * Helper function for updater service tests for verifying the contents of the
+ * updater callback application log which should contain the arguments passed to
+ * the callback application.
+ */
+function checkCallbackServiceLog() {
+  do_check_neq(gServiceLaunchedCallbackLog, null);
+
+  let expectedLogContents = gServiceLaunchedCallbackArgs.join("\n") + "\n";
+  let logFile = AUS_Cc["@mozilla.org/file/local;1"].createInstance(AUS_Ci.nsILocalFile);
+  logFile.initWithPath(gServiceLaunchedCallbackLog);
+  let logContents = readFile(logFile);
+
+  logTestInfo("testing that the callback application successfully launched " +
+              "and the expected command line arguments passed to it");
+  do_check_eq(logContents, expectedLogContents);
+
+  // Use a timeout to give any files that were in use additional time to close.
+  do_timeout(TEST_HELPER_TIMEOUT, do_test_finished);
+}
+
+/**
  * Helper function for updater binary tests for verifying there are no update
  * backup files left behind after an update.
  *
@@ -1267,6 +1304,7 @@ Services.dirsvc.QueryInterface(AUS_Ci.nsIDirectoryService).registerProvider(gDir
  * Returns the platform specific arguments used by nsIProcess when launching
  * the application.
  *
+ * @param aExtraArgs optional array of extra arguments
  * @return  an array of arguments to be passed to nsIProcess.
  *
  * Notes:
@@ -1285,7 +1323,11 @@ Services.dirsvc.QueryInterface(AUS_Ci.nsIDirectoryService).registerProvider(gDir
  * Otherwise the output from the application will end up in the xpchsell log.
  * 2>&1 pipes stderr to sdout.
  */
-function getProcessArgs() {
+function getProcessArgs(aExtraArgs) {
+  if (!aExtraArgs) {
+    aExtraArgs = [];
+  }
+
   // Pipe the output from the launched application to a file so the output from
   // its console isn't present in the xpcshell log.
   let appConsoleLogPath = getAppConsoleLogPath();
@@ -1301,7 +1343,8 @@ function getProcessArgs() {
     if (gIsLessThanMacOSX_10_6) {
       scriptContents += "arch -arch i386 ";
     }
-    scriptContents += gAppBinPath + " -no-remote -process-updates 1> " +
+    scriptContents += gAppBinPath + " -no-remote -process-updates " +
+                      aExtraArgs.join(" ") + " 1> " +
                       appConsoleLogPath + " 2>&1";
     writeFile(launchScript, scriptContents);
     logTestInfo("created " + launchScript.path + " containing:\n" +
@@ -1309,8 +1352,9 @@ function getProcessArgs() {
     args = [launchScript.path];
   }
   else {
-    args = ["/D", "/Q", "/C", gAppBinPath, "-no-remote", "-process-updates",
-            "1>", appConsoleLogPath, "2>&1"];
+    args = ["/D", "/Q", "/C", gAppBinPath, "-no-remote", "-process-updates"].
+           concat(aExtraArgs).
+           concat(["1>", appConsoleLogPath, "2>&1"]);
   }
   return args;
 }
@@ -1332,6 +1376,25 @@ function getAppConsoleLogPath() {
     appConsoleLogPath = '"' + appConsoleLogPath + '"';
   }
   return appConsoleLogPath;
+}
+
+/**
+ * Gets a file path for the application to dump its arguments into.  This is used
+ * to verify that a callback application is launched.
+ *
+ * @return  the file for the application to dump its arguments into.
+ */
+function getAppArgsLogPath() {
+  let appArgsLog = do_get_file("/", true);
+  appArgsLog.append("app_args_log");
+  if (appArgsLog.exists()) {
+    appArgsLog.remove(false);
+  }
+  let appArgsLogPath = appArgsLog.path;
+  if (/ /.test(appArgsLogPath)) {
+    appArgsLogPath = '"' + appArgsLogPath + '"';
+  }
+  return appArgsLogPath;
 }
 
 /**

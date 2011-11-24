@@ -315,5 +315,5 @@ function checkUpdateApplied() {
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
   do_check_false(toBeDeletedDir.exists());
 
-  checkCallbackAppLog();
+  checkCallbackServiceLog();
 }
