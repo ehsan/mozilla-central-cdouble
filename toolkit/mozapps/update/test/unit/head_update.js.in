@@ -529,14 +529,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
       return;
     }
 
-    do_test_finished();
     aCallback();
   }
 
   let timer = AUS_Cc["@mozilla.org/timer;1"].createInstance(AUS_Ci.nsITimer);
   timer.initWithCallback(timerCallback, 1000, timer.TYPE_REPEATING_SLACK);
-
-  do_test_pending();
 }
 
 /**
