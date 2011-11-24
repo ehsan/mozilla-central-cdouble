@@ -468,7 +468,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
       if (IS_WIN) {
         // Remove the copy of the application executable used for the test on
         // Windows if it exists.
-        let appBinCopy = processDir.clone();
+        let appBinCopy = getCurrentProcessDir();
         appBinCopy.append(FILE_WIN_TEST_EXE);
         if (appBinCopy.exists()) {
           appBinCopy.remove(false);
