@@ -489,9 +489,13 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
     });
   }
 
-  writeStatusFile(aInitialStatus);
+  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
+  let file = updatesDir.clone();
+  file.append(FILE_UPDATE_STATUS);
+  writeFile(file, aInitialStatus + "\n");
+
   // sanity check
-  do_check_eq(readStatusFile(), aInitialStatus);
+  do_check_eq(readStatusFile(updatesDir), aInitialStatus);
 
   let launchBin = getLaunchBin();
   let args = getProcessArgs();
@@ -514,7 +518,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
 
   function timerCallback() {
     // Wait for the expected status
-    let status = readStatusFile();
+    let status = readStatusFile(updatesDir);
     if (status != aExpectedStatus) {
       logTestInfo("Still waiting to see the " + aExpectedStatus +
                   " status, got " + status + " for now...");
