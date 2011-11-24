@@ -459,7 +459,7 @@ function runUpdate() {
  */
 function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
   // Prevent the cleanup function from begin run more than once
-  if (gRegisteredServiceCleanup === undefined) {
+  if (typeof(gRegisteredServiceCleanup) === "undefined") {
     gRegisteredServiceCleanup = true;
 
     do_register_cleanup(function serviceCleanup() {
