@@ -287,7 +287,7 @@ function run_test() {
   }
 
   // apply the complete mar
-  runUpdateUsingService(STATE_PENDING, STATE_SUCCEEDED, checkUpdateApplied);
+  runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
 }
 
 function checkUpdateApplied() {
