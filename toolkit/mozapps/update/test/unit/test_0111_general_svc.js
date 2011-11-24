@@ -299,6 +299,7 @@ function run_test() {
 }
 
 function checkUpdateApplied() {
+  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
 
