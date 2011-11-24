@@ -288,7 +288,7 @@ function run_test() {
   }
 
   // apply the partial mar
-  runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
+  runUpdateUsingService(STATE_PENDING_SVC, STATE_FAILED, checkUpdateApplied);
 }
 
 function checkUpdateApplied() {

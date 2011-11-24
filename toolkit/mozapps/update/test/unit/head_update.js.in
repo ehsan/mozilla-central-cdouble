@@ -539,6 +539,10 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
   function timerCallback() {
     // Wait for the expected status
     let status = readStatusFile(updatesDir);
+    // For failed status, we don't care what the failure code is
+    if (aExpectedStatus == STATE_FAILED) {
+      status = status.split(": ")[0];
+    }
     if (status != aExpectedStatus) {
       logTestInfo("Still waiting to see the " + aExpectedStatus +
                   " status, got " + status + " for now...");
