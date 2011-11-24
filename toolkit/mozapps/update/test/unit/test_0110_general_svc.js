@@ -15,11 +15,11 @@
  *
  * The Initial Developer of the Original Code is
  * the Mozilla Foundation.
- * Portions created by the Initial Developer are Copyright (C) 2008
+ * Portions created by the Initial Developer are Copyright (C) 2010
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
- *   Robert Strong <robert.bugzilla@gmail.com> (Original Author)
+ *   Ehsan Akhgari <ehsan@mozilla.com> (Original Author)
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
