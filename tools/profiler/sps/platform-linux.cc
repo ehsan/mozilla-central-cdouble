@@ -34,6 +34,7 @@
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
+#include "v8-support.h"
 #include "platform.h"
 
 #include <string.h>
@@ -187,8 +188,7 @@ void tgkill(pid_t tgid, pid_t tid, int signalno) {
   syscall(SYS_tgkill, tgid, tid, signalno);
 }
 
-//class Sampler::PlatformData : public Malloced {
-class Sampler::PlatformData {
+class Sampler::PlatformData : public Malloced {
  public:
   explicit PlatformData(Sampler* sampler)
       : sampler_(sampler),
@@ -287,7 +287,7 @@ void Sampler::Start() {
   // Start a thread that sends SIGPROF signal to VM thread.
   // Sending the signal ourselves instead of relying on itimer provides
   // much better accuracy.
-  active_ = true;
+  SetActive(true);
   if (pthread_create(
           &data_->signal_sender_thread_, NULL, SenderEntry, data_) == 0) {
     data_->signal_sender_launched_ = true;
@@ -300,7 +300,7 @@ void Sampler::Start() {
 
 
 void Sampler::Stop() {
-  active_ = false;
+  SetActive(false);
 
   // Wait for signal sender termination (it will exit after setting
   // active_ to false).

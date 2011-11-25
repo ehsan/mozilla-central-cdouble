@@ -267,7 +267,7 @@ endif
 
 STATIC_LIBS += thebes ycbcr
 
-ifeq ($(MOZ_WIDGET_TOOLKIT),android)
+ifneq (,$(filter mac cocoa gtk2 android,$(MOZ_WIDGET_TOOLKIT)))
 STATIC_LIBS += profiler
 endif
 

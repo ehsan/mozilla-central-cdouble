@@ -37,8 +37,8 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include <pthread.h>
-#include "nscore.h"
 #include "base/atomicops.h"
+#include "nscore.h"
 
 // TODO Merge into Sampler.h
 
@@ -59,7 +59,7 @@ extern pthread_key_t pkey_ticker;
 //      memory stores from being reordered
 // Uses: pLinuxKernelMemoryBarrier
 # define STORE_SEQUENCER() base::subtle::MemoryBarrier();
-#elif ARCH_CPU_ARM_FAMILY
+#elif ARCH_CPU_X86_FAMILY
 # define STORE_SEQUENCER() asm volatile("" ::: "memory");
 #else
 # error "Memory clobber not supported for your platform."
