@@ -460,7 +460,7 @@ let gServiceLaunchedCallbackArgs = null;
  * @param aExpectedStatus the expected value of update.status when the test finishes
  * @param aCallback       the function to be called when the update is finished
  */
-function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
+function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpdatesDir) {
   // Prevent the cleanup function from begin run more than once
   if (typeof(gRegisteredServiceCleanup) === "undefined") {
     gRegisteredServiceCleanup = true;
@@ -498,7 +498,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback) {
   let appArgsLogPath = getAppArgsLogPath();
   gServiceLaunchedCallbackLog = appArgsLogPath.replace(/^"|"$/g, "");
 
-  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
+  let updatesDir = aUpdatesDir || do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   let file = updatesDir.clone();
   file.append(FILE_UPDATE_STATUS);
   writeFile(file, aInitialStatus + "\n");

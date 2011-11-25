@@ -20,9 +20,6 @@ const CHECK_TIMEOUT_MILLI = 1000;
 // the test will try to kill it.
 const APP_TIMER_TIMEOUT = 15000;
 
-let gAppTimer;
-let gProcess;
-
 function run_test() {
   do_test_pending();
   do_register_cleanup(end_test);
@@ -101,21 +98,41 @@ function run_test() {
   updaterIni.append(FILE_UPDATER_INI);
   writeFile(updaterIni, updaterIniContents);
 
-  runUpdateUsingService(STATE_PENDING, STATE_SUCCEEDED, checkUpdateFinished);
+  let updatesRootDir = processDir.clone();
+  updatesRootDir.append("updates");
+  updatesRootDir.append("0");
+  getApplyDirPath = function() {
+    return processDir.path;
+  }
+  getApplyDirFile = function (aRelPath, allowNonexistent) {
+    let base = AUS_Cc["@mozilla.org/file/local;1"].
+               createInstance(AUS_Ci.nsILocalFile);
+    base.initWithPath(getApplyDirPath());
+    let path = (aRelPath ? aRelPath : "");
+    let bits = path.split("/");
+    for (let i = 0; i < bits.length; i++) {
+      if (bits[i]) {
+        if (bits[i] == "..")
+          base = base.parent;
+        else
+          base.append(bits[i]);
+      }
+    }
+
+    if (!allowNonexistent && !base.exists()) {
+      _passed = false;
+      var stack = Components.stack.caller;
+      _dump("TEST-UNEXPECTED-FAIL | " + stack.filename + " | [" +
+            stack.name + " : " + stack.lineNumber + "] " + base.path +
+            " does not exist\n");
+    }
+
+    return base;
+  }
+  runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateFinished, updatesRootDir);
 }
 
 function end_test() {
-  if (gProcess.isRunning) {
-    logTestInfo("attempt to kill process");
-    gProcess.kill();
-  }
-
-  if (gAppTimer) {
-    logTestInfo("cancelling timer");
-    gAppTimer.cancel();
-    gAppTimer = null;
-  }
-
   resetEnvironment();
 
   let processDir = getCurrentProcessDir();
@@ -200,8 +217,6 @@ function checkUpdateFinished() {
   if (IS_WIN && contents.indexOf("NS_main: file in use") != -1) {
     do_throw("the application can't be in use when running this test");
   }
-
-  do_check_eq(status, STATE_SUCCEEDED);
 
   standardInit();
 
