@@ -60,7 +60,16 @@ extern mozilla::tls::key pkey_ticker;
 // Uses: pLinuxKernelMemoryBarrier
 # define STORE_SEQUENCER() base::subtle::MemoryBarrier();
 #elif ARCH_CPU_X86_FAMILY
-# define STORE_SEQUENCER() asm volatile("" ::: "memory");
+# if defined(_MSC_VER)
+#  include <intrin.h>
+#  define STORE_SEQUENCER() _ReadWriteBarrier();
+# elif defined(__INTEL_COMPILER)
+#  define STORE_SEQUENCER() __memory_barrier();
+# elif __GNUC__
+#  define STORE_SEQUENCER() asm volatile("" ::: "memory");
+# else
+#  error "Memory clobber not supported for your compiler."
+# endif
 #else
 # error "Memory clobber not supported for your platform."
 #endif
