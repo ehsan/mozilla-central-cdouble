@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------------
 // Win32 profiler support.
 
+#include <windows.h>
 #include "v8-support.h"
 #include "platform.h"
 
