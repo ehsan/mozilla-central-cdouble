@@ -50,6 +50,7 @@ include $(DEPTH)/config/autoconf.mk
 EXPORTS = \
   sampler.h \
   sps_sampler.h \
+  tls_helper.h \
   $(NULL)
 
 LOCAL_INCLUDES += \

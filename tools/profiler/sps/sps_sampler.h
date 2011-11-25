@@ -36,14 +36,14 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include <pthread.h>
 #include "base/atomicops.h"
 #include "nscore.h"
+#include "tls_helper.h"
 
 // TODO Merge into Sampler.h
 
-extern pthread_key_t pkey_stack;
-extern pthread_key_t pkey_ticker;
+extern mozilla::tls::key pkey_stack;
+extern mozilla::tls::key pkey_ticker;
 
 #define SAMPLER_INIT() mozilla_sampler_init();
 #define SAMPLER_DEINIT() mozilla_sampler_deinit();
@@ -177,7 +177,7 @@ public:
 
 inline void* mozilla_sampler_call_enter(const char *aInfo)
 {
-  Stack *stack = (Stack*)pthread_getspecific(pkey_stack);
+  Stack *stack = mozilla::tls::get<Stack>(pkey_stack);
   if (!stack) {
     return stack;
   }
@@ -202,7 +202,7 @@ inline void mozilla_sampler_call_exit(void *aHandle)
 
 inline void mozilla_sampler_add_marker(const char *aMarker)
 {
-  Stack *stack = (Stack*)pthread_getspecific(pkey_stack);
+  Stack *stack = mozilla::tls::get<Stack>(pkey_stack);
   if (!stack) {
     return;
   }
