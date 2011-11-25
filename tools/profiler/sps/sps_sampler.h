@@ -38,7 +38,7 @@
 
 #include "base/atomicops.h"
 #include "nscore.h"
-#include "tls_helper.h"
+#include "thread_helper.h"
 
 // TODO Merge into Sampler.h
 
