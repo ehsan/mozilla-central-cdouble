@@ -69,9 +69,6 @@ class SamplerThread : public Thread {
       bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
-      if (!cpu_profiling_enabled) {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
-      }
       if (cpu_profiling_enabled) {
         if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
           return;
@@ -133,7 +130,6 @@ class SamplerThread : public Thread {
   }
 
   const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;
