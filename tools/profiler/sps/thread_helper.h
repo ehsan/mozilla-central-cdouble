@@ -40,6 +40,12 @@
 
 namespace mozilla {
 
+#if defined(XP_WIN)
+typedef unsigned long sig_safe_t;
+#else
+typedef sig_atomic_t sig_safe_t;
+#endif
+
 namespace tls {
 
 #if defined(XP_WIN)
