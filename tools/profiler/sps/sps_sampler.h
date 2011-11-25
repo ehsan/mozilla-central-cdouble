@@ -164,15 +164,15 @@ public:
   }
 
   // Keep a list of active checkpoints
-  const char *mStack[1024];
+  char const * volatile mStack[1024];
   // Keep a list of active markers to be applied to the next sample taken
-  const char *mMarkers[1024];
-  sig_atomic_t mStackPointer;
-  sig_atomic_t mMarkerPointer;
-  sig_atomic_t mDroppedStackEntries;
+  char const * volatile mMarkers[1024];
+  volatile sig_atomic_t mStackPointer;
+  volatile sig_atomic_t mMarkerPointer;
+  volatile sig_atomic_t mDroppedStackEntries;
   // We don't want to modify _markers from within the signal so we allow
   // it to queue a clear operation.
-  sig_atomic_t mQueueClearMarker;
+  volatile sig_atomic_t mQueueClearMarker;
 };
 
 inline void* mozilla_sampler_call_enter(const char *aInfo)
