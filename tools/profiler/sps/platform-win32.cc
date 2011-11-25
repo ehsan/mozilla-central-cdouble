@@ -1,6 +1,9 @@
 // ----------------------------------------------------------------------------
 // Win32 profiler support.
 
+#include "v8-support.h"
+#include "platform.h"
+
 class Sampler::PlatformData : public Malloced {
  public:
   // Get a handle to the calling thread. This is the thread that we are
