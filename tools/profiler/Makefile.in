@@ -89,6 +89,22 @@ CPPSRCS += \
   TableTicker.cpp \
   $(NULL)
 endif
+ifeq ($(OS_TARGET),WINNT)
+MODULE          = profiler
+LIBRARY_NAME    = profiler
+EXPORT_LIBRARY  = 1
+LIBXUL_LIBRARY  = 1
+
+CPPSRCS		= \
+  $(NULL)
+
+DEFINES += -DMOZ_ENABLE_PROFILER_SPS
+
+CPPSRCS += \
+  platform-win32.cc \
+  TableTicker.cpp \
+  $(NULL)
+endif
 
 
 include $(topsrcdir)/config/rules.mk
