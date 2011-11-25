@@ -51,7 +51,11 @@
 #warning Please add support for your architecture in chromium_types.h
 #endif
 
+#ifdef _MSC_VER
+typedef __int32 Atomic32;
+#else
 typedef int32_t Atomic32;
+#endif
 #ifdef V8_HOST_ARCH_64_BIT
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
