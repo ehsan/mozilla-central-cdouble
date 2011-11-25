@@ -147,7 +147,7 @@ public:
     // been written such that mStack is always consistent.
     mStack[mStackPointer] = aName;
     // Prevent the optimizer from re-ordering these instructions
-    asm("":::"memory");
+    STORE_SEQUENCER();
     mStackPointer++;
   }
   void pop()
