@@ -201,10 +201,21 @@ public:
     char buff[PATH_MAX];
 #ifdef ANDROID
   #define FOLDER "/sdcard/"
+#elif defined(XP_WIN)
+  #define FOLDER "%TEMP%"
 #else
   #define FOLDER "/tmp/"
 #endif
     snprintf(buff, PATH_MAX, FOLDER "profile_%i_%i.txt", XRE_GetProcessType(), getpid());
+
+#ifdef XP_WIN
+    // Expand %TEMP% on Windows
+    {
+      char tmp[PATH_MAX];
+      ExpandEnvironmentStringsA(buff, tmp, mozilla::ArrayLength(tmp));
+      strcpy(buff, tmp);
+    }
+#endif
 
     FILE* stream = ::fopen(buff, "w");
     if (stream) {
