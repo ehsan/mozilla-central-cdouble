@@ -298,10 +298,6 @@ void mozilla_sampler_init()
   }
 
   // TODO linux port: Use TLS with ifdefs
-  // TODO window port: See bug 683229 comment 15
-  // profiler uses getspecific because TLS is not supported on android.
-  // getspecific was picked over nspr because it had less overhead required
-  // to make the checkpoint function fast.
   if (!mozilla::tls::create(&pkey_stack) ||
       !mozilla::tls::create(&pkey_ticker)) {
     LOG("Failed to init.");
