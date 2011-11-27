@@ -48,8 +48,8 @@
 #include "nsThreadUtils.h"
 #include "prenv.h"
 
-pthread_key_t pkey_stack;
-pthread_key_t pkey_ticker;
+mozilla::tls::key pkey_stack;
+mozilla::tls::key pkey_ticker;
 
 class Profile;
 
