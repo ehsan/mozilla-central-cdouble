@@ -59,6 +59,11 @@ T* get(key mykey) {
   return (T*) TlsGetValue(mykey);
 }
 
+template <typename T>
+bool set(key mykey, const T* value) {
+  return TlsSetValue(mykey, const_cast<T*>(value));
+}
+
 bool create(key* mykey) {
   key newkey = TlsAlloc();
   if (key == TLS_OUT_OF_INDEXES) {
@@ -77,6 +82,11 @@ typedef pthread_key_t key;
 template <typename T>
 T* get(key mykey) {
   return (T*) pthread_getspecific(mykey);
+}
+
+template <typename T>
+bool set(key mykey, const T* value) {
+  return !pthread_setspecific(mykey, value);
 }
 
 bool create(key* mykey) {

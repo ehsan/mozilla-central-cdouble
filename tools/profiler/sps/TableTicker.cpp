@@ -198,7 +198,7 @@ public:
   SaveProfileTask() {}
 
   NS_IMETHOD Run() {
-    TableTicker *t = (TableTicker*)pthread_getspecific(pkey_ticker);
+    TableTicker *t = mozilla::tls::get<TableTicker>(pkey_ticker);
 
     char buff[PATH_MAX];
 #ifdef ANDROID
@@ -309,21 +309,21 @@ void mozilla_sampler_init()
   }
 
   TableTicker *t = new TableTicker(PROFILE_DEFAULT_ENTRY, 10);
-  pthread_setspecific(pkey_ticker, t);
-  pthread_setspecific(pkey_stack, t->GetStack());
+  mozilla::tls::set(pkey_ticker, t);
+  mozilla::tls::set(pkey_stack, t->GetStack());
 
   t->Start();
 }
 
 void mozilla_sampler_deinit()
 {
-  TableTicker *t = (TableTicker*)pthread_getspecific(pkey_ticker);
+  TableTicker *t = mozilla::tls::get<TableTicker>(pkey_ticker);
   if (!t) {
     return;
   }
 
   t->Stop();
-  pthread_setspecific(pkey_stack, NULL);
+  mozilla::tls::set(pkey_stack, NULL);
   // We can't delete the TableTicker because we can be between a
   // sampler call_enter/call_exit point.
   // TODO Need to find a safe time to delete TableTicker
