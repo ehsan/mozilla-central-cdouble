@@ -74,7 +74,6 @@ class SamplerThread : public Thread {
 
     static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
     if (SuspendThread(profiled_thread) == kSuspendFailed) return;
-    sample->state = sampler->isolate()->current_vm_state();
 
     context.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(profiled_thread, &context) != 0) {
