@@ -96,14 +96,12 @@ class SamplerThread : public Thread {
   const int interval_;
 
   // Protects the process wide state below.
-  static Mutex* mutex_;
   static SamplerThread* instance_;
 
   DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
 
 
-Mutex* SamplerThread::mutex_ = OS::CreateMutex();
 SamplerThread* SamplerThread::instance_ = NULL;
 
 
