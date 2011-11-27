@@ -105,13 +105,11 @@ class SamplerThread : public Thread {
 SamplerThread* SamplerThread::instance_ = NULL;
 
 
-Sampler::Sampler(Isolate* isolate, int interval)
-    : isolate_(isolate),
-      interval_(interval),
-      profiling_(false),
+Sampler::Sampler(int interval, bool profiling)
+    : interval_(interval),
+      profiling_(profiling),
       active_(false),
-      samples_taken_(0) {
-  data_ = new PlatformData;
+      data_(new PlatformData) {
 }
 
 
