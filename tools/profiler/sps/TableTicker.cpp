@@ -36,8 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include <sys/stat.h>   // open
-#include <fcntl.h>      // open
 #include <unistd.h>
 #include <stdio.h>
 #include <semaphore.h>
