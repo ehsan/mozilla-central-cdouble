@@ -38,9 +38,7 @@ class SamplerThread : public Thread {
       : Thread("SamplerThread"),
         interval_(interval) {}
 
-  static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::AddActiveSampler(sampler);
+  static void Start(Sampler* sampler) {
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
       instance_->Start();
@@ -49,14 +47,9 @@ class SamplerThread : public Thread {
     }
   }
 
-  static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::RemoveActiveSampler(sampler);
-    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
-      delete instance_;
-      instance_ = NULL;
-    }
+  static void Stop() {
+    delete instance_;
+    instance_ = NULL;
   }
 
   // Implement Thread::Run().
@@ -162,13 +155,13 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
-  SamplerThread::AddActiveSampler(this);
+  SamplerThread::Start(this);
 }
 
 
 void Sampler::Stop() {
   ASSERT(IsActive());
-  SamplerThread::RemoveActiveSampler(this);
+  SamplerThread::Stop();
   SetActive(false);
 }
 
