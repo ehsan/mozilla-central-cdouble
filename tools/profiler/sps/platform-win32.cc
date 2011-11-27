@@ -55,39 +55,10 @@ class SamplerThread : public Thread {
 
   // Implement Thread::Run().
   virtual void Run() {
-    SamplerRegistry::State state;
-    while ((state = SamplerRegistry::GetState()) !=
-           SamplerRegistry::HAS_NO_SAMPLERS) {
-      bool cpu_profiling_enabled =
-          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
-      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (cpu_profiling_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
-          return;
-        }
-      }
-      if (runtime_profiler_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
-          return;
-        }
-      }
+    while (true) {
+      SampleContext(sampler_);
       OS::Sleep(interval_);
     }
-  }
-
-  static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    if (!sampler->IsProfiling()) return;
-    SamplerThread* sampler_thread =
-        reinterpret_cast<SamplerThread*>(raw_sampler_thread);
-    sampler_thread->SampleContext(sampler);
-  }
-
-  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    sampler->isolate()->runtime_profiler()->NotifyTick();
   }
 
   void SampleContext(Sampler* sampler) {
