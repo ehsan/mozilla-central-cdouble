@@ -34,13 +34,14 @@ class Sampler::PlatformData : public Malloced {
 
 class SamplerThread : public Thread {
  public:
-  explicit SamplerThread(int interval)
+  SamplerThread(int interval, Sampler* sampler)
       : Thread("SamplerThread"),
-        interval_(interval) {}
+        interval_(interval),
+        sampler_(sampler) {}
 
   static void Start(Sampler* sampler) {
     if (instance_ == NULL) {
-      instance_ = new SamplerThread(sampler->interval());
+      instance_ = new SamplerThread(sampler->interval(), sampler);
       instance_->Start();
     } else {
       ASSERT(instance_->interval_ == sampler->interval());
@@ -122,6 +123,7 @@ class SamplerThread : public Thread {
     ResumeThread(profiled_thread);
   }
 
+  Sampler* sampler_;
   const int interval_;
 
   // Protects the process wide state below.
