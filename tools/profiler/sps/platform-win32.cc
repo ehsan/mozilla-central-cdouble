@@ -55,7 +55,7 @@ class SamplerThread : public Thread {
 
   // Implement Thread::Run().
   virtual void Run() {
-    while (true) {
+    while (sampler_->IsActive()) {
       SampleContext(sampler_);
       OS::Sleep(interval_);
     }
