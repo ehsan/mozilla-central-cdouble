@@ -302,8 +302,8 @@ void mozilla_sampler_init()
   // profiler uses getspecific because TLS is not supported on android.
   // getspecific was picked over nspr because it had less overhead required
   // to make the checkpoint function fast.
-  if (pthread_key_create(&pkey_stack, NULL) ||
-        pthread_key_create(&pkey_ticker, NULL)) {
+  if (!mozilla::tls::create(&pkey_stack) ||
+      !mozilla::tls::create(&pkey_ticker)) {
     LOG("Failed to init.");
     return;
   }

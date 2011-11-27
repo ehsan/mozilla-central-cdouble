@@ -59,6 +59,15 @@ T* get(key mykey) {
   return (T*) TlsGetValue(mykey);
 }
 
+bool create(key* mykey) {
+  key newkey = TlsAlloc();
+  if (key == TLS_OUT_OF_INDEXES) {
+    return false;
+  }
+  *mykey = key;
+  return true;
+}
+
 #else
 
 #include <pthread.h>
@@ -68,6 +77,10 @@ typedef pthread_key_t key;
 template <typename T>
 T* get(key mykey) {
   return (T*) pthread_getspecific(mykey);
+}
+
+bool create(key* mykey) {
+  return !pthread_key_create(mykey, NULL);
 }
 
 #endif
