@@ -70,8 +70,7 @@ class SamplerThread : public Thread {
     memset(&context, 0, sizeof(context));
 
     TickSample sample_obj;
-    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
-    if (sample == NULL) sample = &sample_obj;
+    TickSample* sample = &sample_obj;
 
     static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
     if (SuspendThread(profiled_thread) == kSuspendFailed) return;
