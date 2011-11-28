@@ -44,6 +44,20 @@
 #include "nsThreadUtils.h"
 #include "prenv.h"
 
+#ifndef MAXPATHLEN
+#ifdef PATH_MAX
+#define MAXPATHLEN PATH_MAX
+#elif defined(MAX_PATH)
+#define MAXPATHLEN MAX_PATH
+#elif defined(_MAX_PATH)
+#define MAXPATHLEN _MAX_PATH
+#elif defined(CCHMAXPATH)
+#define MAXPATHLEN CCHMAXPATH
+#else
+#define MAXPATHLEN 1024
+#endif
+#endif
+
 mozilla::tls::key pkey_stack;
 mozilla::tls::key pkey_ticker;
 
@@ -196,7 +210,7 @@ public:
   NS_IMETHOD Run() {
     TableTicker *t = mozilla::tls::get<TableTicker>(pkey_ticker);
 
-    char buff[PATH_MAX];
+    char buff[MAXPATHLEN];
 #ifdef ANDROID
   #define FOLDER "/sdcard/"
 #elif defined(XP_WIN)
@@ -204,12 +218,12 @@ public:
 #else
   #define FOLDER "/tmp/"
 #endif
-    snprintf(buff, PATH_MAX, FOLDER "profile_%i_%i.txt", XRE_GetProcessType(), getpid());
+    snprintf(buff, MAXPATHLEN, FOLDER "profile_%i_%i.txt", XRE_GetProcessType(), getpid());
 
 #ifdef XP_WIN
     // Expand %TEMP% on Windows
     {
-      char tmp[PATH_MAX];
+      char tmp[MAXPATHLEN];
       ExpandEnvironmentStringsA(buff, tmp, mozilla::ArrayLength(tmp));
       strcpy(buff, tmp);
     }
