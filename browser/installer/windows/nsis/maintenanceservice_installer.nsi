@@ -197,6 +197,7 @@ Section "MaintenanceService"
   WriteRegStr HKLM "${MaintUninstallKey}" "DisplayName" "${MaintFullName}"
   WriteRegStr HKLM "${MaintUninstallKey}" "UninstallString" \
                    '"$INSTDIR\uninstall.exe"'
+  WriteRegStr HKLM "${MaintUninstallKey}" "DisplayIcon" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "${MaintUninstallKey}" "DisplayVersion" "${AppVersion}"
   WriteRegStr HKLM "${MaintUninstallKey}" "Publisher" "Mozilla"
   WriteRegStr HKLM "${MaintUninstallKey}" "Comments" \
