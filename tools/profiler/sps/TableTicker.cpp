@@ -58,6 +58,10 @@
 #endif
 #endif
 
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
+
 mozilla::tls::key pkey_stack;
 mozilla::tls::key pkey_ticker;
 
