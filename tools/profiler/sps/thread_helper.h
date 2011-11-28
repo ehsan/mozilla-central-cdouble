@@ -38,6 +38,8 @@
 
 // Cross-platform lightweight thread local data wrappers
 
+#include <signal.h>
+
 namespace mozilla {
 
 #if defined(XP_WIN)
