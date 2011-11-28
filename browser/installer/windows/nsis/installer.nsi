@@ -855,7 +855,10 @@ Function preComponents
   Call IsUserAdmin
   Pop $R9
   ${If} $R9 != "true"
-  ${OrIfNot} ${AtLeastWinXP}
+    Abort
+  ${EndIf}
+
+  ${IfNot} ${AtLeastWinXP}
     Abort
   ${EndIf}
 
