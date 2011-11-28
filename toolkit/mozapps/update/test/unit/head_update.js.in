@@ -104,6 +104,8 @@ const ERR_RENAME_FILE = "rename_file: failed to rename file";
 const ERR_UNABLE_OPEN_DEST = "unable to open destination file";
 const ERR_BACKUP_DISCARD = "backup_discard: unable to remove";
 
+const LOG_SVC_SUCCESSFUL_LAUNCH = "updater.exe was launched and run successfully!\n";
+
 // variables are used instead of contants so tests can override these values
 var gCallbackBinFile = "callback_app" + BIN_SUFFIX;
 var gCallbackArgs = ["./", "callback.log", "Test Arg 2", "Test Arg 3"];
@@ -461,6 +463,23 @@ let gServiceLaunchedCallbackArgs = null;
  * @param aCallback       the function to be called when the update is finished
  */
 function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpdatesDir) {
+  // Check the service logs for a successful update
+  function checkServiceLogs() {
+    let file = getServiceLogFile();
+    let contents = readFile(file);
+    logTestInfo("The contents of maintenanceservice.log:\n" + contents + "\n");
+    do_check_neq(contents.indexOf(LOG_SVC_SUCCESSFUL_LAUNCH), -1);
+  }
+  function getServiceLogFile() {
+    let file = AUS_Cc["@mozilla.org/file/directory_service;1"].
+               getService(AUS_Ci.nsIProperties).
+               get("CmAppData", AUS_Ci.nsIFile);
+    file.append("Mozilla");
+    file.append("logs");
+    file.append("maintenanceservice.log");
+    return file;
+  }
+
   // Prevent the cleanup function from begin run more than once
   if (typeof(gRegisteredServiceCleanup) === "undefined") {
     gRegisteredServiceCleanup = true;
@@ -493,6 +512,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
         }
       }
     });
+  }
+
+  let svcLogFile = getServiceLogFile();
+  if (svcLogFile.exists()) {
+    svcLogFile.remove(false);
   }
 
   let appArgsLogPath = getAppArgsLogPath();
@@ -551,6 +575,8 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
 
     timer.cancel();
     timer = null;
+
+    checkServiceLogs();
 
     aCallback();
   }
