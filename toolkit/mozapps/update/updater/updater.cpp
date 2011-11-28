@@ -1431,6 +1431,7 @@ static void
 WriteStatusFile(int status)
 {
   // This is how we communicate our completion status to the main application.
+
   NS_tchar filename[MAXPATHLEN];
   NS_tsnprintf(filename, sizeof(filename)/sizeof(filename[0]),
                NS_T("%s/update.status"), gSourcePath);
@@ -1827,7 +1828,7 @@ int NS_main(int argc, NS_tchar **argv)
   if (argc > callbackIndex) {
 #if defined(XP_WIN)
     if (gSucceeded) {
-      LaunchWinPostProcess(argv[callbackIndex]);
+      LaunchWinPostProcess(argv[callbackIndex], gSourcePath, NULL);
     }
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 0);
 #endif /* XP_WIN */

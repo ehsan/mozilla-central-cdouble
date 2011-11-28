@@ -203,14 +203,16 @@ StartUpdateProcess(LPCWSTR updaterPath,
     // Only run the PostUpdate if the update was successful and if we have
     // a callback application.  This is the same thing updater.exe does.
     if (updateWasSuccessful && argcTmp > 5) {
-      LPWSTR callbackApplication = argvTmp[5];
+      LPCWSTR callbackApplication = argvTmp[5];
+      LPCWSTR updateInfoDir = argv[1];
       // Launch the PostProcess with admin access in session 0 followed 
       // by user access with the user token.  This is actually launching
       // the post update process but it takes in the callback app path 
       // to figure out where.
-      LaunchWinPostProcess(callbackApplication);
+      // The directory containing the update information.
+      LaunchWinPostProcess(callbackApplication, updateInfoDir, NULL);
       nsAutoHandle userToken(UACHelper::OpenUserToken(callbackSessionID));
-      LaunchWinPostProcess(callbackApplication, userToken);
+      LaunchWinPostProcess(callbackApplication, updateInfoDir, userToken);
     }
   }
 
