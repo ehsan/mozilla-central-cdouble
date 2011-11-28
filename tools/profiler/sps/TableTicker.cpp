@@ -44,6 +44,13 @@
 #include "nsThreadUtils.h"
 #include "prenv.h"
 
+#ifdef XP_WIN
+#include <windows.h>
+#define getpid GetCurrentProcessId
+#else
+#include <unistd.h>
+#endif
+
 #ifndef MAXPATHLEN
 #ifdef PATH_MAX
 #define MAXPATHLEN PATH_MAX
