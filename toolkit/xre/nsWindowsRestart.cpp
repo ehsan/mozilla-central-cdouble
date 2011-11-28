@@ -417,7 +417,6 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
   LPWSTR extensionPart = 
     &(completedMetaFilePath[wcslen(completedMetaFilePath) - 3]);
   wcscpy(extensionPart, L"mz");
-  MessageBoxW(NULL, L"MOVEFILE DEBUG", L"MOVEFILE DEBUG", MB_OK);
   return MoveFileExW(tempFilePath, completedMetaFilePath, 
                      MOVEFILE_REPLACE_EXISTING);
 }
