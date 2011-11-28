@@ -234,6 +234,11 @@ FreeAllocStrings(int argc, PRUnichar **argv)
   delete [] argv;
 }
 
+/**
+ * Determines if the maintenance service is running or not.
+ * 
+ * @return TRUE if the maintenance service is running.
+*/
 BOOL 
 EnsureWindowsServiceRunning() {
   // Get a handle to the SCM database.
@@ -292,7 +297,13 @@ EnsureWindowsServiceRunning() {
   return ssp.dwCurrentState == SERVICE_RUNNING;
 }
 
-
+/**
+ * Joins a base directory path with a filename.
+ *
+ * @param  base  The base directory path of size MAX_PATH + 1
+ * @param  extra The filename to append
+ * @return TRUE if the file name was successful appended to base
+ */
 BOOL
 PathAppendSafe(LPWSTR base, LPCWSTR extra)
 {
@@ -303,6 +314,11 @@ PathAppendSafe(LPWSTR base, LPCWSTR extra)
   return PathAppendW(base, extra);
 }
 
+/**
+ * Obtains the directory path to store work item files.
+ * 
+ * @return TRUE if the path was obtained successfully.
+*/
 BOOL
 GetUpdateDirectoryPath(WCHAR *path) 
 {

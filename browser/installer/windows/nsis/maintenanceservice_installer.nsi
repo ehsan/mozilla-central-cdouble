@@ -35,7 +35,7 @@
 # ***** END LICENSE BLOCK *****
 
 # Required Plugins:
-# ServicesHelper
+# ServicesHelper Mozilla specific plugin that is located in /other-licenses/nsis
 
 ; Set verbosity to 3 (e.g. no script) to lessen the noise in the build logs
 !verbose 3

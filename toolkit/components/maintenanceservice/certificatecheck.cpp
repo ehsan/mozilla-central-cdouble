@@ -336,14 +336,14 @@ GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
                                   0, NULL, &dwData);
       if (!result) {
         LOG(("CryptDecodeObject failed with %d\n", GetLastError()));
-        __leave;
+        goto cleanup;
       }
 
       // Allocate memory for SPC_SP_OPUS_INFO structure.
       OpusInfo = (PSPC_SP_OPUS_INFO)LocalAlloc(LPTR, dwData);
       if (!OpusInfo) {
         LOG(("Unable to allocate memory for Publisher Info.\n"));
-        __leave;
+        goto cleanup;
       }
 
       // Decode and get SPC_SP_OPUS_INFO structure.
@@ -355,7 +355,7 @@ GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
                                   0, OpusInfo, &dwData);
       if (!result) {
         LOG(("CryptDecodeObject failed with %d\n", GetLastError()));
-        __leave;
+        goto cleanup;
       }
 
       // Fill in Program Name if present.
@@ -407,7 +407,8 @@ GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
       break;
     }
   }
-  
+
+cleanup:
   if (OpusInfo != NULL) {
     LocalFree(OpusInfo);
   }

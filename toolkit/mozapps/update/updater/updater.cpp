@@ -1404,9 +1404,9 @@ LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
   LaunchChild(argc, argv);
 #elif defined(XP_WIN)
   // If updater.exe is run as session ID 0 and we have a session ID
-  // set, then get the linked token and use that to start the callback
-  // application.  Getting linked tokens will only work if the process
-  // is running as the system account.
+  // set, then get the unelevated token and use that to start the callback
+  // application.  Getting tokens will only work if the process is running
+  // as the system account.
   DWORD myProcessID = GetCurrentProcessId();
   DWORD mySessionID = 0;
   ProcessIdToSessionId(myProcessID, &mySessionID);

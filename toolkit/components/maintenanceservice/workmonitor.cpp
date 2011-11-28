@@ -204,7 +204,7 @@ StartUpdateProcess(LPCWSTR updaterPath,
     // a callback application.  This is the same thing updater.exe does.
     if (updateWasSuccessful && argcTmp > 5) {
       LPCWSTR callbackApplication = argvTmp[5];
-      LPCWSTR updateInfoDir = argv[1];
+      LPCWSTR updateInfoDir = argvTmp[1];
       // Launch the PostProcess with admin access in session 0 followed 
       // by user access with the user token.  This is actually launching
       // the post update process but it takes in the callback app path 
