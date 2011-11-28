@@ -36,9 +36,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include <unistd.h>
 #include <stdio.h>
-#include <semaphore.h>
 #include <string.h>
 #include "sps_sampler.h"
 #include "platform.h"
