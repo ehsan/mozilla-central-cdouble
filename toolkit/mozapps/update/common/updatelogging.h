@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Maintenance service UAC helper functions.
+ * The Original Code is common code between maintenanceservice and updater
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -35,25 +35,68 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _UACHELPER_H_
-#define _UACHELPER_H_
+#ifndef UPDATELOGGING_H
+#define UPDATELOGGING_H
 
-class UACHelper
+#include "updatedefines.h"
+#include <stdio.h>
+
+#ifndef MAXPATHLEN
+# ifdef PATH_MAX
+#  define MAXPATHLEN PATH_MAX
+# elif defined(MAX_PATH)
+#  define MAXPATHLEN MAX_PATH
+# elif defined(_MAX_PATH)
+#  define MAXPATHLEN _MAX_PATH
+# elif defined(CCHMAXPATH)
+#  define MAXPATHLEN CCHMAXPATH
+# else
+#  define MAXPATHLEN 1024
+# endif
+#endif
+
+#if defined(XP_WIN)
+#define NS_tsnprintf(dest, count, fmt, ...) \
+  PR_BEGIN_MACRO \
+  int _count = count - 1; \
+  _snwprintf(dest, _count, fmt, ##__VA_ARGS__); \
+  dest[_count] = L'\0'; \
+  PR_END_MACRO
+#else
+#define NS_tsnprintf snprintf
+#endif
+
+class UpdateLog
 {
 public:
-  // Determines if the specified user token is an administrator or not
-  enum UserType {
-    LimitedUser, 
-    AdministratorUACIsOff, 
-    AdministratorUnelevated, 
-    AdministratorElevated
-  };
+  static UpdateLog & GetPrimaryLog() 
+  {
+    if (!primaryLog) {
+      primaryLog = new UpdateLog();
+    }
+    return *primaryLog;
+  }
 
-  static BOOL IsVistaOrLater();
-  static HANDLE OpenUserToken(DWORD sessionID);
-  static HANDLE OpenLinkedToken(HANDLE token);
-  static BOOL IsUserAdmin(HANDLE token, BOOL &isAdmin);
-  static BOOL GetElevationType(HANDLE token, UserType &userType);
+  void Init(NS_tchar* sourcePath, NS_tchar* fileName);
+  void Finish();
+  void Printf(const char *fmt, ... );
+
+  ~UpdateLog()
+  {
+    delete primaryLog;
+  }
+
+protected:
+  UpdateLog();
+  FILE *logFP;
+  NS_tchar* sourcePath;
+
+  static UpdateLog* primaryLog;
 };
+
+#define LOG(args) UpdateLog::GetPrimaryLog().Printf args
+#define LogInit(PATHNAME_, FILENAME_) \
+  UpdateLog::GetPrimaryLog().Init(PATHNAME_, FILENAME_)
+#define LogFinish() UpdateLog::GetPrimaryLog().Finish()
 
 #endif

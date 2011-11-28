@@ -36,12 +36,12 @@
 # ***** END LICENSE BLOCK *****
 
 # Required Plugins:
-# AppAssocReg   http://nsis.sourceforge.net/Application_Association_Registration_plug-in
-# ApplicationID http://nsis.sourceforge.net/ApplicationID_plug-in
-# CityHash      http://mxr.mozilla.org/mozilla-central/source/other-licenses/nsis/Contrib/CityHash
-# ShellLink     http://nsis.sourceforge.net/ShellLink_plug-in
-# UAC           http://nsis.sourceforge.net/UAC_plug-in
-# ServicesHelper
+# AppAssocReg    http://nsis.sourceforge.net/Application_Association_Registration_plug-in
+# ApplicationID  http://nsis.sourceforge.net/ApplicationID_plug-in
+# CityHash       http://mxr.mozilla.org/mozilla-central/source/other-licenses/nsis/Contrib/CityHash
+# ShellLink      http://nsis.sourceforge.net/ShellLink_plug-in
+# UAC            http://nsis.sourceforge.net/UAC_plug-in
+# ServicesHelper Mozilla specific plugin that is located in /other-licenses/nsis
 
 ; Set verbosity to 3 (e.g. no script) to lessen the noise in the build logs
 !verbose 3
@@ -289,6 +289,7 @@ Section "-Application" APP_IDX
     Call IsUserAdmin
     Pop $R0
     ${If} $R0 == "true"
+    ${AndIf} ${AtLeastWinXP}
       ; The user is an admin so we should default to install service yes
       StrCpy $InstallMaintenanceService "1"
     ${Else}
@@ -516,8 +517,14 @@ Section "-Application" APP_IDX
   ServicesHelper::PathToUniqueRegistryPath "$INSTDIR"
   Pop $MaintCertKey
   ${If} $MaintCertKey != ""
-    ; We always use the 64bit registry for certs
+    ; We always use the 64bit registry for certs.
     ; This call is ignored on 32-bit systems.
+    ; *Nothing* should be added under here that modifies the registry
+    ; unless it restores the registry view.
+    ; More than one certificate can be specified in a different subfolder
+    ; for example: $MaintCertKey\1, but each individual binary can be signed
+    ; with at most one certificate.  A fallback certificate can only be used
+    ; if the binary is replaced with a different certificate.
     SetRegView 64
     WriteRegStr HKLM "$MaintCertKey\0" "name" "Mozilla Corporation"
     WriteRegStr HKLM "$MaintCertKey\0" "issuer" "Thawte Code Signing CA - G2"
@@ -848,6 +855,7 @@ Function preComponents
   Call IsUserAdmin
   Pop $R9
   ${If} $R9 != "true"
+  ${OrIfNot} ${AtLeastWinXP}
     Abort
   ${EndIf}
 

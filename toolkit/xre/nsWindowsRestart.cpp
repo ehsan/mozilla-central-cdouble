@@ -304,26 +304,6 @@ PathAppendSafe(LPWSTR base, LPCWSTR extra)
 }
 
 BOOL
-PathGetSiblingFilePath(LPWSTR destinationBuffer, 
-                       LPCWSTR siblingFilePath, 
-                       LPCWSTR newFileName)
-{
-  if (wcslen(siblingFilePath) >= MAX_PATH) {
-    return FALSE;
-  }
-
-  wcscpy(destinationBuffer, siblingFilePath);
-  if (!PathRemoveFileSpecW(destinationBuffer))
-    return FALSE;
-
-  if (wcslen(destinationBuffer) + wcslen(newFileName) >= MAX_PATH) {
-    return FALSE;
-  }
-
-  return PathAppendSafe(destinationBuffer, newFileName);
-}
-
-BOOL
 GetUpdateDirectoryPath(WCHAR *path) 
 {
   HRESULT hr = SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 
@@ -437,6 +417,7 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
   LPWSTR extensionPart = 
     &(completedMetaFilePath[wcslen(completedMetaFilePath) - 3]);
   wcscpy(extensionPart, L"mz");
+  MessageBoxW(NULL, L"MOVEFILE DEBUG", L"MOVEFILE DEBUG", MB_OK);
   return MoveFileExW(tempFilePath, completedMetaFilePath, 
                      MOVEFILE_REPLACE_EXISTING);
 }
@@ -538,10 +519,14 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, char **argv)
  */
 
 BOOL
-WinLaunchChild(const PRUnichar *exePath, int argc, PRUnichar **argv);
+WinLaunchChild(const PRUnichar *exePath, 
+               int argc, PRUnichar **argv, 
+               HANDLE userToken = NULL);
 
 BOOL
-WinLaunchChild(const PRUnichar *exePath, int argc, char **argv)
+WinLaunchChild(const PRUnichar *exePath, 
+               int argc, char **argv, 
+               HANDLE userToken)
 {
   PRUnichar** argvConverted = new PRUnichar*[argc];
   if (!argvConverted)
@@ -555,13 +540,16 @@ WinLaunchChild(const PRUnichar *exePath, int argc, char **argv)
     }
   }
 
-  BOOL ok = WinLaunchChild(exePath, argc, argvConverted);
+  BOOL ok = WinLaunchChild(exePath, argc, argvConverted, userToken);
   FreeAllocStrings(argc, argvConverted);
   return ok;
 }
 
 BOOL
-WinLaunchChild(const PRUnichar *exePath, int argc, PRUnichar **argv)
+WinLaunchChild(const PRUnichar *exePath, 
+               int argc, 
+               PRUnichar **argv, 
+               HANDLE userToken)
 {
   PRUnichar *cl;
   BOOL ok;
@@ -573,16 +561,30 @@ WinLaunchChild(const PRUnichar *exePath, int argc, PRUnichar **argv)
   STARTUPINFOW si = {sizeof(si), 0};
   PROCESS_INFORMATION pi = {0};
 
-  ok = CreateProcessW(exePath,
-                      cl,
-                      NULL,  // no special security attributes
-                      NULL,  // no special thread attributes
-                      FALSE, // don't inherit filehandles
-                      0,     // No special process creation flags
-                      NULL,  // inherit my environment
-                      NULL,  // use my current directory
-                      &si,
-                      &pi);
+  if (userToken == NULL) {
+    ok = CreateProcessW(exePath,
+                        cl,
+                        NULL,  // no special security attributes
+                        NULL,  // no special thread attributes
+                        FALSE, // don't inherit filehandles
+                        0,     // No special process creation flags
+                        NULL,  // inherit my environment
+                        NULL,  // use my current directory
+                        &si,
+                        &pi);
+  } else {
+    ok = CreateProcessAsUserW(userToken, 
+                              exePath,
+                              cl,
+                              NULL,  // no special security attributes
+                              NULL,  // no special thread attributes
+                              FALSE, // don't inherit filehandles
+                              0,     // No special process creation flags
+                              NULL,  // inherit my environment
+                              NULL,  // use my current directory
+                              &si,
+                              &pi);
+  }
 
   if (ok) {
     CloseHandle(pi.hProcess);
@@ -608,108 +610,3 @@ WinLaunchChild(const PRUnichar *exePath, int argc, PRUnichar **argv)
   return ok;
 }
 
-void
-LaunchWinPostProcess(const WCHAR *appExe, HANDLE userToken = NULL)
-{
-  WCHAR workingDirectory[MAX_PATH + 1];
-  wcscpy(workingDirectory, appExe);
-  if (!PathRemoveFileSpecW(workingDirectory))
-    return;
-
-  // Launch helper.exe to perform post processing (e.g. registry and log file
-  // modifications) for the update.
-  WCHAR inifile[MAX_PATH + 1];
-  if (!PathGetSiblingFilePath(inifile, appExe, L"updater.ini")) {
-    return;
-  }
-
-  WCHAR exefile[MAX_PATH + 1];
-  WCHAR exearg[MAX_PATH + 1];
-  WCHAR exeasync[10];
-  bool async = true;
-  if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeRelPath", NULL, exefile,
-                                MAX_PATH + 1, inifile)) {
-    return;
-  }
-
-  if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeArg", NULL, exearg,
-                                MAX_PATH + 1, inifile))
-    return;
-
-  if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeAsync", L"TRUE", 
-                                exeasync,
-                                sizeof(exeasync)/sizeof(exeasync[0]), inifile))
-    return;
-
-  WCHAR exefullpath[MAX_PATH + 1];
-  if (!PathGetSiblingFilePath(exefullpath, appExe, exefile)) {
-    return;
-  }
-
-  WCHAR dlogFile[MAX_PATH + 1];
-  if (!PathGetSiblingFilePath(dlogFile, exefullpath, L"uninstall.update")) {
-    return;
-  }
-
-  WCHAR slogFile[MAX_PATH + 1];
-  if (!PathGetSiblingFilePath(slogFile, appExe, L"update.log")) {
-    return;
-  }
-
-  WCHAR dummyArg[14];
-  wcscpy(dummyArg, L"argv0ignored ");
-
-  size_t len = wcslen(exearg) + wcslen(dummyArg);
-  WCHAR *cmdline = (WCHAR *) malloc((len + 1) * sizeof(WCHAR));
-  if (!cmdline)
-    return;
-
-  wcscpy(cmdline, dummyArg);
-  wcscat(cmdline, exearg);
-
-  if (!_wcsnicmp(exeasync, L"false", 6) || 
-      !_wcsnicmp(exeasync, L"0", 2))
-    async = false;
-
-  // We want to launch the post update helper app to update the Windows
-  // registry even if there is a failure with removing the uninstall.update
-  // file or copying the update.log file.
-  CopyFileW(slogFile, dlogFile, false);
-
-  STARTUPINFOW si = {sizeof(si), 0};
-  si.lpDesktop = L"";
-  PROCESS_INFORMATION pi = {0};
-
-  bool ok;
-  if (userToken) {
-    ok = CreateProcessAsUserW(userToken,
-                              exefullpath,
-                              cmdline,
-                              NULL,  // no special security attributes
-                              NULL,  // no special thread attributes
-                              false, // don't inherit filehandles
-                              0,     // No special process creation flags
-                              NULL,  // inherit my environment
-                              workingDirectory,
-                              &si,
-                              &pi);
-  } else {
-    ok = CreateProcessW(exefullpath,
-                        cmdline,
-                        NULL,  // no special security attributes
-                        NULL,  // no special thread attributes
-                        false, // don't inherit filehandles
-                        0,     // No special process creation flags
-                        NULL,  // inherit my environment
-                        workingDirectory,
-                        &si,
-                        &pi);
-  }
-  free(cmdline);
-  if (ok) {
-    if (!async)
-      WaitForSingleObject(pi.hProcess, INFINITE);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-  }
-}

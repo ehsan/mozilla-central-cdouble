@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Mozilla Maintenance service base code.
+ * The Original Code is common code between maintenanceservice and updater
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -35,8 +35,11 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include <windows.h>
-#include "prlog.h"
-#include "updatelogging.h"
-
-BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);
+/**
+ * Launch the post update application as the specified user.
+ *
+ * @param  appExe    The path to the post update process binary, helper.exe.
+ * @param  userToken The user token to run as, if NULL the current user
+           will be used.
+ */
+void LaunchWinPostProcess(const WCHAR *appExe, HANDLE userToken = NULL);

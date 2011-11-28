@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Mozilla Maintenance service base code.
+ * The Original Code is Maintenance service UAC helper functions.
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -35,8 +35,23 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include <windows.h>
-#include "prlog.h"
-#include "updatelogging.h"
+#ifndef _UACHELPER_H_
+#define _UACHELPER_H_
 
-BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);
+class UACHelper
+{
+public:
+  // Determines if the specified user token is an administrator or not
+  enum UserType {
+    LimitedUser, 
+    AdministratorUACIsOff, 
+    AdministratorUnelevated, 
+    AdministratorElevated
+  };
+
+  static BOOL IsVistaOrLater();
+  static HANDLE OpenUserToken(DWORD sessionID);
+  static HANDLE OpenLinkedToken(HANDLE token);
+};
+
+#endif

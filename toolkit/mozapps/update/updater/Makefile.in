@@ -58,6 +58,7 @@ MOZ_UTILS_PROGRAM_LDFLAGS =
 LOCAL_INCLUDES += -I$(srcdir)/../../readstrings
 
 LIBS += \
+  ../common/$(LIB_PREFIX)updatecommon.$(LIB_SUFFIX) \
   $(DEPTH)/modules/libmar/src/$(LIB_PREFIX)mar.$(LIB_SUFFIX) \
   ../../readstrings/$(LIB_PREFIX)readstrings.$(LIB_SUFFIX) \
   $(BZ2_LIBS) \

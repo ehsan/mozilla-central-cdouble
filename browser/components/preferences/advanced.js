@@ -515,7 +515,7 @@ var gAdvancedPane = {
 
     // Check to see if the maintenance service is installed.
     // If it is don't show the preference at all.
-    var installed = 0;
+    var installed;
     try {
       Components.utils.reportError("0");
       var wrk = Components.classes["@mozilla.org/windows-registry-key;1"]

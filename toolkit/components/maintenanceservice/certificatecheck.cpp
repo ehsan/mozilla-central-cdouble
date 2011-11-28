@@ -81,8 +81,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
                                    &dwFormatType, &hStore, &hMsg, NULL);
     if (!result) {
       lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CryptQueryObject failed with %d", lastError));
+      LOG(("CryptQueryObject failed with %d\n", lastError));
       __leave;
     }
 
@@ -92,8 +91,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
                               NULL, &dwSignerInfo);
     if (!result) {
       lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CryptMsgGetParam failed with %d", lastError));
+      LOG(("CryptMsgGetParam failed with %d\n", lastError));
       __leave;
     }
 
@@ -101,8 +99,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
     pSignerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, dwSignerInfo);
     if (!pSignerInfo) {
       lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Unable to allocate memory for Signer Info."));
+      LOG(("Unable to allocate memory for Signer Info.\n"));
       __leave;
     }
 
@@ -112,8 +109,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
                               (PVOID)pSignerInfo, &dwSignerInfo);
     if (!result) {
       lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CryptMsgGetParam failed with %d", lastError));
+      LOG(("CryptMsgGetParam failed with %d\n", lastError));
       __leave;
     }
 
@@ -126,15 +122,13 @@ CheckCertificateForPEFile(LPCWSTR filePath,
                                               (PVOID)&CertInfo, NULL);
     if (!pCertContext) {
       lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertFindCertificateInStore failed with %d", lastError));
+      LOG(("CertFindCertificateInStore failed with %d\n", lastError));
       __leave;
     }
 
     if (!DoCertificateAttributesMatch(pCertContext, infoToMatch)) {
       lastError = ERROR_NOT_FOUND;
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Certificate did not match issuer or name"));
+      LOG(("Certificate did not match issuer or name\n"));
       __leave;
     }
 
@@ -144,8 +138,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
       // Get program name and publisher information from the signer info.
       if (!GetProgramAndPublisherInfo(pSignerInfo, progPubInfo)) {
         lastError = GetLastError();
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("GetProgramAndPublisherInfo failed with %d", lastError));
+        LOG(("GetProgramAndPublisherInfo failed with %d\n", lastError));
         __leave;
       }
 
@@ -155,8 +148,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
            (wcscmp(infoToMatch.signerInfo.programName, 
                    progPubInfo.programName)))) {
         lastError = ERROR_NOT_FOUND;
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("Program name did not match"));
+        LOG(("Program name did not match\n"));
         __leave;
       }
 
@@ -167,8 +159,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
            (wcscmp(infoToMatch.signerInfo.publisherLink, 
                    progPubInfo.publisherLink)))) {
         lastError = ERROR_NOT_FOUND;
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("Publisher link did not match"));
+        LOG(("Publisher link did not match\n"));
         __leave;
       }
 
@@ -179,8 +170,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
            (wcscmp(infoToMatch.signerInfo.moreInfoLink, 
                    progPubInfo.moreInfoLink)))) {
         lastError = ERROR_NOT_FOUND;
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("MoreInfo link did not match\n"));
+        LOG(("MoreInfo link did not match\n"));
         __leave;
       }
     }
@@ -231,24 +221,21 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
                                CERT_NAME_ISSUER_FLAG, NULL,
                                NULL, 0);
     if (!dwData) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed."));
+      LOG(("CertGetNameString failed.\n"));
       return FALSE;
     }
 
     // Allocate memory for Issuer name buffer.
     LPTSTR szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(WCHAR));
     if (!szName) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Unable to allocate memory for issuer name."));
+      LOG(("Unable to allocate memory for issuer name.\n"));
       return FALSE;
     }
 
     // Get Issuer name.
     if (!CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
                             CERT_NAME_ISSUER_FLAG, NULL, szName, dwData)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed."));
+      LOG(("CertGetNameString failed.\n"));
       LocalFree(szName);
       return FALSE;
     }
@@ -270,24 +257,21 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
     dwData = CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                0, NULL, NULL, 0);
     if (!dwData) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed."));
+      LOG(("CertGetNameString failed.\n"));
       return FALSE;
     }
 
     // Allocate memory for the name buffer.
     szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(WCHAR));
     if (!szName) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Unable to allocate memory for subject name."));
+      LOG(("Unable to allocate memory for subject name.\n"));
       return FALSE;
     }
 
     // Obtain the name.
     if (!(CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0,
                             NULL, szName, dwData))) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed."));
+      LOG(("CertGetNameString failed.\n"));
       LocalFree(szName);
       return FALSE;
     }
@@ -354,16 +338,14 @@ GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
                                    attr1.cbData,
                                    0, NULL, &dwData);
         if (!result) {
-          PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-                 ("CryptDecodeObject failed with %d", GetLastError()));
+          LOG(("CryptDecodeObject failed with %d\n", GetLastError()));
           __leave;
         }
 
         // Allocate memory for SPC_SP_OPUS_INFO structure.
         OpusInfo = (PSPC_SP_OPUS_INFO)LocalAlloc(LPTR, dwData);
         if (!OpusInfo) {
-          PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-                 ("Unable to allocate memory for Publisher Info."));
+          LOG(("Unable to allocate memory for Publisher Info.\n"));
           __leave;
         }
 
@@ -375,8 +357,7 @@ GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
                                    attr2.cbData,
                                    0, OpusInfo, &dwData);
         if (!result) {
-          PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-                 ("CryptDecodeObject failed with %d", GetLastError()));
+          LOG(("CryptDecodeObject failed with %d\n", GetLastError()));
           __leave;
         }
 
@@ -507,9 +488,8 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
     case ERROR_SUCCESS:
       // The hash that represents the subject is trusted and there were no
       // verification errors.  No publisher nor time stamp chain errors.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The file \"%ls\" is signed and the signature was verified.",
-              filePath));
+      LOG(("The file \"%ls\" is signed and the signature was verified.\n",
+           filePath));
       validated = TRUE;
       break;
     case TRUST_E_NOSIGNATURE:
@@ -517,51 +497,44 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
       // Get the reason for no signature.
       if (TRUST_E_TIME_STAMP == dwLastError) {
         // The file was not signed.
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("The file \"%ls\" has a timestamp error.", filePath));
+        LOG(("The file \"%ls\" has a timestamp error.\n", filePath));
       } else if (TRUST_E_NOSIGNATURE == dwLastError ||
                 TRUST_E_SUBJECT_FORM_UNKNOWN == dwLastError ||
                 TRUST_E_PROVIDER_UNKNOWN == dwLastError) {
         // The file was not signed.
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("The file \"%ls\" is not signed.", filePath));
+        LOG(("The file \"%ls\" is not signed.\n", filePath));
       } else {
         // The signature was not valid or there was an error 
         // opening the file.
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("An unknown error occurred trying to verify the signature of "
-                "the \"%ls\" file.", filePath));
+        LOG(("An unknown error occurred trying to verify the signature of "
+             "the \"%ls\" file.\n", filePath));
       }
       break;
     case TRUST_E_EXPLICIT_DISTRUST:
       // The hash that represents the subject or the publisher 
       // is not allowed by the admin or user.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The signature is present, but specifically disallowed."));
+      LOG(("The signature is present, but specifically disallowed.\n"));
       break;
     case TRUST_E_SUBJECT_NOT_TRUSTED:
       // The user clicked "No" when asked to install and run.
       // Since the UI is disabled I'm not sure if this happens
       // some time in the past, or if the error will simply never happen.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The signature is present, but not trusted."));
+      LOG(("The signature is present, but not trusted.\n"));
       break;
     case CRYPT_E_SECURITY_SETTINGS:
       // The hash that represents the subject or the publisher was not 
       // explicitly trusted by the admin and the admin policy has disabled 
       // user trust. No signature, publisher or time stamp errors.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CRYPT_E_SECURITY_SETTINGS - The hash "
-              "representing the subject or the publisher wasn't "
-              "explicitly trusted by the admin and admin policy "
-              "has disabled user trust. No signature, publisher "
-              "or timestamp errors."));
+      LOG(("CRYPT_E_SECURITY_SETTINGS - The hash "
+           "representing the subject or the publisher wasn't "
+           "explicitly trusted by the admin and admin policy "
+           "has disabled user trust. No signature, publisher "
+           "or timestamp errors.\n"));
       break;
     default:
       // The UI was disabled in dwUIChoice or the admin policy has disabled
       // user trust. lStatus contains the publisher or time stamp chain error.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Error is: %d", lStatus));
+      LOG(("Error is: %d\n", lStatus));
       break;
   }
 

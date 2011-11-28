@@ -68,8 +68,8 @@ GetVersionNumberFromPath(LPWSTR path, DWORD &A, DWORD &B,
   nsAutoArrayPtr<char> fileVersionInfo = new char[fileVersionInfoSize];
   if (!GetFileVersionInfoW(path, 0, fileVersionInfoSize,
                            fileVersionInfo.get())) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain file info of old service.  (%d)", GetLastError()));
+      LOG(("Could not obtain file info of old service.  (%d)\n", 
+           GetLastError()));
       return FALSE;
   }
 
@@ -78,9 +78,8 @@ GetVersionNumberFromPath(LPWSTR path, DWORD &A, DWORD &B,
   UINT size;
   if (!VerQueryValueW(fileVersionInfo.get(), L"\\", 
     reinterpret_cast<LPVOID*>(&fixedFileInfo), &size)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not query file version info of old service.  (%d)", 
-         GetLastError()));
+      LOG(("Could not query file version info of old service.  (%d)\n", 
+           GetLastError()));
       return FALSE;
   }  
 
@@ -106,8 +105,7 @@ SvcInstall(BOOL upgradeOnly)
   nsAutoServiceHandle schSCManager(OpenSCManager(NULL, NULL, 
                                                  SC_MANAGER_ALL_ACCESS));
   if (!schSCManager) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open service manager.  (%d)", GetLastError()));
+    LOG(("Could not open service manager.  (%d)\n", GetLastError()));
     return FALSE;
   }
 
@@ -115,10 +113,9 @@ SvcInstall(BOOL upgradeOnly)
   if(!GetModuleFileNameW(NULL, newServiceBinaryPath, 
                          sizeof(newServiceBinaryPath) / 
                          sizeof(newServiceBinaryPath[0]))) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not obtain module filename when attempting to "
-       "install service. (%d)",
-       GetLastError()));
+    LOG(("Could not obtain module filename when attempting to "
+         "install service. (%d)\n",
+         GetLastError()));
     return FALSE;
   }
 
@@ -129,8 +126,7 @@ SvcInstall(BOOL upgradeOnly)
   DWORD lastError = GetLastError();
   if (!schService && ERROR_SERVICE_DOES_NOT_EXIST != lastError) {
     // The service exists but we couldn't open it
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open service.  (%d)", GetLastError()));
+    LOG(("Could not open service.  (%d)\n", GetLastError()));
     return FALSE;
   }
   
@@ -139,9 +135,8 @@ SvcInstall(BOOL upgradeOnly)
     DWORD bytesNeeded;
     if (!QueryServiceConfigW(schService, NULL, 0, &bytesNeeded) && 
         GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not determine buffer size for query service config.  (%d)", 
-         GetLastError()));
+      LOG(("Could not determine buffer size for query service config.  (%d)\n", 
+           GetLastError()));
       return FALSE;
     }
 
@@ -151,9 +146,8 @@ SvcInstall(BOOL upgradeOnly)
     if (!QueryServiceConfigW(schService, 
         reinterpret_cast<QUERY_SERVICE_CONFIGW*>(serviceConfigBuffer.get()), 
         bytesNeeded, &bytesNeeded)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could open service but could not query service config.  (%d)", 
-         GetLastError()));
+      LOG(("Could open service but could not query service config.  (%d)\n", 
+           GetLastError()));
       return FALSE;
     }
     QUERY_SERVICE_CONFIGW &serviceConfig = 
@@ -170,8 +164,7 @@ SvcInstall(BOOL upgradeOnly)
                                existingC, existingD);
     if(!GetVersionNumberFromPath(newServiceBinaryPath, newA, 
                                  newB, newC, newD)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-             ("Could not obtain version number from new path"));
+      LOG(("Could not obtain version number from new path\n"));
       return FALSE;
     }
 
@@ -192,19 +185,17 @@ SvcInstall(BOOL upgradeOnly)
       }
 
       if (!DeleteFile(serviceConfig.lpBinaryPathName)) {
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-          ("Could not delete old service binary file.  (%d)", GetLastError()));
+        LOG(("Could not delete old service binary file.  (%d)\n", GetLastError()));
         return FALSE;
       }
 
       if (!CopyFile(newServiceBinaryPath, 
                     serviceConfig.lpBinaryPathName, FALSE)) {
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-          ("Could not overwrite old service binary file. "
-           "This should never happen, but if it does the next upgrade will fix"
-           " it, the service is not a critical component that needs to be "
-           " installed for upgrades to work. (%d)", 
-           GetLastError()));
+        LOG(("Could not overwrite old service binary file. "
+             "This should never happen, but if it does the next upgrade will fix"
+             " it, the service is not a critical component that needs to be "
+             " installed for upgrades to work. (%d)\n", 
+             GetLastError()));
         return FALSE;
       }
 
@@ -236,19 +227,17 @@ SvcInstall(BOOL upgradeOnly)
                                 newServiceBinaryPath, NULL, NULL, NULL, 
                                 NULL, NULL));
   if (!schService) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not create Windows service. "
-       "This error should never happen since a service install "
-       "should only be called when elevated. (%d)", GetLastError()));
+    LOG(("Could not create Windows service. "
+         "This error should never happen since a service install "
+         "should only be called when elevated. (%d)\n", GetLastError()));
     return FALSE;
   } 
 
   if (!SetUserAccessServiceDACL(schService)) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not set security ACE on service handle, the service will not be "
-       "able to be started from unelevated processes. "
-       "This error should never happen.  (%d)", 
-       GetLastError()));
+    LOG(("Could not set security ACE on service handle, the service will not be "
+         "able to be started from unelevated processes. "
+         "This error should never happen.  (%d)\n", 
+         GetLastError()));
   }
 
   return TRUE;
@@ -266,8 +255,7 @@ StopService()
   nsAutoServiceHandle schSCManager(OpenSCManager(NULL, NULL, 
                                                  SC_MANAGER_ALL_ACCESS));
   if (!schSCManager) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open service manager.  (%d)", GetLastError()));
+    LOG(("Could not open service manager.  (%d)\n", GetLastError()));
     return FALSE;
   }
 
@@ -275,8 +263,7 @@ StopService()
   nsAutoServiceHandle schService(OpenServiceW(schSCManager, SVC_NAME, 
                                               SERVICE_ALL_ACCESS));
   if (!schService) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open service.  (%d)", GetLastError()));
+    LOG(("Could not open service.  (%d)\n", GetLastError()));
     return FALSE;
   } 
 
@@ -296,8 +283,7 @@ SvcUninstall()
   nsAutoServiceHandle schSCManager(OpenSCManager(NULL, NULL, 
                                                  SC_MANAGER_ALL_ACCESS));
   if (!schSCManager) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open service manager.  (%d)", GetLastError()));
+    LOG(("Could not open service manager.  (%d)\n", GetLastError()));
     return FALSE;
   }
 
@@ -305,8 +291,7 @@ SvcUninstall()
   nsAutoServiceHandle schService(OpenServiceW(schSCManager, SVC_NAME, 
                                               SERVICE_ALL_ACCESS));
   if (!schService) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Could not open service.  (%d)", GetLastError()));
+    LOG(("Could not open service.  (%d)\n", GetLastError()));
     return FALSE;
   } 
 

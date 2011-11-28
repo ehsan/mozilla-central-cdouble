@@ -493,6 +493,11 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
 
+#ifndef MOZ_PHOENIX
+  // We never want the service to be used unless we have Firefox
+  isPendingService = true;
+#endif
+
   // Launch the update operation using the service if the status file said so.
   // We also set the status to pending to ensure we never attempt to use the 
   // service more than once in a row for a single update.
