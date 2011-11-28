@@ -49,24 +49,25 @@ CPPSRCS = \
   certificatecheck.cpp \
   servicebase.cpp \
   registrycertificates.cpp \
-  uachelper.cpp \
   pathhash.cpp \
   $(NULL)
 
-ifneq ($(OS_TARGET),Android)
+# For debugging purposes only
+DEFINES += -DDISABLE_CALLBACK_AUTHENTICODE_CHECK \
+#  -DDISABLE_SERVICE_AUTHENTICODE_CHECK \
+  $(NULL)
+
 PROGRAM = maintenanceservice$(BIN_SUFFIX)
 DIST_PROGRAM = maintenanceservice$(BIN_SUFFIX)
 
 # Don't link the maintenanceservice against libmozutils. See bug 687139
 MOZ_UTILS_LDFLAGS =
 MOZ_UTILS_PROGRAM_LDFLAGS =
-endif
 
 LIBS += \
-  $(NSPR_LIBS) \
+  ../../mozapps/update/common/$(LIB_PREFIX)updatecommon.$(LIB_SUFFIX) \
   $(NULL)
 
-ifeq ($(OS_ARCH),WINNT)
 USE_STATIC_LIBS = 1
 HAVE_PROGRESSUI = 1
 RCINCLUDE = maintenanceservice.rc
@@ -77,8 +78,6 @@ ifndef GNU_CC
 RCFLAGS += -I$(srcdir)
 else
 RCFLAGS += --include-dir $(srcdir)
-endif
-
 endif
 
 ifndef MOZ_WINCONSOLE
@@ -97,7 +96,5 @@ ifdef _MSC_VER
 WIN32_EXE_LDFLAGS += -ENTRY:wmainCRTStartup
 endif
 
-ifeq ($(OS_ARCH),WINNT)
 # Pick up nsWindowsRestart.cpp
 LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/xre
-endif

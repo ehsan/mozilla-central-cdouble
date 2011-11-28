@@ -35,7 +35,7 @@
 # ***** END LICENSE BLOCK *****
 
 # Required Plugins:
-# ServicesHelper
+# ServicesHelper Mozilla specific plugin that is located in /other-licenses/nsis
 
 ; Set verbosity to 3 (e.g. no script) to lessen the noise in the build logs
 !verbose 3
@@ -69,9 +69,6 @@ Var TempMaintServiceName
 !insertmacro GetOptions
 !insertmacro GetParameters
 !insertmacro GetSize
-!insertmacro StrFilter
-!insertmacro WordFind
-!insertmacro WordReplace
 
 !define CompanyName "Mozilla Corporation"
 
@@ -88,31 +85,8 @@ Var TempMaintServiceName
 
 ; Must be inserted before other macros that use logging
 !insertmacro _LoggingCommon
-
-!insertmacro AddDDEHandlerValues
-!insertmacro ChangeMUIHeaderImage
-!insertmacro CheckForFilesInUse
-!insertmacro CleanUpdatesDir
-!insertmacro CopyFilesFromDir
-!insertmacro CreateRegKey
-!insertmacro GetPathFromString
-!insertmacro GetParent
-!insertmacro IsHandlerForInstallDir
-!insertmacro IsPinnedToTaskBar
-!insertmacro LogDesktopShortcut
-!insertmacro LogQuickLaunchShortcut
-!insertmacro LogStartMenuShortcut
-!insertmacro ManualCloseAppPrompt
-!insertmacro PinnedToStartMenuLnkCount
-!insertmacro RegCleanAppHandler
-!insertmacro RegCleanMain
-!insertmacro RegCleanUninstall
-!insertmacro SetAppLSPCategories
 !insertmacro SetBrandNameVars
 !insertmacro UpdateShortcutAppModelIDs
-!insertmacro WriteRegStr2
-!insertmacro WriteRegDWORD2
-!insertmacro CheckIfRegistryKeyExists
 
 Name "${MaintFullName}"
 OutFile "maintenanceservice_installer.exe"
@@ -201,7 +175,6 @@ Section "MaintenanceService"
 
   ; We always write out a copy and then decide whether to install it or 
   ; not via calling its 'install' cmdline which works by version comparison.
-  CopyFiles "$EXEDIR\nspr4.dll" "$INSTDIR"
   CopyFiles "$EXEDIR\maintenanceservice.exe" "$INSTDIR\$TempMaintServiceName"
 
   ; Install the application updater service.
@@ -224,7 +197,7 @@ Section "MaintenanceService"
   WriteRegStr HKLM "${MaintUninstallKey}" "DisplayName" "${MaintFullName}"
   WriteRegStr HKLM "${MaintUninstallKey}" "UninstallString" \
                    '"$INSTDIR\uninstall.exe"'
-  WriteRegStr HKLM "${MaintUninstallKey}" "DisplayIcon" "$INSTDIR\maintenanceservice.exe,0"
+  WriteRegStr HKLM "${MaintUninstallKey}" "DisplayIcon" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "${MaintUninstallKey}" "DisplayVersion" "${AppVersion}"
   WriteRegStr HKLM "${MaintUninstallKey}" "Publisher" "Mozilla"
   WriteRegStr HKLM "${MaintUninstallKey}" "Comments" \
@@ -241,28 +214,30 @@ Section "MaintenanceService"
   ; this value to determine if we should show the service update pref.
   ; Since the Maintenance service can be installed either x86 or x64,
   ; always use the 64-bit registry for checking if an attempt was made.
+  ; *Nothing* should be added under here that modifies the registry
+  ; unless it restores the registry view.
   SetRegView 64
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
 
-  # Make the update directory read/write for all users.
-  # This is to avoid permission problems from multiple users doing updates.
+  # The Mozilla/updates directory will have an inherited permission
+  # which allows any user to write to it.  Work items are written there.
   SetShellVarContext all
   CreateDirectory "$APPDATA\Mozilla\updates"
-  AccessControl::GrantOnFile \
-    "$APPDATA\Mozilla\updates" "(BU)" "FullAccess"
 SectionEnd
 
 Section "Uninstall"
   ; Delete the service so that no updates will be attempted
   nsExec::Exec '"$INSTDIR\maintenanceservice.exe" uninstall'
 
-  Delete "$INSTDIR\maintenanceservice.exe"
-  Delete "$INSTDIR\maintenanceservice_tmp.exe"
-  Delete "$INSTDIR\nspr4.dll"
-  Delete "$INSTDIR\Uninstall.exe"
-  RMDir "$INSTDIR"
+  Delete /REBOOTOK "$INSTDIR\maintenanceservice.exe"
+  Delete /REBOOTOK "$INSTDIR\maintenanceservice_tmp.exe"
+  Delete /REBOOTOK "$INSTDIR\Uninstall.exe"
+  RMDir /REBOOTOK "$INSTDIR"
 
-  DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
   DeleteRegKey HKLM "${MaintUninstallKey}"
+
+  # Keep this last since it modifies the registry key view
+  SetRegView 64
+  DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
 SectionEnd

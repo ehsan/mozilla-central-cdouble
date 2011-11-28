@@ -11,15 +11,15 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is the Application Update Service.
+# The Original Code is Mozilla maintenance service build.
 #
-# The Initial Developer of the Original Code is Ben Goodger.
-# Portions created by the Initial Developer are Copyright (C) 2004
+# The Initial Developer of the Original Code is
+# Mozilla Foundation.
+# Portions created by the Initial Developer are Copyright (C) 2011
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
-#   Ben Goodger <ben@mozilla.org>
-#   Robert Strong <robert.bugzilla@gmail.com>.
+#   Brian R. Bondy <netzen@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -35,42 +35,32 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH     = ../../..
+DEPTH = ../../../..
 topsrcdir = @top_srcdir@
-srcdir    = @srcdir@
-VPATH     = @srcdir@
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE = update
-
-XPIDLSRCS = nsIUpdateTimerManager.idl
-
-EXTRA_PP_COMPONENTS = nsUpdateTimerManager.js nsUpdateTimerManager.manifest
-
-ifdef MOZ_UPDATER
-DIRS = ../readstrings
-
-ifneq ($(OS_TARGET),Android)
-DIRS += common
-DIRS += updater
+MODULE = libupdatecommon
+LIBRARY_NAME = updatecommon
+FORCE_STATIC_LIB =1
+LIBXUL_LIBRARY = 1
+ifeq ($(OS_ARCH),WINNT)
+USE_STATIC_LIBS = 1
 endif
 
-XPIDLSRCS += nsIUpdateService.idl
-
-EXTRA_PP_COMPONENTS += \
-  nsUpdateService.js \
-  nsUpdateServiceStub.js \
-  nsUpdateService.manifest \
+CPPSRCS = \
+  updatelogging.cpp \
+  launchwinprocess.cpp \
+  uachelper.cpp \
   $(NULL)
-endif
 
-ifdef ENABLE_TESTS
-DIRS += test_timermanager
-# Update tests require the updater binary
-ifdef MOZ_UPDATER
-DIRS += test
-endif
-endif
+EXPORTS = updatelogging.h \
+	updatedefines.h \
+	launchwinprocess.h \
+	uachelper.h \
+  $(NULL)
 
 include $(topsrcdir)/config/rules.mk
+

@@ -97,6 +97,7 @@ VIAddVersionKey "OriginalFilename" "helper.exe"
 !insertmacro InitHashAppModelId
 !insertmacro IsHandlerForInstallDir
 !insertmacro IsPinnedToTaskBar
+!insertmacro IsUserAdmin
 !insertmacro LogDesktopShortcut
 !insertmacro LogQuickLaunchShortcut
 !insertmacro LogStartMenuShortcut
@@ -383,6 +384,7 @@ Section "Uninstall"
   System::Call "shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)"
 
   ; Get the path the allowed cert is at and remove it
+  ; Keep this block of code last since it modfies the reg view
   ServicesHelper::PathToUniqueRegistryPath "$INSTDIR"
   Pop $MaintCertKey
   ${If} $MaintCertKey != ""

@@ -94,7 +94,6 @@
 //
 // A similar #define lives in updater.cpp and should be kept in sync with this.
 //
-
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
 #define USE_EXECV
 #endif
@@ -492,6 +491,11 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
 #if defined(USE_EXECV)
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
+
+#ifndef MOZ_PHOENIX
+  // We never want the service to be used unless we have Firefox
+  isPendingService = false;
+#endif
 
   // Launch the update operation using the service if the status file said so.
   // We also set the status to pending to ensure we never attempt to use the 
