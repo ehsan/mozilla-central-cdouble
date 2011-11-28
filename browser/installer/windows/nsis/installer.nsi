@@ -289,6 +289,7 @@ Section "-Application" APP_IDX
     Call IsUserAdmin
     Pop $R0
     ${If} $R0 == "true"
+    ; On Windows 2000 we do not install the maintenance service.
     ${AndIf} ${AtLeastWinXP}
       ; The user is an admin so we should default to install service yes
       StrCpy $InstallMaintenanceService "1"
@@ -858,7 +859,8 @@ Function preComponents
     Abort
   ${EndIf}
 
-  ${IfNot} ${AtLeastWinXP}
+  ; On Windows 2000 we do not install the maintenance service.
+  ${Unless} ${AtLeastWinXP}
     Abort
   ${EndIf}
 
