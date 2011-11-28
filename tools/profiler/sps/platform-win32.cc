@@ -39,7 +39,7 @@ class SamplerThread : public Thread {
         interval_(interval),
         sampler_(sampler) {}
 
-  static void Start(Sampler* sampler) {
+  static void StartSampler(Sampler* sampler) {
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval(), sampler);
       instance_->Start();
@@ -48,7 +48,7 @@ class SamplerThread : public Thread {
     }
   }
 
-  static void Stop() {
+  static void StopSampler() {
     delete instance_;
     instance_ = NULL;
   }
@@ -122,13 +122,13 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
-  SamplerThread::Start(this);
+  SamplerThread::StartSampler(this);
 }
 
 
 void Sampler::Stop() {
   ASSERT(IsActive());
-  SamplerThread::Stop();
+  SamplerThread::StopSampler();
   SetActive(false);
 }
 
