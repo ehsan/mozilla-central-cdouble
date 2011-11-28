@@ -351,7 +351,7 @@ void mozilla_sampler_deinit()
   }
 
   t->Stop();
-  mozilla::tls::set(pkey_stack, NULL);
+  mozilla::tls::set(pkey_stack, static_cast<Stack*>(NULL));
   // We can't delete the TableTicker because we can be between a
   // sampler call_enter/call_exit point.
   // TODO Need to find a safe time to delete TableTicker
