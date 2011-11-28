@@ -176,12 +176,12 @@ public:
   char const * volatile mStack[1024];
   // Keep a list of active markers to be applied to the next sample taken
   char const * volatile mMarkers[1024];
-  volatile sig_safe_t mStackPointer;
-  volatile sig_safe_t mMarkerPointer;
-  volatile sig_safe_t mDroppedStackEntries;
+  volatile mozilla::sig_safe_t mStackPointer;
+  volatile mozilla::sig_safe_t mMarkerPointer;
+  volatile mozilla::sig_safe_t mDroppedStackEntries;
   // We don't want to modify _markers from within the signal so we allow
   // it to queue a clear operation.
-  volatile sig_safe_t mQueueClearMarker;
+  volatile mozilla::sig_safe_t mQueueClearMarker;
 };
 
 inline void* mozilla_sampler_call_enter(const char *aInfo)
