@@ -66,10 +66,10 @@ bool set(key mykey, const T* value) {
 
 bool create(key* mykey) {
   key newkey = TlsAlloc();
-  if (key == TLS_OUT_OF_INDEXES) {
+  if (newkey == TLS_OUT_OF_INDEXES) {
     return false;
   }
-  *mykey = key;
+  *mykey = newkey;
   return true;
 }
 
