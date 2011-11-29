@@ -55,9 +55,7 @@ PROGRAM = updater$(BIN_SUFFIX)
 MOZ_UTILS_LDFLAGS =
 MOZ_UTILS_PROGRAM_LDFLAGS =
 
-LOCAL_INCLUDES += -I$(srcdir)/../../readstrings \
-                  -I$(srcdir)/../common \
-                  $(NULL)
+LOCAL_INCLUDES += -I$(srcdir)/../../readstrings
 
 LIBS += \
   ../common/$(LIB_PREFIX)updatecommon.$(LIB_SUFFIX) \

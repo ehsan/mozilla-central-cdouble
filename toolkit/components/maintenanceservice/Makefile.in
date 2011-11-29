@@ -98,5 +98,3 @@ endif
 
 # Pick up nsWindowsRestart.cpp
 LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/xre
-# Pick up updater/common
-LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/mozapps/update/common
