@@ -36,9 +36,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "thread_helper.h"
 #include "base/atomicops.h"
 #include "nscore.h"
-#include "thread_helper.h"
 #include "signal.h"
 
 // TODO Merge into Sampler.h

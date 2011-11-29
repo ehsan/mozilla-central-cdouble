@@ -1721,6 +1721,16 @@ function delayedStartup(isLoadingBlank, mustLoadSidebar) {
 #endif
   }
 
+  // Enable Style Editor?
+  let styleEditorEnabled = gPrefService.getBoolPref(StyleEditor.prefEnabledName);
+  if (styleEditorEnabled) {
+    document.getElementById("menu_styleeditor").hidden = false;
+    document.getElementById("Tools:StyleEditor").removeAttribute("disabled");
+#ifdef MENUBAR_CAN_AUTOHIDE
+    document.getElementById("appmenu_styleeditor").hidden = false;
+#endif
+  }
+
 #ifdef MENUBAR_CAN_AUTOHIDE
   // If the user (or the locale) hasn't enabled the top-level "Character
   // Encoding" menu via the "browser.menu.showCharacterEncoding" preference,
@@ -3163,7 +3173,6 @@ var bookmarksButtonObserver = {
                                        , hiddenRows: [ "description"
                                                      , "location"
                                                      , "loadInSidebar"
-                                                     , "folderPicker"
                                                      , "keyword" ]
                                        }, window);
     } catch(ex) { }
@@ -3922,14 +3931,13 @@ var FullScreen = {
     // full-screen. Only add listeners and show warning etc when the event we
     // receive is targeted at the chrome document, i.e. only once every time
     // we enter DOM full-screen mode.
-    let targetDoc = event.target.ownerDocument ? event.target.ownerDocument : event.target;
-    if (targetDoc != document) {
+    if (event.target != document) {
       // However, if we receive a "mozfullscreenchange" event for a document
       // which is not a subdocument of the currently selected tab, we know that
       // we've switched tabs since the request to enter full-screen was made,
       // so we should exit full-screen since the "full-screen document" isn't
       // acutally visible.
-      if (targetDoc.defaultView.top != gBrowser.contentWindow) {
+      if (event.target.defaultView.top != gBrowser.contentWindow) {
         document.mozCancelFullScreen();
       }
       return;
@@ -5792,7 +5800,6 @@ function contentAreaClick(event, isPanelClick)
                                        , loadBookmarkInSidebar: true
                                        , hiddenRows: [ "description"
                                                      , "location"
-                                                     , "folderPicker"
                                                      , "keyword" ]
                                        }, window);
       event.preventDefault();
@@ -6839,8 +6846,9 @@ function AddKeywordForSearchField() {
                                    , postData: postData
                                    , charSet: charset
                                    , hiddenRows: [ "location"
-                                                 , "loadInSidebar"
-                                                 , "folderPicker" ]
+                                                 , "description"
+                                                 , "tags"
+                                                 , "loadInSidebar" ]
                                    }, window);
 }
 
@@ -8970,6 +8978,34 @@ XPCOMUtils.defineLazyGetter(Scratchpad, "ScratchpadManager", function() {
   return tmp.ScratchpadManager;
 });
 
+var StyleEditor = {
+  prefEnabledName: "devtools.styleeditor.enabled",
+  openChrome: function SE_openChrome()
+  {
+    const CHROME_URL = "chrome://browser/content/styleeditor.xul";
+    const CHROME_WINDOW_TYPE = "Tools:StyleEditor";
+    const CHROME_WINDOW_FLAGS = "chrome,centerscreen,resizable,dialog=no";
+
+    // focus currently open Style Editor window for this document, if any
+    let contentWindow = gBrowser.selectedBrowser.contentWindow;
+    let contentWindowID = contentWindow.QueryInterface(Ci.nsIInterfaceRequestor).
+      getInterface(Ci.nsIDOMWindowUtils).currentInnerWindowID;
+    let enumerator = Services.wm.getEnumerator(CHROME_WINDOW_TYPE);
+    while (enumerator.hasMoreElements()) {
+      var win = enumerator.getNext();
+      if (win.styleEditorChrome.contentWindowID == contentWindowID) {
+        win.focus();
+        return win;
+      }
+    }
+
+    let chromeWindow = Services.ww.openWindow(null, CHROME_URL, "_blank",
+                                              CHROME_WINDOW_FLAGS,
+                                              contentWindow);
+    chromeWindow.focus();
+    return chromeWindow;
+  }
+};
 
 XPCOMUtils.defineLazyGetter(window, "gShowPageResizers", function () {
 #ifdef XP_WIN

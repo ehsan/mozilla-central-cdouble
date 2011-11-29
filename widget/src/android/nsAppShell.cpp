@@ -244,6 +244,9 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
         int curType = curEvent->Type();
         int nextType = nextEvent->Type();
 
+        // Do not skip draw events if the Java compositor is in use, since the Java compositor
+        // updates only the rect that changed - thus we will lose updates.
+#ifndef MOZ_JAVA_COMPOSITOR
         while (nextType == AndroidGeckoEvent::DRAW &&
                mNumDraws > 1)
         {
@@ -263,6 +266,7 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
             nextEvent = PeekNextEvent();
             nextType = nextEvent->Type();
         }
+#endif
 
         // If the next type of event isn't the same as the current type,
         // we don't coalesce.
@@ -368,10 +372,28 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
         break;
     }
 
+    case AndroidGeckoEvent::BROADCAST: {
+
+        if (curEvent->Characters().Length() == 0)
+            break;
+
+        nsCOMPtr<nsIObserverService> obsServ =
+            mozilla::services::GetObserverService();
+
+        const NS_ConvertUTF16toUTF8 topic(curEvent->Characters());
+        const nsPromiseFlatString& data = PromiseFlatString(curEvent->CharactersExtra());
+
+        obsServ->NotifyObservers(nsnull, topic.get(), data.get());
+        break;
+    }
+
     case AndroidGeckoEvent::LOAD_URI: {
         nsCOMPtr<nsICommandLineRunner> cmdline
             (do_CreateInstance("@mozilla.org/toolkit/command-line;1"));
         if (!cmdline)
+            break;
+
+        if (curEvent->Characters().Length() == 0)
             break;
 
         char *uri = ToNewUTF8String(curEvent->Characters());
