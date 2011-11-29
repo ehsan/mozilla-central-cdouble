@@ -43,6 +43,10 @@
 
 #include "nsTArray.h"
 
+#ifdef ACCESSIBILITY
+#include "nsAccessible.h"
+#endif
+
 class gfxASurface;
 class nsIdleService;
 
@@ -151,8 +155,9 @@ public:
     NS_IMETHOD BeginResizeDrag(nsGUIEvent* aEvent, PRInt32 aHorizontal, PRInt32 aVertical) { return NS_ERROR_NOT_IMPLEMENTED; }
 
     NS_IMETHOD ResetInputState();
-    NS_IMETHOD SetInputMode(const IMEContext& aContext);
-    NS_IMETHOD GetInputMode(IMEContext& aContext);
+    NS_IMETHOD_(void) SetInputContext(const InputContext& aContext,
+                                      const InputContextAction& aAction);
+    NS_IMETHOD_(InputContext) GetInputContext();
     NS_IMETHOD CancelIMEComposition();
 
     NS_IMETHOD OnIMEFocusChange(bool aFocus);
@@ -167,10 +172,18 @@ public:
     gfxASurface* GetThebesSurface();
 
     NS_IMETHOD ReparentNativeWidget(nsIWidget* aNewParent);
+
+#ifdef ACCESSIBILITY
+    static bool sAccessibilityEnabled;
+#endif
+
+    bool DrawToFile(const nsAString &path);
+
 protected:
     void BringToFront();
     nsWindow *FindTopLevel();
     bool DrawTo(gfxASurface *targetSurface);
+    bool DrawTo(gfxASurface *targetSurface, const nsIntRect &aRect);
     bool IsTopLevel();
     void OnIMEAddRange(mozilla::AndroidGeckoEvent *ae);
 
@@ -199,7 +212,7 @@ protected:
     nsString mIMELastDispatchedComposingText;
     nsAutoTArray<nsTextRange, 4> mIMERanges;
 
-    IMEContext mIMEContext;
+    InputContext mInputContext;
 
     static void DumpWindows();
     static void DumpWindows(const nsTArray<nsWindow*>& wins, int indent = 0);
@@ -211,6 +224,22 @@ private:
     void DispatchGestureEvent(PRUint32 msg, PRUint32 direction, double delta,
                                const nsIntPoint &refPoint, PRUint64 time);
     void HandleSpecialKey(mozilla::AndroidGeckoEvent *ae);
+    void RedrawAll();
+
+#ifdef ACCESSIBILITY
+    nsRefPtr<nsAccessible> mRootAccessible;
+
+    /**
+     * Request to create the accessible for this window if it is top level.
+     */
+    void CreateRootAccessible();
+
+    /**
+     * Generate the NS_GETACCESSIBLE event to get accessible for this window
+     * and return it.
+     */
+    nsAccessible *DispatchAccessibleEvent();
+#endif // ACCESSIBILITY
 };
 
 #endif /* NSWINDOW_H_ */
