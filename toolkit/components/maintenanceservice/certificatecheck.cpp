@@ -66,8 +66,6 @@ CheckCertificateForPEFile(LPCWSTR filePath,
   PCCERT_CONTEXT pCertContext = NULL;
   PCMSG_SIGNER_INFO pSignerInfo = NULL;
   DWORD lastError = ERROR_SUCCESS;
-  PublisherInfo progPubInfo;
-  ZeroMemory(&progPubInfo, sizeof(progPubInfo));
 
   // Get the HCERTSTORE and HCRYPTMSG from the signed file.
   DWORD dwEncoding, dwContentType, dwFormatType;
@@ -130,59 +128,7 @@ CheckCertificateForPEFile(LPCWSTR filePath,
     goto cleanup;
   }
 
-  if (infoToMatch.signerInfo.programName || 
-      infoToMatch.signerInfo.publisherLink || 
-      infoToMatch.signerInfo.moreInfoLink) {
-    // Get program name and publisher information from the signer info.
-    if (!GetProgramAndPublisherInfo(pSignerInfo, progPubInfo)) {
-      lastError = GetLastError();
-      LOG(("GetProgramAndPublisherInfo failed with %d\n", lastError));
-      goto cleanup;
-    }
-
-    if (infoToMatch.signerInfo.programName && 
-        wcslen(infoToMatch.signerInfo.programName) > 0 &&
-        ((infoToMatch.signerInfo.programName && !progPubInfo.programName) ||
-          (wcscmp(infoToMatch.signerInfo.programName, 
-                  progPubInfo.programName)))) {
-      lastError = ERROR_NOT_FOUND;
-      LOG(("Program name did not match\n"));
-      goto cleanup;
-    }
-
-    if (infoToMatch.signerInfo.publisherLink && 
-        wcslen(infoToMatch.signerInfo.publisherLink) > 0 &&
-        ((infoToMatch.signerInfo.publisherLink && 
-          !progPubInfo.publisherLink) ||
-          (wcscmp(infoToMatch.signerInfo.publisherLink, 
-                  progPubInfo.publisherLink)))) {
-      lastError = ERROR_NOT_FOUND;
-      LOG(("Publisher link did not match\n"));
-      goto cleanup;
-    }
-
-    if (infoToMatch.signerInfo.moreInfoLink && 
-        wcslen(infoToMatch.signerInfo.moreInfoLink) > 0 &&
-        ((infoToMatch.signerInfo.moreInfoLink && 
-          !progPubInfo.moreInfoLink) ||
-          (wcscmp(infoToMatch.signerInfo.moreInfoLink, 
-                  progPubInfo.moreInfoLink)))) {
-      lastError = ERROR_NOT_FOUND;
-      LOG(("MoreInfo link did not match\n"));
-      goto cleanup;
-    }
-  }
-
 cleanup:
-  if (progPubInfo.programName) {
-    LocalFree(progPubInfo.programName);
-  }
-  if (progPubInfo.publisherLink) {
-    LocalFree(progPubInfo.publisherLink);
-  }
-  if (progPubInfo.moreInfoLink) {
-    LocalFree(progPubInfo.moreInfoLink);
-  }
   if (pSignerInfo) {
     LocalFree(pSignerInfo);
   }
@@ -218,6 +164,7 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
                                CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                CERT_NAME_ISSUER_FLAG, NULL,
                                NULL, 0);
+
     if (!dwData) {
       LOG(("CertGetNameString failed.\n"));
       return FALSE;
@@ -239,8 +186,7 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
     }
 
     // If the issuer does not match, return a failure.
-    if (infoToMatch.issuer &&
-        wcslen(infoToMatch.issuer) &&
+    if (!infoToMatch.issuer ||
         wcscmp(szName, infoToMatch.issuer)) {
       LocalFree(szName);
       return FALSE;
@@ -275,8 +221,7 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
     }
 
     // If the issuer does not match, return a failure.
-    if (infoToMatch.name && 
-        wcslen(infoToMatch.name) > 0 && 
+    if (!infoToMatch.name || 
         wcscmp(szName, infoToMatch.name)) {
       LocalFree(szName);
       return FALSE;
@@ -305,114 +250,6 @@ AllocateAndCopyWideString(LPCWSTR inputString)
     lstrcpyW(outputString, inputString);
   }
   return outputString;
-}
-
-/**
- * Fills the publisher info from the signer info pointer
- *
- * @param  pSignerInfo  The signer info to fill from
- * @param  info         The publisher info to fill to
- * @return TRUE if successful.
- */
-BOOL 
-GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
-                           PublisherInfo &info)
-{
-  BOOL result = FALSE;
-  PSPC_SP_OPUS_INFO OpusInfo = NULL;  
-  DWORD dwData;
-
-  // Loop through authenticated attributes and 
-  // find SPC_SP_OPUS_INFO_OBJID OID.
-  for (DWORD n = 0; n < pSignerInfo->AuthAttrs.cAttr; n++) {
-    if (lstrcmpA(SPC_SP_OPUS_INFO_OBJID, 
-                  pSignerInfo->AuthAttrs.rgAttr[n].pszObjId) == 0) {
-      // Get Size of SPC_SP_OPUS_INFO structure.
-      _CRYPTOAPI_BLOB &attr1 = pSignerInfo->AuthAttrs.rgAttr[n].rgValue[0];
-      result = CryptDecodeObject(ENCODING,
-                                  SPC_SP_OPUS_INFO_OBJID,
-                                  attr1.pbData,
-                                  attr1.cbData,
-                                  0, NULL, &dwData);
-      if (!result) {
-        LOG(("CryptDecodeObject failed with %d\n", GetLastError()));
-        goto cleanup;
-      }
-
-      // Allocate memory for SPC_SP_OPUS_INFO structure.
-      OpusInfo = (PSPC_SP_OPUS_INFO)LocalAlloc(LPTR, dwData);
-      if (!OpusInfo) {
-        LOG(("Unable to allocate memory for Publisher Info.\n"));
-        goto cleanup;
-      }
-
-      // Decode and get SPC_SP_OPUS_INFO structure.
-      _CRYPTOAPI_BLOB &attr2 = pSignerInfo->AuthAttrs.rgAttr[n].rgValue[0];
-      result = CryptDecodeObject(ENCODING,
-                                  SPC_SP_OPUS_INFO_OBJID,
-                                  attr2.pbData,
-                                  attr2.cbData,
-                                  0, OpusInfo, &dwData);
-      if (!result) {
-        LOG(("CryptDecodeObject failed with %d\n", GetLastError()));
-        goto cleanup;
-      }
-
-      // Fill in Program Name if present.
-      if (OpusInfo->pwszProgramName) {
-        info.programName =
-          AllocateAndCopyWideString(OpusInfo->pwszProgramName);
-      } else {
-        info.programName = NULL;
-      }
-
-      // Fill in Publisher Information if present.
-      if (OpusInfo->pPublisherInfo) {
-        switch (OpusInfo->pPublisherInfo->dwLinkChoice) {
-          case SPC_URL_LINK_CHOICE:
-            info.publisherLink =
-              AllocateAndCopyWideString(OpusInfo->pPublisherInfo->pwszUrl);
-            break;
-          case SPC_FILE_LINK_CHOICE:
-            info.publisherLink =
-              AllocateAndCopyWideString(OpusInfo->pPublisherInfo->pwszFile);
-            break;
-          default:
-            info.publisherLink = NULL;
-            break;
-        }
-      } else {
-        info.publisherLink = NULL;
-      }
-
-      // Fill in More Info if present.
-      if (OpusInfo->pMoreInfo) {
-        switch (OpusInfo->pMoreInfo->dwLinkChoice) {
-        case SPC_URL_LINK_CHOICE:
-          info.moreInfoLink =
-            AllocateAndCopyWideString(OpusInfo->pMoreInfo->pwszUrl);
-          break;
-        case SPC_FILE_LINK_CHOICE:
-          info.moreInfoLink =
-            AllocateAndCopyWideString(OpusInfo->pMoreInfo->pwszFile);
-          break;
-        default:
-          info.moreInfoLink = NULL;
-          break;
-        }
-      } else {
-        info.moreInfoLink = NULL;
-      }
-      result = TRUE;
-      break;
-    }
-  }
-
-cleanup:
-  if (OpusInfo != NULL) {
-    LocalFree(OpusInfo);
-  }
-  return result;
 }
 
 /**
