@@ -96,10 +96,14 @@
 #include "nsEditorUtils.h"
 #include "nsWSRunObject.h"
 #include "nsGkAtoms.h"
+#include "nsIWidget.h"
 
 #include "nsIFrame.h"
 #include "nsIParserService.h"
 #include "mozilla/dom/Element.h"
+
+using namespace mozilla;
+using namespace mozilla::widget;
 
 // Some utilities to handle annoying overloading of "A" tag for link and named anchor
 static char hrefText[] = "href";
@@ -3718,57 +3722,45 @@ nsHTMLEditor::GetEmbeddedObjects(nsISupportsArray** aNodeList)
 {
   NS_ENSURE_TRUE(aNodeList, NS_ERROR_NULL_POINTER);
 
-  nsresult res;
-
-  res = NS_NewISupportsArray(aNodeList);
-  NS_ENSURE_SUCCESS(res, res);
+  nsresult rv = NS_NewISupportsArray(aNodeList);
+  NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_TRUE(*aNodeList, NS_ERROR_NULL_POINTER);
 
   nsCOMPtr<nsIContentIterator> iter =
-      do_CreateInstance("@mozilla.org/content/post-content-iterator;1", &res);
+      do_CreateInstance("@mozilla.org/content/post-content-iterator;1", &rv);
   NS_ENSURE_TRUE(iter, NS_ERROR_NULL_POINTER);
-  if ((NS_SUCCEEDED(res)))
-  {
-    nsCOMPtr<nsIDOMDocument> domdoc;
-    nsEditor::GetDocument(getter_AddRefs(domdoc));
-    NS_ENSURE_TRUE(domdoc, NS_ERROR_UNEXPECTED);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCOMPtr<nsIDocument> doc (do_QueryInterface(domdoc));
-    NS_ENSURE_TRUE(doc, NS_ERROR_UNEXPECTED);
+  nsCOMPtr<nsIDOMDocument> domdoc;
+  nsEditor::GetDocument(getter_AddRefs(domdoc));
+  NS_ENSURE_TRUE(domdoc, NS_ERROR_UNEXPECTED);
 
-    iter->Init(doc->GetRootElement());
+  nsCOMPtr<nsIDocument> doc = do_QueryInterface(domdoc);
+  NS_ENSURE_TRUE(doc, NS_ERROR_UNEXPECTED);
 
-    // loop through the content iterator for each content node
-    while (!iter->IsDone())
-    {
-      nsCOMPtr<nsIDOMNode> node (do_QueryInterface(iter->GetCurrentNode()));
-      if (node)
-      {
-        nsAutoString tagName;
-        node->GetNodeName(tagName);
-        ToLowerCase(tagName);
+  iter->Init(doc->GetRootElement());
 
-        // See if it's an image or an embed and also include all links.
-        // Let mail decide which link to send or not
-        if (tagName.EqualsLiteral("img") || tagName.EqualsLiteral("embed") ||
-            tagName.EqualsLiteral("a"))
-          (*aNodeList)->AppendElement(node);
-        else if (tagName.EqualsLiteral("body"))
-        {
-          nsCOMPtr<nsIDOMElement> element = do_QueryInterface(node);
-          if (element)
-          {
-            bool hasBackground = false;
-            if (NS_SUCCEEDED(element->HasAttribute(NS_LITERAL_STRING("background"), &hasBackground)) && hasBackground)
-              (*aNodeList)->AppendElement(node);
-          }
-        }
+  // Loop through the content iterator for each content node.
+  while (!iter->IsDone()) {
+    nsINode* node = iter->GetCurrentNode();
+    if (node->IsElement()) {
+      dom::Element* element = node->AsElement();
+
+      // See if it's an image or an embed and also include all links.
+      // Let mail decide which link to send or not
+      if (element->IsHTML(nsGkAtoms::img) ||
+          element->IsHTML(nsGkAtoms::embed) ||
+          element->IsHTML(nsGkAtoms::a) ||
+          (element->IsHTML(nsGkAtoms::body) &&
+           element->HasAttr(kNameSpaceID_None, nsGkAtoms::background))) {
+        nsCOMPtr<nsIDOMNode> domNode = do_QueryInterface(node);
+        (*aNodeList)->AppendElement(domNode);
       }
-      iter->Next();
     }
+    iter->Next();
   }
 
-  return res;
+  return rv;
 }
 
 
@@ -6000,10 +5992,45 @@ nsHTMLEditor::IsAcceptableInputEvent(nsIDOMEvent* aEvent)
     return document == targetContent->GetCurrentDoc();
   }
 
-  // If this is for contenteditable, we should check whether the target is
-  // editable or not.
+  // This HTML editor is for contenteditable.  We need to check the validity of
+  // the target.
   nsCOMPtr<nsIContent> targetContent = do_QueryInterface(target);
   NS_ENSURE_TRUE(targetContent, false);
+
+  // If the event is a mouse event, we need to check if the target content is
+  // the focused editing host or its descendant.
+  nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
+  if (mouseEvent) {
+    nsIContent* editingHost = GetActiveEditingHost();
+    // If there is no active editing host, we cannot handle the mouse event
+    // correctly.
+    if (!editingHost) {
+      return false;
+    }
+    // If clicked on non-editable root element but the body element is the
+    // active editing host, we should assume that the click event is targetted.
+    if (targetContent == document->GetRootElement() &&
+        !targetContent->HasFlag(NODE_IS_EDITABLE) &&
+        editingHost == document->GetBodyElement()) {
+      targetContent = editingHost;
+    }
+    // If the target element is neither the active editing host nor a descendant
+    // of it, we may not be able to handle the event.
+    if (!nsContentUtils::ContentIsDescendantOf(targetContent, editingHost)) {
+      return false;
+    }
+    // If the clicked element has an independent selection, we shouldn't
+    // handle this click event.
+    if (targetContent->HasIndependentSelection()) {
+      return false;
+    }
+    // If the target content is editable, we should handle this event.
+    return targetContent->HasFlag(NODE_IS_EDITABLE);
+  }
+
+  // If the target of the other events which target focused element isn't
+  // editable or has an independent selection, this editor shouldn't handle the
+  // event.
   if (!targetContent->HasFlag(NODE_IS_EDITABLE) ||
       targetContent->HasIndependentSelection()) {
     return false;
@@ -6017,14 +6044,14 @@ nsHTMLEditor::IsAcceptableInputEvent(nsIDOMEvent* aEvent)
 }
 
 NS_IMETHODIMP
-nsHTMLEditor::GetPreferredIMEState(PRUint32 *aState)
+nsHTMLEditor::GetPreferredIMEState(IMEState *aState)
 {
-  if (IsReadonly() || IsDisabled()) {
-    *aState = nsIContent::IME_STATUS_DISABLE;
-    return NS_OK;
-  }
-
   // HTML editor don't prefer the CSS ime-mode because IE didn't do so too.
-  *aState = nsIContent::IME_STATUS_ENABLE;
+  aState->mOpen = IMEState::DONT_CHANGE_OPEN_STATE;
+  if (IsReadonly() || IsDisabled()) {
+    aState->mEnabled = IMEState::DISABLED;
+  } else {
+    aState->mEnabled = IMEState::ENABLED;
+  }
   return NS_OK;
 }
