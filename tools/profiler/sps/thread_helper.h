@@ -38,8 +38,6 @@
 
 // Cross-platform lightweight thread local data wrappers
 
-#include <signal.h>
-
 namespace mozilla {
 
 #if defined(XP_WIN)
@@ -78,6 +76,7 @@ bool create(key* mykey) {
 #else
 
 #include <pthread.h>
+#include <signal.h>
 
 typedef pthread_key_t key;
 
