@@ -277,7 +277,7 @@ nsHTMLCanvasElement::ExtractData(const nsAString& aType,
 
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return CallQueryInterface(imgStream, aStream);
+  imgStream.forget(aStream);
   return NS_OK;
 }
 
@@ -406,7 +406,8 @@ nsHTMLCanvasElement::MozGetAsFileImpl(const nsAString& aName,
   nsRefPtr<nsDOMMemoryFile> file =
     new nsDOMMemoryFile(imgData, imgSize, aName, type);
 
-  return CallQueryInterface(file, aResult);
+  file.forget(aResult);
+  return NS_OK;
 }
 
 nsresult
@@ -457,7 +458,7 @@ nsHTMLCanvasElement::GetContextHelper(const nsAString& aContextId,
     return rv;
   }
 
-  *aContext = ctx.forget().get();
+  ctx.forget(aContext);
 
   return rv;
 }
@@ -505,14 +506,14 @@ nsHTMLCanvasElement::GetContext(const nsAString& aContextId,
           jsid propid = JS_IdArrayGet(cx, props, i);
           jsval propname, propval;
           if (!JS_IdToValue(cx, propid, &propname) ||
-              !JS_GetPropertyById(cx, opts, propid, &propval))
-          {
+              !JS_GetPropertyById(cx, opts, propid, &propval)) {
             continue;
           }
 
           JSString *propnameString = JS_ValueToString(cx, propname);
           nsDependentJSString pstr;
           if (!propnameString || !pstr.init(cx, propnameString)) {
+            JS_DestroyIdArray(cx, props);
             mCurrentContext = nsnull;
             return NS_ERROR_FAILURE;
           }
@@ -527,6 +528,7 @@ nsHTMLCanvasElement::GetContext(const nsAString& aContextId,
             JSString *propvalString = JS_ValueToString(cx, propval);
             nsDependentJSString vstr;
             if (!propvalString || !vstr.init(cx, propvalString)) {
+              JS_DestroyIdArray(cx, props);
               mCurrentContext = nsnull;
               return NS_ERROR_FAILURE;
             }
@@ -534,6 +536,7 @@ nsHTMLCanvasElement::GetContext(const nsAString& aContextId,
             contextProps->SetPropertyAsAString(pstr, vstr);
           }
         }
+        JS_DestroyIdArray(cx, props);
       }
     }
 
@@ -572,10 +575,8 @@ nsHTMLCanvasElement::MozGetIPCContext(const nsAString& aContextId,
   if (!aContextId.Equals(NS_LITERAL_STRING("2d")))
     return NS_ERROR_INVALID_ARG;
 
-  nsresult rv;
-
   if (mCurrentContextId.IsEmpty()) {
-    rv = GetContextHelper(aContextId, false, getter_AddRefs(mCurrentContext));
+    nsresult rv = GetContextHelper(aContextId, false, getter_AddRefs(mCurrentContext));
     NS_ENSURE_SUCCESS(rv, rv);
     if (!mCurrentContext) {
       return NS_OK;
@@ -602,27 +603,26 @@ nsHTMLCanvasElement::UpdateContext(nsIPropertyBag *aNewContextOptions)
   if (!mCurrentContext)
     return NS_OK;
 
-  nsresult rv = NS_OK;
   nsIntSize sz = GetWidthHeight();
 
-  rv = mCurrentContext->SetIsOpaque(GetIsOpaque());
+  nsresult rv = mCurrentContext->SetIsOpaque(GetIsOpaque());
   if (NS_FAILED(rv)) {
     mCurrentContext = nsnull;
-    mCurrentContextId.AssignLiteral("");
+    mCurrentContextId.Truncate();
     return rv;
   }
 
   rv = mCurrentContext->SetContextOptions(aNewContextOptions);
   if (NS_FAILED(rv)) {
     mCurrentContext = nsnull;
-    mCurrentContextId.AssignLiteral("");
+    mCurrentContextId.Truncate();
     return rv;
   }
 
   rv = mCurrentContext->SetDimensions(sz.width, sz.height);
   if (NS_FAILED(rv)) {
     mCurrentContext = nsnull;
-    mCurrentContextId.AssignLiteral("");
+    mCurrentContextId.Truncate();
     return rv;
   }
 
@@ -715,10 +715,10 @@ nsHTMLCanvasElement::CountContexts()
 }
 
 nsICanvasRenderingContextInternal *
-nsHTMLCanvasElement::GetContextAtIndex (PRInt32 index)
+nsHTMLCanvasElement::GetContextAtIndex(PRInt32 index)
 {
   if (mCurrentContext && index == 0)
-    return mCurrentContext.get();
+    return mCurrentContext;
 
   return NULL;
 }

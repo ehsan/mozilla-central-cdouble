@@ -89,10 +89,6 @@ using namespace js;
 using namespace js::gc;
 using namespace js::frontend;
 
-#ifdef JS_TRACER
-extern uint8 js_opcode2extra[];
-#endif
-
 static JSBool
 NewTryNote(JSContext *cx, BytecodeEmitter *bce, JSTryNoteKind kind, uintN stackDepth,
            size_t start, size_t end);
@@ -204,21 +200,15 @@ UpdateDepth(JSContext *cx, BytecodeEmitter *bce, ptrdiff_t target)
     jsbytecode *pc;
     JSOp op;
     const JSCodeSpec *cs;
-    uintN extra, nuses;
+    uintN nuses;
     intN ndefs;
 
     pc = bce->code(target);
     op = (JSOp) *pc;
     cs = &js_CodeSpec[op];
-#ifdef JS_TRACER
-    extra = js_opcode2extra[op];
-#else
-    extra = 0;
-#endif
-    if ((cs->format & JOF_TMPSLOT_MASK) || extra) {
+    if ((cs->format & JOF_TMPSLOT_MASK)) {
         uintN depth = (uintN) bce->stackDepth +
-                      ((cs->format & JOF_TMPSLOT_MASK) >> JOF_TMPSLOT_SHIFT) +
-                      extra;
+                      ((cs->format & JOF_TMPSLOT_MASK) >> JOF_TMPSLOT_SHIFT);
         if (depth > bce->maxStackDepth)
             bce->maxStackDepth = depth;
     }
@@ -5767,9 +5757,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     JSOp op;
     uint32 argc;
     EmitLevelManager elm(bce);
-#if JS_HAS_SHARP_VARS
-    jsint sharpnum;
-#endif
+    jsint sharpnum = -1;
 
     JS_CHECK_RECURSION(cx, return JS_FALSE);
 
