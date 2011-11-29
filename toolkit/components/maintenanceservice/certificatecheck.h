@@ -40,22 +40,12 @@
 
 #include <wincrypt.h>
 
-struct PublisherInfo
-{
-  LPWSTR programName;
-  LPWSTR publisherLink;
-  LPWSTR moreInfoLink;
-};
-
 struct CertificateCheckInfo
 {
   LPCWSTR name;
   LPCWSTR issuer;
-  PublisherInfo signerInfo;
 };
 
-BOOL GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo, 
-                                PublisherInfo &info);
 BOOL DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext, 
                                   CertificateCheckInfo &infoToMatch);
 DWORD VerifyCertificateTrustForFile(LPCWSTR filePath);

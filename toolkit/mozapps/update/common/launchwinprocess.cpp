@@ -146,6 +146,18 @@ LaunchWinPostProcess(const WCHAR *appExe,
       !_wcsnicmp(exeasync, L"0", 2))
     async = false;
 
+  // If we are running PostUpdate twice, once under session 0 and once 
+  // under the callback session ID, then the first one must be synchronous in
+  // case the 2nd call adds the uninstall keys under the user before the first
+  // program adds them to HKLM.  The HKCU uninstall keys will only be set
+  // if the HKLM ones are not set.
+  DWORD myProcessID = GetCurrentProcessId();
+  DWORD mySessionID = 0;
+  if (ProcessIdToSessionId(myProcessID, &mySessionID) && 
+      !mySessionID && !userToken) {
+    async = false;
+  }
+
   // We want to launch the post update helper app to update the Windows
   // registry even if there is a failure with removing the uninstall.update
   // file or copying the update.log file.

@@ -110,9 +110,6 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
     DWORD valueBufSize = MAX_CHAR_COUNT * sizeof(WCHAR);
     WCHAR name[MAX_CHAR_COUNT] = { L'\0' };
     WCHAR issuer[MAX_CHAR_COUNT] = { L'\0' };
-    WCHAR programName[MAX_CHAR_COUNT] = { L'\0' };
-    WCHAR publisherLink[MAX_CHAR_COUNT] = { L'\0' };
-    WCHAR moreInfoLink[MAX_CHAR_COUNT] = { L'\0' };
 
     // Get the name from the registry
     retCode = RegQueryValueExW(subKey, L"name", 0, NULL, 
@@ -131,39 +128,9 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
       continue; // Try the next subkey
     }
 
-    // Get the program name from the registry
-    valueBufSize = MAX_CHAR_COUNT * sizeof(WCHAR);
-    retCode = RegQueryValueExW(subKey, L"programName", 0, NULL, 
-                               (LPBYTE)programName, &valueBufSize);
-    if (retCode != ERROR_SUCCESS) {
-      LOG(("Could not obtain program name from registry: %d\n", retCode));
-      continue; // Try the next subkey
-    }
-
-    // Get the publisher link from the registry
-    valueBufSize = MAX_CHAR_COUNT * sizeof(WCHAR);
-    retCode = RegQueryValueExW(subKey, L"publisherLink", 0, NULL, 
-                               (LPBYTE)publisherLink, &valueBufSize);
-    if (retCode != ERROR_SUCCESS) {
-      LOG(("Could not obtain publisher link from registry: %d\n", retCode));
-      continue; // Try the next subkey
-    }
-
-    valueBufSize = MAX_CHAR_COUNT * sizeof(WCHAR);
-    DWORD retLink = RegQueryValueExW(subKey, L"moreInfoLink", 0, NULL, 
-                                     (LPBYTE)moreInfoLink,  &valueBufSize);
-    if (retCode != ERROR_SUCCESS) {
-      LOG(("Could not obtain more info link from registry: %d\n", retCode));
-      continue; // Try the next subkey
-    }
-
     CertificateCheckInfo allowedCertificate = {
       name, 
       issuer, 
-      { programName,
-        publisherLink,
-        moreInfoLink
-      }
     };
 
     retCode = CheckCertificateForPEFile(filePath, allowedCertificate);

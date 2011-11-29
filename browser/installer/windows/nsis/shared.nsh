@@ -461,7 +461,7 @@
 !macroend
 !define SetUninstallKeys "!insertmacro SetUninstallKeys"
 
-Function SetuNinstallKeysFn
+Function SetUninstallKeysFn
   StrCpy $0 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})"
 
   WriteRegStr HKLM "$0" "${BrandShortName}InstallerTest" "Write Test"
