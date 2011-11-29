@@ -71,6 +71,7 @@
 #include "nsIScrollableFrame.h"
 #include "nsIView.h"
 #include "nsIViewManager.h"
+#include "nsIWidget.h"
 #include "nsRange.h"
 #include "nsIPresShell.h"
 #include "nsPresContext.h"
@@ -118,6 +119,7 @@
 #include "nsHTMLFieldSetElement.h"
 #include "nsHTMLMenuElement.h"
 #include "nsPLDOMEvent.h"
+#include "nsIScriptError.h"
 
 #include "mozilla/Preferences.h"
 #include "mozilla/dom/FromParser.h"
@@ -474,13 +476,6 @@ nsGenericHTMLElement::GetAccessKeyLabel(nsAString& aLabel)
   return NS_OK;
 }
 
-static bool
-IsBody(nsIContent *aContent)
-{
-  return aContent->NodeInfo()->Equals(nsGkAtoms::body) &&
-         aContent->IsHTML();
-}
-
 static bool IS_TABLE_CELL(nsIAtom* frameType) {
   return nsGkAtoms::tableCellFrame == frameType ||
     nsGkAtoms::bcTableCellFrame == frameType;
@@ -516,7 +511,7 @@ nsGenericHTMLElement::GetOffsetRect(nsRect& aRect, nsIContent** aOffsetParent)
   Element* docElement = GetCurrentDoc()->GetRootElement();
   nsIContent* content = frame->GetContent();
 
-  if (content && (IsBody(content) || content == docElement)) {
+  if (content && (content->IsHTML(nsGkAtoms::body) || content == docElement)) {
     parent = frame;
   }
   else {
@@ -550,7 +545,7 @@ nsGenericHTMLElement::GetOffsetRect(nsRect& aRect, nsIContent** aOffsetParent)
 
         // Break if the ancestor frame type makes it suitable as offset parent
         // and this element is *not* positioned or if we found the body element.
-        if (isOffsetParent || IsBody(content)) {
+        if (isOffsetParent || content->IsHTML(nsGkAtoms::body)) {
           *aOffsetParent = content;
           NS_ADDREF(*aOffsetParent);
           break;
@@ -1090,8 +1085,8 @@ NS_IMETHODIMP
 nsGenericHTMLElement::SetDraggable(bool aDraggable)
 {
   return SetAttrHelper(nsGkAtoms::draggable,
-                       aDraggable ? NS_LITERAL_STRING("true") :
-                                    NS_LITERAL_STRING("false"));
+                       aDraggable ? NS_LITERAL_STRING("true")
+                                  : NS_LITERAL_STRING("false"));
 }
 
 bool
@@ -1172,8 +1167,7 @@ nsGenericHTMLElement::FindAncestorForm(nsHTMLFormElement* aCurrentForm)
   nsIContent* content = this;
   while (content != bindingParent && content) {
     // If the current ancestor is a form, return it as our form
-    if (content->Tag() == nsGkAtoms::form &&
-        content->IsHTML()) {
+    if (content->IsHTML(nsGkAtoms::form)) {
 #ifdef DEBUG
       if (!nsContentUtils::IsInSameAnonymousTree(this, content)) {
         // It's possible that we started unbinding at |content| or
@@ -1565,10 +1559,6 @@ nsGenericHTMLElement::GetPrimaryPresState(nsGenericHTMLElement* aContent,
     result = history->GetState(key, aPresState);
     if (!*aPresState) {
       *aPresState = new nsPresState();
-      if (!*aPresState) {
-        return NS_ERROR_OUT_OF_MEMORY;
-      }
-        
       result = history->AddState(key, *aPresState);
     }
   }
@@ -1659,7 +1649,7 @@ nsGenericHTMLElement::GetPresContext()
   // Get the document
   nsIDocument* doc = GetDocument();
   if (doc) {
-    // Get presentation shell 0
+    // Get presentation shell.
     nsIPresShell *presShell = doc->GetShell();
     if (presShell) {
       return presShell->GetPresContext();
@@ -1794,9 +1784,9 @@ nsGenericHTMLElement::ParseImageAttribute(nsIAtom* aAttribute,
       (aAttribute == nsGkAtoms::height)) {
     return aResult.ParseSpecialIntValue(aString);
   }
-  else if ((aAttribute == nsGkAtoms::hspace) ||
-           (aAttribute == nsGkAtoms::vspace) ||
-           (aAttribute == nsGkAtoms::border)) {
+  if ((aAttribute == nsGkAtoms::hspace) ||
+      (aAttribute == nsGkAtoms::vspace) ||
+      (aAttribute == nsGkAtoms::border)) {
     return aResult.ParseIntWithBounds(aString, 0);
   }
   return false;
@@ -2663,7 +2653,7 @@ nsGenericHTMLFormElement::GetForm(nsIDOMHTMLFormElement** aForm)
   return NS_OK;
 }
 
-PRUint32
+nsIContent::IMEState
 nsGenericHTMLFormElement::GetDesiredIMEState()
 {
   nsCOMPtr<nsIEditor> editor = nsnull;
@@ -2673,7 +2663,7 @@ nsGenericHTMLFormElement::GetDesiredIMEState()
   nsCOMPtr<nsIEditorIMESupport> imeEditor = do_QueryInterface(editor);
   if (!imeEditor)
     return nsGenericHTMLElement::GetDesiredIMEState();
-  PRUint32 state;
+  IMEState state;
   rv = imeEditor->GetPreferredIMEState(&state);
   if (NS_FAILED(rv))
     return nsGenericHTMLElement::GetDesiredIMEState();
@@ -3137,8 +3127,7 @@ nsGenericHTMLFormElement::UpdateFormOwner(bool aBindToTree,
                      "element should be equals to the current element "
                      "associated with the id in @form!");
 
-        if (element && element->Tag() == nsGkAtoms::form &&
-            element->IsHTML()) {
+        if (element && element->IsHTML(nsGkAtoms::form)) {
           mForm = static_cast<nsHTMLFormElement*>(element);
         }
       }
@@ -3316,9 +3305,8 @@ nsGenericHTMLFrameElement::GetFrameLoader(nsIFrameLoader **aFrameLoader)
 NS_IMETHODIMP_(already_AddRefed<nsFrameLoader>)
 nsGenericHTMLFrameElement::GetFrameLoader()
 {
-  nsFrameLoader* loader = mFrameLoader;
-  NS_IF_ADDREF(loader);
-  return loader;
+  nsRefPtr<nsFrameLoader> loader = mFrameLoader;
+  return loader.forget();
 }
 
 NS_IMETHODIMP
@@ -3398,8 +3386,7 @@ nsGenericHTMLFrameElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                                               aValue, aNotify);
   NS_ENSURE_SUCCESS(rv, rv);
   
-  if (aNameSpaceID == kNameSpaceID_None &&
-      aName == nsGkAtoms::src) {
+  if (aNameSpaceID == kNameSpaceID_None && aName == nsGkAtoms::src) {
     // Don't propagate error here. The attribute was successfully set, that's
     // what we should reflect.
     LoadSrc();
@@ -3453,18 +3440,18 @@ nsGenericHTMLFrameElement::SizeOf() const
 nsresult
 nsGenericHTMLElement::Blur()
 {
-  if (!ShouldBlur(this))
+  if (!ShouldBlur(this)) {
     return NS_OK;
+  }
 
   nsIDocument* doc = GetCurrentDoc();
-  if (!doc)
+  if (!doc) {
     return NS_OK;
+  }
 
   nsIDOMWindow* win = doc->GetWindow();
   nsIFocusManager* fm = nsFocusManager::GetFocusManager();
   return (win && fm) ? fm->ClearFocus(win) : NS_OK;
-
-  return NS_OK;
 }
 
 nsresult
@@ -3483,6 +3470,12 @@ nsresult nsGenericHTMLElement::MozRequestFullScreen()
   // and it also makes it harder for bad guys' script to go full-screen and
   // spoof the browser chrome/window and phish logins etc.
   if (!nsContentUtils::IsRequestFullScreenAllowed()) {
+    nsContentUtils::ReportToConsole(nsContentUtils::eDOM_PROPERTIES,
+                                    "FullScreenDeniedNotInputDriven",
+                                    nsnull, 0, nsnull,
+                                    EmptyString(), 0, 0,
+                                    nsIScriptError::warningFlag,
+                                    "DOM", OwnerDoc());
     nsRefPtr<nsPLDOMEvent> e =
       new nsPLDOMEvent(OwnerDoc(),
                        NS_LITERAL_STRING("mozfullscreenerror"),
@@ -3505,8 +3498,8 @@ nsresult nsGenericHTMLElement::Click()
   // Strong in case the event kills it
   nsCOMPtr<nsIDocument> doc = GetCurrentDoc();
 
-  nsCOMPtr<nsIPresShell> shell = nsnull;
-  nsRefPtr<nsPresContext> context = nsnull;
+  nsCOMPtr<nsIPresShell> shell;
+  nsRefPtr<nsPresContext> context;
   if (doc) {
     shell = doc->GetShell();
     if (shell) {
@@ -3653,8 +3646,9 @@ nsGenericHTMLElement::GetEditor(nsIEditor** aEditor)
 {
   *aEditor = nsnull;
 
-  if (!nsContentUtils::IsCallerTrustedForWrite())
+  if (!nsContentUtils::IsCallerTrustedForWrite()) {
     return NS_ERROR_DOM_SECURITY_ERR;
+  }
 
   return GetEditorInternal(aEditor);
 }
@@ -3686,6 +3680,8 @@ nsGenericHTMLElement::GetAssociatedEditor()
 bool
 nsGenericHTMLElement::IsCurrentBodyElement()
 {
+  // TODO Bug 698498: Should this handle the case where GetBody returns a
+  //                  frameset?
   nsCOMPtr<nsIDOMHTMLBodyElement> bodyElement = do_QueryInterface(this);
   if (!bodyElement) {
     return false;

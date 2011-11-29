@@ -48,11 +48,6 @@
 #include "vm/RegExpObject-inl.h"
 #include "vm/RegExpStatics-inl.h"
 
-#ifdef JS_TRACER
-#include "jstracer.h"
-using namespace nanojit;
-#endif
-
 using namespace js;
 using js::detail::RegExpPrivate;
 using js::detail::RegExpPrivateCode;
@@ -342,7 +337,8 @@ regexp_finalize(JSContext *cx, JSObject *obj)
 static void
 regexp_trace(JSTracer *trc, JSObject *obj)
 {
-    obj->asRegExp()->purge(trc->context);
+    if (IS_GC_MARKING_TRACER(trc))
+        obj->asRegExp()->purge(trc->context);
 }
 
 Class js::RegExpClass = {
@@ -510,11 +506,6 @@ js_CloneRegExpObject(JSContext *cx, JSObject *obj, JSObject *proto)
     RegExpObjectBuilder builder(cx);
     return builder.clone(obj->asRegExp(), proto->asRegExp());
 }
-
-#ifdef JS_TRACER
-JS_DEFINE_CALLINFO_3(extern, OBJECT, js_CloneRegExpObject, CONTEXT, OBJECT, OBJECT, 0,
-                     ACCSET_STORE_ANY)
-#endif
 
 JSFlatString *
 RegExpObject::toString(JSContext *cx) const
