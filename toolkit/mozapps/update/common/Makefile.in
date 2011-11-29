@@ -52,15 +52,21 @@ endif
 
 CPPSRCS = \
   updatelogging.cpp \
-  launchwinprocess.cpp \
-  uachelper.cpp \
   $(NULL)
 
 EXPORTS = updatelogging.h \
 	updatedefines.h \
-	launchwinprocess.h \
-	uachelper.h \
   $(NULL)
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
+CPPSRCS += launchwinprocess.cpp \
+  uachelper.cpp \
+  $(NULL)
+
+EXPORTS = launchwinprocess.h \
+  uachelper.h \
+  $(NULL)
+endif
 
 include $(topsrcdir)/config/rules.mk
 
