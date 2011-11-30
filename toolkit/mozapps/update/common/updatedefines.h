@@ -71,7 +71,7 @@
   PR_BEGIN_MACRO \
   int _count = count - 1; \
   _snprintf(dest, _count, fmt, ##__VA_ARGS__); \
-  dest[_count] = '\0'; \
+  dest[_count] = L'\0'; \
   PR_END_MACRO
 # define NS_taccess _waccess
 # define NS_tchdir _wchdir

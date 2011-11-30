@@ -178,7 +178,7 @@ GetLogDirectoryPath(WCHAR *path)
 BOOL
 GetBackupLogPath(LPWSTR path, LPCWSTR basePath, int logNumber)
 {
-  WCHAR logName[32];
+  WCHAR logName[64];
   wcscpy(path, basePath);
   if (logNumber <= 0) {
     swprintf(logName, L"maintenanceservice.log");

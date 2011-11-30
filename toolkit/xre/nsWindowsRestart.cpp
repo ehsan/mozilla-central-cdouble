@@ -596,7 +596,6 @@ WinLaunchChild(const PRUnichar *exePath,
     // the user's token.
     LPVOID environmentBlock = NULL;
     if (!CreateEnvironmentBlock(&environmentBlock, userToken, TRUE)) {
-      //LOG(("Could not create an environment block, setting it to NULL.\n"));
       environmentBlock = NULL;
     }
 
@@ -611,7 +610,7 @@ WinLaunchChild(const PRUnichar *exePath,
                               CREATE_NEW_CONSOLE |
 #endif
                               CREATE_UNICODE_ENVIRONMENT,
-                              environmentBlock,  // inherit my environment
+                              environmentBlock,
                               NULL,  // use my current directory
                               &si,
                               &pi);

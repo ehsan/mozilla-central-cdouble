@@ -344,13 +344,13 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   LPWSTR* argvTmp = CommandLineToArgvW(cmdlineBufferWide, &argcTmp);
 
   // Check for callback application sign problems
-  BOOL callbakSignProblem = FALSE;
+  BOOL callbackSignProblem = FALSE;
 #ifndef DISABLE_CALLBACK_AUTHENTICODE_CHECK
   // If we have less than 6 params, then there is no callback to check, so
   // we have no callback sign problem.
   if (argcTmp > 5) {
     LPWSTR callbackApplication = argvTmp[5];
-    callbakSignProblem = 
+    callbackSignProblem = 
       !DoesBinaryMatchAllowedCertificates(argvTmp[2], callbackApplication);
   }
 #endif
@@ -366,7 +366,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
   // In order to proceed with the update we need at least 3 command line
   // parameters and no sign problems.
-  if (argcTmp > 2 && !updaterSignProblem && !callbakSignProblem) {
+  if (argcTmp > 2 && !updaterSignProblem && !callbackSignProblem) {
     BOOL updateProcessWasStarted = FALSE;
     if (StartUpdateProcess(updaterPath, workingDirectory, 
                            argcTmp, argvTmp,
@@ -408,7 +408,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       LOG(("Could not write update.status service update failure."
            "Last error: %d\n", GetLastError()));
     }
-  } else if (callbakSignProblem) {
+  } else if (callbackSignProblem) {
     LOG(("Will not run updater nor callback due to callback sign error "
          "in session %d. Updating update.status.  Last error: %d\n",
          sessionID, GetLastError()));
@@ -549,7 +549,7 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
   PathAppendSafe(maintserviceInstallerPath, 
                  L"maintenanceservice_installer.exe");
   WCHAR cmdLine[64];
-  wcscpy(cmdLine, L"app.exe /Upgrade");
+  wcscpy(cmdLine, L"dummyparam.exe /Upgrade");
   BOOL selfUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
                                                  cmdLine, 
                                                  NULL, NULL, FALSE, 
@@ -635,6 +635,9 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
                             callbackArgs, 
                             NULL, NULL, FALSE,
                             CREATE_DEFAULT_ERROR_MODE |
+#ifdef DEBUG
+                            CREATE_NEW_CONSOLE |
+#endif
                             CREATE_UNICODE_ENVIRONMENT,
                             environmentBlock, 
                             callbackDirectory, 
