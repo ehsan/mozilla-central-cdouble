@@ -55,17 +55,6 @@
 # endif
 #endif
 
-#if defined(XP_WIN)
-#define NS_tsnprintf(dest, count, fmt, ...) \
-  PR_BEGIN_MACRO \
-  int _count = count - 1; \
-  _snwprintf(dest, _count, fmt, ##__VA_ARGS__); \
-  dest[_count] = L'\0'; \
-  PR_END_MACRO
-#else
-#define NS_tsnprintf snprintf
-#endif
-
 class UpdateLog
 {
 public:
