@@ -104,7 +104,7 @@ const ERR_RENAME_FILE = "rename_file: failed to rename file";
 const ERR_UNABLE_OPEN_DEST = "unable to open destination file";
 const ERR_BACKUP_DISCARD = "backup_discard: unable to remove";
 
-const LOG_SVC_SUCCESSFUL_LAUNCH = "updater.exe was launched and run successfully!\n";
+const LOG_SVC_SUCCESSFUL_LAUNCH = "updater.exe was launched and run successfully!";
 
 // variables are used instead of contants so tests can override these values
 var gCallbackBinFile = "callback_app" + BIN_SUFFIX;
@@ -464,20 +464,20 @@ let gServiceLaunchedCallbackArgs = null;
  */
 function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpdatesDir) {
   // Check the service logs for a successful update
-  function checkServiceLogs() {
-    let file = getServiceLogFile();
-    let contents = readFile(file);
+  function checkServiceLogs(aOriginalContents) {
+    let contents = readServiceLogFile();
     logTestInfo("The contents of maintenanceservice.log:\n" + contents + "\n");
+    do_check_neq(contents, aOriginalContents);
     do_check_neq(contents.indexOf(LOG_SVC_SUCCESSFUL_LAUNCH), -1);
   }
-  function getServiceLogFile() {
+  function readServiceLogFile() {
     let file = AUS_Cc["@mozilla.org/file/directory_service;1"].
                getService(AUS_Ci.nsIProperties).
                get("CmAppData", AUS_Ci.nsIFile);
     file.append("Mozilla");
     file.append("logs");
     file.append("maintenanceservice.log");
-    return file;
+    return readFile(file);
   }
 
   // Prevent the cleanup function from begin run more than once
@@ -514,10 +514,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
     });
   }
 
-  let svcLogFile = getServiceLogFile();
-  if (svcLogFile.exists()) {
-    svcLogFile.remove(false);
-  }
+  let svcOriginalLog = readServiceLogFile();
 
   let appArgsLogPath = getAppArgsLogPath();
   gServiceLaunchedCallbackLog = appArgsLogPath.replace(/^"|"$/g, "");
@@ -576,7 +573,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
     timer.cancel();
     timer = null;
 
-    checkServiceLogs();
+    checkServiceLogs(svcOriginalLog);
 
     aCallback();
   }
