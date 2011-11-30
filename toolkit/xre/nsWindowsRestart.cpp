@@ -55,9 +55,11 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <rpc.h>
+#include <userenv.h>
 
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "rpcrt4.lib")
+#pragma comment(lib, "userenv.lib")
 
 #ifndef ERROR_ELEVATION_REQUIRED
 #define ERROR_ELEVATION_REQUIRED 740L
@@ -573,7 +575,9 @@ WinLaunchChild(const PRUnichar *exePath,
   if (!cl)
     return FALSE;
 
-  STARTUPINFOW si = {sizeof(si), 0};
+  STARTUPINFOW si = {0};
+  si.cb = sizeof(STARTUPINFOW);
+  si.lpDesktop = L"winsta0\\Default";
   PROCESS_INFORMATION pi = {0};
 
   if (userToken == NULL) {
@@ -588,17 +592,33 @@ WinLaunchChild(const PRUnichar *exePath,
                         &si,
                         &pi);
   } else {
+    // Create an environment block for the process we're about to start using
+    // the user's token.
+    LPVOID environmentBlock = NULL;
+    if (!CreateEnvironmentBlock(&environmentBlock, userToken, TRUE)) {
+      //LOG(("Could not create an environment block, setting it to NULL.\n"));
+      environmentBlock = NULL;
+    }
+
     ok = CreateProcessAsUserW(userToken, 
                               exePath,
                               cl,
                               NULL,  // no special security attributes
                               NULL,  // no special thread attributes
                               FALSE, // don't inherit filehandles
-                              0,     // No special process creation flags
-                              NULL,  // inherit my environment
+                              CREATE_DEFAULT_ERROR_MODE |
+#ifdef DEBUG
+                              CREATE_NEW_CONSOLE |
+#endif
+                              CREATE_UNICODE_ENVIRONMENT,
+                              environmentBlock,  // inherit my environment
                               NULL,  // use my current directory
                               &si,
                               &pi);
+
+    if (environmentBlock) {
+      DestroyEnvironmentBlock(environmentBlock);
+    }
   }
 
   if (ok) {
