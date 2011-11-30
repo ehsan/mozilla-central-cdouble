@@ -584,11 +584,14 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     timer.cancel();
     timer = null;
 
-    if (aCheckSvcLog) {
-      checkServiceLogs(svcOriginalLog);
-    }
+    // Give the service enough time to write its log and finish up
+    do_timeout(1000, function() {
+      if (aCheckSvcLog) {
+        checkServiceLogs(svcOriginalLog);
+      }
 
-    aCallback();
+      aCallback();
+    });
   }
 
   let timer = AUS_Cc["@mozilla.org/timer;1"].createInstance(AUS_Ci.nsITimer);
