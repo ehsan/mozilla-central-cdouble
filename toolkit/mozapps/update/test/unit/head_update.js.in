@@ -838,6 +838,7 @@ function checkUpdateLogContains(aCheckString) {
   let updateLog = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX, true);
   updateLog.append(FILE_UPDATE_LOG);
   let updateLogContents = readFileBytes(updateLog);
+  logTestInfo("log file contents:\n" + updateLogContents + "\n");
   do_check_true(updateLogContents.indexOf(aCheckString) != -1);
 }
 
