@@ -46,8 +46,6 @@
 #include "workmonitor.h"
 #include "shlobj.h"
 
-PRLogModuleInfo *gServiceLog = NULL;
-
 SERVICE_STATUS gSvcStatus = { 0 }; 
 SERVICE_STATUS_HANDLE gSvcStatusHandle = NULL; 
 HANDLE ghSvcStopEvent = NULL;

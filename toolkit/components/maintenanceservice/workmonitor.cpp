@@ -614,8 +614,7 @@ StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
   if (backgroundUpdate) {
     // Skip updating the service for background updates.  We'll do this when
     // switching to the updated application later on.
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Skipping self update in background update mode\n"));
+    LOG(("Skipping self update in background update mode\n"));
     return false;
   }
 
