@@ -610,7 +610,7 @@ WinLaunchChild(const PRUnichar *exePath,
                               CREATE_NEW_CONSOLE |
 #endif
                               CREATE_UNICODE_ENVIRONMENT,
-                              environmentBlock,  // inherit my environment
+                              environmentBlock,
                               NULL,  // use my current directory
                               &si,
                               &pi);
