@@ -66,146 +66,80 @@ CheckCertificateForPEFile(LPCWSTR filePath,
   PCCERT_CONTEXT pCertContext = NULL;
   PCMSG_SIGNER_INFO pSignerInfo = NULL;
   DWORD lastError = ERROR_SUCCESS;
-  PublisherInfo progPubInfo;
-  ZeroMemory(&progPubInfo, sizeof(progPubInfo));
 
-  // SEH like exception handling is only used for cleanup of ugly C API calls.
-  __try {
-    // Get the HCERTSTORE and HCRYPTMSG from the signed file.
-    DWORD dwEncoding, dwContentType, dwFormatType;
-    BOOL result = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
-                                   filePath, 
-                                   CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
-                                   CERT_QUERY_CONTENT_FLAG_ALL, 
-                                   0, &dwEncoding, &dwContentType,
-                                   &dwFormatType, &hStore, &hMsg, NULL);
-    if (!result) {
-      lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CryptQueryObject failed with %d\n", lastError));
-      __leave;
-    }
+  // Get the HCERTSTORE and HCRYPTMSG from the signed file.
+  DWORD dwEncoding, dwContentType, dwFormatType;
+  BOOL result = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
+                                  filePath, 
+                                  CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
+                                  CERT_QUERY_CONTENT_FLAG_ALL, 
+                                  0, &dwEncoding, &dwContentType,
+                                  &dwFormatType, &hStore, &hMsg, NULL);
+  if (!result) {
+    lastError = GetLastError();
+    LOG(("CryptQueryObject failed with %d\n", lastError));
+    goto cleanup;
+  }
 
-    // Pass in NULL to get the needed signer information size.
-    DWORD dwSignerInfo;
-    result = CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, 
-                              NULL, &dwSignerInfo);
-    if (!result) {
-      lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CryptMsgGetParam failed with %d\n", lastError));
-      __leave;
-    }
+  // Pass in NULL to get the needed signer information size.
+  DWORD dwSignerInfo;
+  result = CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, 
+                            NULL, &dwSignerInfo);
+  if (!result) {
+    lastError = GetLastError();
+    LOG(("CryptMsgGetParam failed with %d\n", lastError));
+    goto cleanup;
+  }
 
-    // Allocate the needed size for the signer information.
-    pSignerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, dwSignerInfo);
-    if (!pSignerInfo) {
-      lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Unable to allocate memory for Signer Info.\n"));
-      __leave;
-    }
+  // Allocate the needed size for the signer information.
+  pSignerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, dwSignerInfo);
+  if (!pSignerInfo) {
+    lastError = GetLastError();
+    LOG(("Unable to allocate memory for Signer Info.\n"));
+    goto cleanup;
+  }
 
-    // Get the signer information (PCMSG_SIGNER_INFO).
-    // In particular we want the issuer and serial number.
-    result = CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, 
-                              (PVOID)pSignerInfo, &dwSignerInfo);
-    if (!result) {
-      lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CryptMsgGetParam failed with %d\n", lastError));
-      __leave;
-    }
+  // Get the signer information (PCMSG_SIGNER_INFO).
+  // In particular we want the issuer and serial number.
+  result = CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, 
+                            (PVOID)pSignerInfo, &dwSignerInfo);
+  if (!result) {
+    lastError = GetLastError();
+    LOG(("CryptMsgGetParam failed with %d\n", lastError));
+    goto cleanup;
+  }
 
-    // Search for the signer certificate in the certificate store.
-    CERT_INFO CertInfo;     
-    CertInfo.Issuer = pSignerInfo->Issuer;
-    CertInfo.SerialNumber = pSignerInfo->SerialNumber;
-    pCertContext = CertFindCertificateInStore(hStore, ENCODING, 0, 
-                                              CERT_FIND_SUBJECT_CERT,
-                                              (PVOID)&CertInfo, NULL);
-    if (!pCertContext) {
-      lastError = GetLastError();
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertFindCertificateInStore failed with %d\n", lastError));
-      __leave;
-    }
+  // Search for the signer certificate in the certificate store.
+  CERT_INFO CertInfo;     
+  CertInfo.Issuer = pSignerInfo->Issuer;
+  CertInfo.SerialNumber = pSignerInfo->SerialNumber;
+  pCertContext = CertFindCertificateInStore(hStore, ENCODING, 0, 
+                                            CERT_FIND_SUBJECT_CERT,
+                                            (PVOID)&CertInfo, NULL);
+  if (!pCertContext) {
+    lastError = GetLastError();
+    LOG(("CertFindCertificateInStore failed with %d\n", lastError));
+    goto cleanup;
+  }
 
-    if (!DoCertificateAttributesMatch(pCertContext, infoToMatch)) {
-      lastError = ERROR_NOT_FOUND;
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Certificate did not match issuer or name\n"));
-      __leave;
-    }
+  if (!DoCertificateAttributesMatch(pCertContext, infoToMatch)) {
+    lastError = ERROR_NOT_FOUND;
+    LOG(("Certificate did not match issuer or name\n"));
+    goto cleanup;
+  }
 
-    if (infoToMatch.signerInfo.programName || 
-        infoToMatch.signerInfo.publisherLink || 
-        infoToMatch.signerInfo.moreInfoLink) {
-      // Get program name and publisher information from the signer info.
-      if (!GetProgramAndPublisherInfo(pSignerInfo, progPubInfo)) {
-        lastError = GetLastError();
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("GetProgramAndPublisherInfo failed with %d\n", lastError));
-        __leave;
-      }
-
-      if (infoToMatch.signerInfo.programName && 
-          wcslen(infoToMatch.signerInfo.programName) > 0 &&
-          ((infoToMatch.signerInfo.programName && !progPubInfo.programName) ||
-           (wcscmp(infoToMatch.signerInfo.programName, 
-                   progPubInfo.programName)))) {
-        lastError = ERROR_NOT_FOUND;
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("Program name did not match\n"));
-        __leave;
-      }
-
-      if (infoToMatch.signerInfo.publisherLink && 
-          wcslen(infoToMatch.signerInfo.publisherLink) > 0 &&
-          ((infoToMatch.signerInfo.publisherLink && 
-           !progPubInfo.publisherLink) ||
-           (wcscmp(infoToMatch.signerInfo.publisherLink, 
-                   progPubInfo.publisherLink)))) {
-        lastError = ERROR_NOT_FOUND;
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("Publisher link did not match\n"));
-        __leave;
-      }
-
-      if (infoToMatch.signerInfo.moreInfoLink && 
-          wcslen(infoToMatch.signerInfo.moreInfoLink) > 0 &&
-          ((infoToMatch.signerInfo.moreInfoLink && 
-            !progPubInfo.moreInfoLink) ||
-           (wcscmp(infoToMatch.signerInfo.moreInfoLink, 
-                   progPubInfo.moreInfoLink)))) {
-        lastError = ERROR_NOT_FOUND;
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("MoreInfo link did not match\n"));
-        __leave;
-      }
-    }
-  } __finally {
-    if (progPubInfo.programName) {
-      LocalFree(progPubInfo.programName);
-    }
-    if (progPubInfo.publisherLink) {
-      LocalFree(progPubInfo.publisherLink);
-    }
-    if (progPubInfo.moreInfoLink) {
-      LocalFree(progPubInfo.moreInfoLink);
-    }
-    if (pSignerInfo) {
-      LocalFree(pSignerInfo);
-    }
-    if (pCertContext) {
-      CertFreeCertificateContext(pCertContext);
-    }
-    if (hStore) { 
-      CertCloseStore(hStore, 0);
-    }
-    if (hMsg) { 
-      CryptMsgClose(hMsg);
-    }
+cleanup:
+  if (pSignerInfo) {
+    LocalFree(pSignerInfo);
+  }
+  if (pCertContext) {
+    CertFreeCertificateContext(pCertContext);
+  }
+  if (hStore) { 
+    CertCloseStore(hStore, 0);
+  }
+  if (hMsg) { 
+    CryptMsgClose(hMsg);
   }
   return lastError;
 }
@@ -230,32 +164,29 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
                                CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                CERT_NAME_ISSUER_FLAG, NULL,
                                NULL, 0);
+
     if (!dwData) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed.\n"));
+      LOG(("CertGetNameString failed.\n"));
       return FALSE;
     }
 
     // Allocate memory for Issuer name buffer.
     LPTSTR szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(WCHAR));
     if (!szName) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Unable to allocate memory for issuer name.\n"));
+      LOG(("Unable to allocate memory for issuer name.\n"));
       return FALSE;
     }
 
     // Get Issuer name.
     if (!CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
                             CERT_NAME_ISSUER_FLAG, NULL, szName, dwData)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed.\n"));
+      LOG(("CertGetNameString failed.\n"));
       LocalFree(szName);
       return FALSE;
     }
 
     // If the issuer does not match, return a failure.
-    if (infoToMatch.issuer &&
-        wcslen(infoToMatch.issuer) &&
+    if (!infoToMatch.issuer ||
         wcscmp(szName, infoToMatch.issuer)) {
       LocalFree(szName);
       return FALSE;
@@ -270,31 +201,27 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
     dwData = CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                0, NULL, NULL, 0);
     if (!dwData) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed.\n"));
+      LOG(("CertGetNameString failed.\n"));
       return FALSE;
     }
 
     // Allocate memory for the name buffer.
     szName = (LPTSTR)LocalAlloc(LPTR, dwData * sizeof(WCHAR));
     if (!szName) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Unable to allocate memory for subject name.\n"));
+      LOG(("Unable to allocate memory for subject name.\n"));
       return FALSE;
     }
 
     // Obtain the name.
     if (!(CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0,
                             NULL, szName, dwData))) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CertGetNameString failed.\n"));
+      LOG(("CertGetNameString failed.\n"));
       LocalFree(szName);
       return FALSE;
     }
 
     // If the issuer does not match, return a failure.
-    if (infoToMatch.name && 
-        wcslen(infoToMatch.name) > 0 && 
+    if (!infoToMatch.name || 
         wcscmp(szName, infoToMatch.name)) {
       LocalFree(szName);
       return FALSE;
@@ -323,118 +250,6 @@ AllocateAndCopyWideString(LPCWSTR inputString)
     lstrcpyW(outputString, inputString);
   }
   return outputString;
-}
-
-/**
- * Fills the publisher info from the signer info pointer
- *
- * @param  pSignerInfo  The signer info to fill from
- * @param  info         The publisher info to fill to
- * @return TRUE if successful.
- */
-BOOL 
-GetProgramAndPublisherInfo(PCMSG_SIGNER_INFO pSignerInfo,
-                           PublisherInfo &info)
-{
-  BOOL result = FALSE;
-  PSPC_SP_OPUS_INFO OpusInfo = NULL;  
-  DWORD dwData;
-
-  __try {
-    // Loop through authenticated attributes and 
-    // find SPC_SP_OPUS_INFO_OBJID OID.
-    for (DWORD n = 0; n < pSignerInfo->AuthAttrs.cAttr; n++) {
-      if (lstrcmpA(SPC_SP_OPUS_INFO_OBJID, 
-                   pSignerInfo->AuthAttrs.rgAttr[n].pszObjId) == 0) {
-        // Get Size of SPC_SP_OPUS_INFO structure.
-        _CRYPTOAPI_BLOB &attr1 = pSignerInfo->AuthAttrs.rgAttr[n].rgValue[0];
-        result = CryptDecodeObject(ENCODING,
-                                   SPC_SP_OPUS_INFO_OBJID,
-                                   attr1.pbData,
-                                   attr1.cbData,
-                                   0, NULL, &dwData);
-        if (!result) {
-          PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-                 ("CryptDecodeObject failed with %d\n", GetLastError()));
-          __leave;
-        }
-
-        // Allocate memory for SPC_SP_OPUS_INFO structure.
-        OpusInfo = (PSPC_SP_OPUS_INFO)LocalAlloc(LPTR, dwData);
-        if (!OpusInfo) {
-          PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-                 ("Unable to allocate memory for Publisher Info.\n"));
-          __leave;
-        }
-
-        // Decode and get SPC_SP_OPUS_INFO structure.
-        _CRYPTOAPI_BLOB &attr2 = pSignerInfo->AuthAttrs.rgAttr[n].rgValue[0];
-        result = CryptDecodeObject(ENCODING,
-                                   SPC_SP_OPUS_INFO_OBJID,
-                                   attr2.pbData,
-                                   attr2.cbData,
-                                   0, OpusInfo, &dwData);
-        if (!result) {
-          PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-                 ("CryptDecodeObject failed with %d\n", GetLastError()));
-          __leave;
-        }
-
-        // Fill in Program Name if present.
-        if (OpusInfo->pwszProgramName) {
-          info.programName =
-            AllocateAndCopyWideString(OpusInfo->pwszProgramName);
-        } else {
-          info.programName = NULL;
-        }
-
-        // Fill in Publisher Information if present.
-        if (OpusInfo->pPublisherInfo) {
-          switch (OpusInfo->pPublisherInfo->dwLinkChoice) {
-            case SPC_URL_LINK_CHOICE:
-              info.publisherLink =
-                AllocateAndCopyWideString(OpusInfo->pPublisherInfo->pwszUrl);
-              break;
-            case SPC_FILE_LINK_CHOICE:
-              info.publisherLink =
-                AllocateAndCopyWideString(OpusInfo->pPublisherInfo->pwszFile);
-              break;
-            default:
-              info.publisherLink = NULL;
-              break;
-          }
-        } else {
-          info.publisherLink = NULL;
-        }
-
-        // Fill in More Info if present.
-        if (OpusInfo->pMoreInfo) {
-          switch (OpusInfo->pMoreInfo->dwLinkChoice) {
-          case SPC_URL_LINK_CHOICE:
-            info.moreInfoLink =
-              AllocateAndCopyWideString(OpusInfo->pMoreInfo->pwszUrl);
-            break;
-          case SPC_FILE_LINK_CHOICE:
-            info.moreInfoLink =
-              AllocateAndCopyWideString(OpusInfo->pMoreInfo->pwszFile);
-            break;
-          default:
-            info.moreInfoLink = NULL;
-            break;
-          }
-        } else {
-          info.moreInfoLink = NULL;
-        }
-        result = TRUE;
-        break;
-      }
-    }
-  } __finally {
-    if (OpusInfo != NULL) {
-      LocalFree(OpusInfo);
-    }
-  }
-  return result;
 }
 
 /**
@@ -507,61 +322,53 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
     case ERROR_SUCCESS:
       // The hash that represents the subject is trusted and there were no
       // verification errors.  No publisher nor time stamp chain errors.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The file \"%ls\" is signed and the signature was verified.\n",
-              filePath));
+      LOG(("The file \"%ls\" is signed and the signature was verified.\n",
+           filePath));
       validated = TRUE;
       break;
     case TRUST_E_NOSIGNATURE:
       // The file was not signed or had a signature that was not valid.
       // Get the reason for no signature.
       if (TRUST_E_TIME_STAMP == dwLastError) {
-        // The file was not signed.
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("The file \"%ls\" has a timestamp error.\n", filePath));
+        // The timestamp is expired
+        LOG(("The file \"%ls\" has a timestamp error.\n", filePath));
       } else if (TRUST_E_NOSIGNATURE == dwLastError ||
                 TRUST_E_SUBJECT_FORM_UNKNOWN == dwLastError ||
                 TRUST_E_PROVIDER_UNKNOWN == dwLastError) {
         // The file was not signed.
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("The file \"%ls\" is not signed.\n", filePath));
+        LOG(("The file \"%ls\" is not signed.\n", filePath));
       } else {
         // The signature was not valid or there was an error 
         // opening the file.
-        PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-               ("An unknown error occurred trying to verify the signature of "
-                "the \"%ls\" file.\n", filePath));
+        LOG(("An unknown error occurred trying to verify the signature of "
+             "the \"%ls\" file.\n", filePath));
       }
       break;
     case TRUST_E_EXPLICIT_DISTRUST:
       // The hash that represents the subject or the publisher 
       // is not allowed by the admin or user.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The signature is present, but specifically disallowed.\n"));
+      LOG(("The signature is present, but specifically disallowed.\n"));
       break;
     case TRUST_E_SUBJECT_NOT_TRUSTED:
       // The user clicked "No" when asked to install and run.
       // Since the UI is disabled I'm not sure if this happens
       // some time in the past, or if the error will simply never happen.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("The signature is present, but not trusted.\n"));
+      LOG(("The signature is present, but not trusted.\n"));
       break;
     case CRYPT_E_SECURITY_SETTINGS:
       // The hash that represents the subject or the publisher was not 
       // explicitly trusted by the admin and the admin policy has disabled 
       // user trust. No signature, publisher or time stamp errors.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("CRYPT_E_SECURITY_SETTINGS - The hash "
-              "representing the subject or the publisher wasn't "
-              "explicitly trusted by the admin and admin policy "
-              "has disabled user trust. No signature, publisher "
-              "or timestamp errors.\n"));
+      LOG(("CRYPT_E_SECURITY_SETTINGS - The hash "
+           "representing the subject or the publisher wasn't "
+           "explicitly trusted by the admin and admin policy "
+           "has disabled user trust. No signature, publisher "
+           "or timestamp errors.\n"));
       break;
     default:
       // The UI was disabled in dwUIChoice or the admin policy has disabled
       // user trust. lStatus contains the publisher or time stamp chain error.
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS, 
-             ("Error is: %d\n", lStatus));
+      LOG(("Error is: %d\n", lStatus));
       break;
   }
 

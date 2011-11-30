@@ -69,126 +69,6 @@
  *
  * 'remove-cc' is a remove action to perform on channel change.
  */
-
-#if defined(XP_WIN)
-# include <windows.h>
-# include <shlwapi.h>
-# include <direct.h>
-# include <io.h>
-# include <stdio.h>
-# include <stdarg.h>
-
-# define F_OK 00
-# define W_OK 02
-# define R_OK 04
-# define S_ISDIR(s) (((s) & _S_IFMT) == _S_IFDIR)
-# define S_ISREG(s) (((s) & _S_IFMT) == _S_IFREG)
-
-# define access _access
-
-# define putenv _putenv
-# define stat _stat
-# define DELETE_DIR L"tobedeleted"
-# define CALLBACK_BACKUP_EXT L".moz-callback"
-
-# define LOG_S "%S"
-# define NS_T(str) L ## str
-# define NS_SLASH NS_T('\\')
-// On Windows, _snprintf and _snwprintf don't guarantee null termination. These
-// macros always leave room in the buffer for null termination and set the end
-// of the buffer to null in case the string is larger than the buffer. Having
-// multiple nulls in a string is fine and this approach is simpler (possibly
-// faster) than calculating the string length to place the null terminator and
-// truncates the string as _snprintf and _snwprintf do on other platforms.
-int mysnprintf(char* dest, size_t count, const char* fmt, ...)
-{
-  size_t _count = count - 1;
-  va_list varargs;
-  va_start(varargs, fmt);
-  int result = _vsnprintf(dest, count - 1, fmt, varargs);
-  va_end(varargs);
-  dest[_count] = '\0';
-  return result;
-}
-#define snprintf mysnprintf
-int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
-{
-  size_t _count = count - 1;
-  va_list varargs;
-  va_start(varargs, fmt);
-  int result = _vsnwprintf(dest, count - 1, fmt, varargs);
-  va_end(varargs);
-  dest[_count] = L'\0';
-  return result;
-}
-#define NS_tsnprintf mywcsprintf
-# define NS_taccess _waccess
-# define NS_tchdir _wchdir
-# define NS_tchmod _wchmod
-# define NS_tfopen _wfopen
-# define NS_tmkdir(path, perms) _wmkdir(path)
-# define NS_tremove _wremove
-// _wrename is used to avoid the link tracking service.
-# define NS_trename _wrename
-# define NS_trmdir _wrmdir
-# define NS_tstat _wstat
-# define NS_tlstat _wstat // No symlinks on Windows
-# define NS_tstrcat wcscat
-# define NS_tstrcmp wcscmp
-# define NS_tstricmp wcsicmp
-# define NS_tstrcpy wcscpy
-# define NS_tstrncpy wcsncpy
-# define NS_tstrlen wcslen
-# define NS_tstrchr wcschr
-# define NS_tstrrchr wcsrchr
-# define NS_tstrstr wcsstr
-# include "win_dirent.h"
-# define NS_tDIR DIR
-# define NS_tdirent dirent
-# define NS_topendir opendir
-# define NS_tclosedir closedir
-# define NS_treaddir readdir
-#else
-# include <sys/wait.h>
-# include <unistd.h>
-# include <fts.h>
-# include <dirent.h>
-
-#ifdef XP_MACOSX
-# include <sys/time.h>
-#endif
-
-# define LOG_S "%s"
-# define NS_T(str) str
-# define NS_SLASH NS_T('/')
-# define NS_tsnprintf snprintf
-# define NS_taccess access
-# define NS_tchdir chdir
-# define NS_tchmod chmod
-# define NS_tfopen fopen
-# define NS_tmkdir mkdir
-# define NS_tremove remove
-# define NS_trename rename
-# define NS_trmdir rmdir
-# define NS_tstat stat
-# define NS_tlstat lstat
-# define NS_tstrcat strcat
-# define NS_tstrcmp strcmp
-# define NS_tstricmp strcasecmp
-# define NS_tstrcpy strcpy
-# define NS_tstrncpy strncpy
-# define NS_tstrlen strlen
-# define NS_tstrrchr strrchr
-# define NS_tstrstr strstr
-# define NS_tDIR DIR
-# define NS_tdirent dirent
-# define NS_topendir opendir
-# define NS_tclosedir closedir
-# define NS_treaddir readdir
-#endif
-
-#define BACKUP_EXT NS_T(".moz-backup")
-
 #include "bspatch.h"
 #include "progressui.h"
 #include "archivereader.h"
@@ -205,6 +85,8 @@ int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 #include <fcntl.h>
 #include <limits.h>
 #include <errno.h>
+
+#include "updatelogging.h"
 
 // Amount of the progress bar to use in each of the 3 update stages,
 // should total 100.0.
@@ -230,20 +112,6 @@ void LaunchMacPostProcess(const char* aAppExe);
 # define SSIZE_MAX LONG_MAX
 #endif
 
-#ifndef MAXPATHLEN
-# ifdef PATH_MAX
-#  define MAXPATHLEN PATH_MAX
-# elif defined(MAX_PATH)
-#  define MAXPATHLEN MAX_PATH
-# elif defined(_MAX_PATH)
-#  define MAXPATHLEN _MAX_PATH
-# elif defined(CCHMAXPATH)
-#  define MAXPATHLEN CCHMAXPATH
-# else
-#  define MAXPATHLEN 1024
-# endif
-#endif
-
 // We want to use execv to invoke the callback executable on platforms where
 // we were launched using execv.  See nsUpdateDriver.cpp.
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
@@ -251,6 +119,8 @@ void LaunchMacPostProcess(const char* aAppExe);
 #endif
 
 #ifdef XP_WIN
+#include "launchwinprocess.h"
+
 // Closes the handle if valid and if the updater is elevated returns with the
 // return code specified. This prevents multiple launches of the callback
 // application by preventing the elevated process from launching the callback.
@@ -438,47 +308,6 @@ static NS_tchar* gInstallPath = NULL;
 static const NS_tchar kWhitespace[] = NS_T(" \t");
 static const NS_tchar kNL[] = NS_T("\r\n");
 static const NS_tchar kQuote[] = NS_T("\"");
-
-//-----------------------------------------------------------------------------
-// LOGGING
-
-static FILE *gLogFP = NULL;
-
-static void LogInit()
-{
-  if (gLogFP)
-    return;
-
-  NS_tchar logFile[MAXPATHLEN];
-  NS_tsnprintf(logFile, sizeof(logFile)/sizeof(logFile[0]),
-               NS_T("%s/update.log"), gSourcePath);
-
-  gLogFP = NS_tfopen(logFile, NS_T("w"));
-}
-
-static void LogFinish()
-{
-  if (!gLogFP)
-    return;
-
-  fclose(gLogFP);
-  gLogFP = NULL;
-}
-
-static void LogPrintf(const char *fmt, ... )
-{
-  if (!gLogFP)
-    return;
-
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(gLogFP, fmt, ap);
-  va_end(ap);
-}
-
-#define LOG(args) LogPrintf args
-
-//-----------------------------------------------------------------------------
 
 static inline size_t
 mmin(size_t a, size_t b)
@@ -1775,6 +1604,8 @@ PatchIfFile::Finish(int status)
 
 #ifdef XP_WIN
 #include "nsWindowsRestart.cpp"
+#include "nsWindowsHelpers.h"
+#include "uachelper.h"
 #endif
 
 static void
@@ -1794,7 +1625,25 @@ LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
 #elif defined(XP_MACOSX)
   LaunchChild(argc, argv);
 #elif defined(XP_WIN)
-  WinLaunchChild(argv[0], argc, argv);
+  // If updater.exe is run as session ID 0 and we have a session ID
+  // set, then get the unelevated token and use that to start the callback
+  // application.  Getting tokens will only work if the process is running
+  // as the system account.
+  DWORD myProcessID = GetCurrentProcessId();
+  DWORD mySessionID = 0;
+  ProcessIdToSessionId(myProcessID, &mySessionID);
+  nsAutoHandle unelevatedToken(NULL);
+  if (mySessionID == 0) {
+    WCHAR *sessionIDStr = _wgetenv(L"MOZ_SESSION_ID");
+    if (sessionIDStr) {
+      // Remove the env var now that we have its value.
+      int callbackSessionID = _wtoi(sessionIDStr);
+      _wputenv(L"MOZ_SESSION_ID=");
+      unelevatedToken.own(UACHelper::OpenUserToken(callbackSessionID));
+    }
+  }
+  WinLaunchChild(argv[0], argc, argv, unelevatedToken);
+
 #else
 # warning "Need implementaton of LaunchCallbackApp"
 #endif
@@ -2190,7 +2039,7 @@ int NS_main(int argc, NS_tchar **argv)
   gParentProcessNotifier.Init(OpenUpdaterSignalEvent(gDestinationPath, false));
 #endif
 
-  LogInit();
+  LogInit(gSourcePath, NS_T("update.log"));
 
   // If there is a PID specified and it is not '0' then wait for the process to exit.
   if (argc > 3) {
@@ -2585,7 +2434,7 @@ int NS_main(int argc, NS_tchar **argv)
   if (argc > callbackIndex) {
 #if defined(XP_WIN)
     if (gSucceeded) {
-      LaunchWinPostProcess(argv[callbackIndex]);
+      LaunchWinPostProcess(argv[callbackIndex], gSourcePath, NULL);
     }
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 0);
 #endif /* XP_WIN */

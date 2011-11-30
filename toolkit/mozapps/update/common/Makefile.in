@@ -11,18 +11,15 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is mozilla.org build system.
+# The Original Code is Mozilla maintenance service build.
 #
 # The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 2002
+# Mozilla Foundation.
+# Portions created by the Initial Developer are Copyright (C) 2011
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
-#  Ben Goodger <ben@bengoodger.com>
-#  Brian Ryner <bryner@brianryner.com>
-#  Pierre Chanial <chanial@noos.fr>
-#  Shawn Wilsher <me@shawnwilsher.com>
+#   Brian R. Bondy <netzen@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -38,51 +35,38 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH     = ..
+DEPTH = ../../../..
 topsrcdir = @top_srcdir@
-srcdir    = @srcdir@
-VPATH     = @srcdir@
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-PARALLEL_DIRS = \
-  content \
-  locales \
-  mozapps/downloads \
-  mozapps/extensions \
-  mozapps/handling \
-  mozapps/preferences \
-  mozapps/plugins \
-  mozapps/shared \
-  mozapps/update \
-  mozapps/webapps \
-  components \
-  obsolete \
-  profile \
-  themes \
+MODULE = libupdatecommon
+LIBRARY_NAME = updatecommon
+FORCE_STATIC_LIB =1
+LIBXUL_LIBRARY = 1
+ifeq ($(OS_ARCH),WINNT)
+USE_STATIC_LIBS = 1
+endif
+
+CPPSRCS = \
+  updatelogging.cpp \
   $(NULL)
 
-ifneq (,$(filter gtk2 qt,$(MOZ_WIDGET_TOOLKIT)))
-PARALLEL_DIRS += system/unixproxy
-endif
-
-ifneq (,$(filter cocoa,$(MOZ_WIDGET_TOOLKIT)))
-PARALLEL_DIRS += system/osxproxy
-endif
-
-ifneq (,$(filter windows,$(MOZ_WIDGET_TOOLKIT)))
-PARALLEL_DIRS += system/windowsproxy
-endif
-
-ifdef MOZ_CRASHREPORTER
-PARALLEL_DIRS += crashreporter
-endif
-
-DIRS += \
-  xre \
+EXPORTS = updatelogging.h \
+	updatedefines.h \
   $(NULL)
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
+CPPSRCS += launchwinprocess.cpp \
+  uachelper.cpp \
+  $(NULL)
+
+EXPORTS = launchwinprocess.h \
+  uachelper.h \
+  $(NULL)
+endif
 
 include $(topsrcdir)/config/rules.mk
 
-export::
-	@$(MAKE) -C xre export

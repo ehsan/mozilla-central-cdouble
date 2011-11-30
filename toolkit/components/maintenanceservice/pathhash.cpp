@@ -141,16 +141,25 @@ CalculateRegistryPathFromFilePath(const LPCWSTR filePath,
     filePathLen--;
   }
 
+  // Copy in the full path into our own buffer.
+  // Copying in the extra slash is OK because we calculate the hash
+  // based on the filePathLen which excludes the slash.
+  WCHAR *lowercasePath = new WCHAR[filePathLen + 1];
+  wcscpy(lowercasePath, filePath);
+  _wcslwr(lowercasePath);
+
   BYTE *hash;
   DWORD hashSize = 0;
-  if (!CalculateMD5(reinterpret_cast<const char*>(filePath), 
+  if (!CalculateMD5(reinterpret_cast<const char*>(lowercasePath), 
                     filePathLen * 2, 
                     &hash, hashSize)) {
+    delete[] lowercasePath;
     return FALSE;
   }
-  
+  delete[] lowercasePath;
+
   LPCWSTR baseRegPath = L"SOFTWARE\\Mozilla\\"
-                        L"MaintenanceService\\";
+    L"MaintenanceService\\";
   wcsncpy(registryPath, baseRegPath, MAX_PATH);
   BinaryDataToHexString(hash, hashSize, 
                         registryPath + wcslen(baseRegPath));

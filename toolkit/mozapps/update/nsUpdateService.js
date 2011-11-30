@@ -606,6 +606,8 @@ function writeStatusFile(dir, state) {
  *          have not been reached.
  */
 function shouldUseService() {
+#ifdef MOZ_PHOENIX
+  // We never want the service to be used unless we have Firefox
   var useService = getPref("getBoolPref", PREF_APP_UPDATE_SERVICE, true);
   var failCount = getPref("getIntPref", 
                           PREF_APP_UPDATE_SERVICE_FAILCOUNT, 0);
@@ -613,6 +615,9 @@ function shouldUseService() {
                         PREF_APP_UPDATE_SERVICE_MAXFAIL, 
                         DEFAULT_MAX_FAIL_COUNT);
   return useService && failCount < maxFail;
+#else
+  return false;
+#endif
 }
 
 /**

@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Maintenance service certificate check code.
+ * The Original Code is common code between maintenanceservice and updater
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -28,28 +28,75 @@
  * of those above. If you wish to allow use of your version of this file only
  * under the terms of either the GPL or the LGPL, and not to allow others to
  * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions /PGM and replace them with the notice
+ * decision by deleting the provisions above and replace them with the notice
  * and other provisions required by the GPL or the LGPL. If you do not delete
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _CERTIFICATECHECK_H_
-#define _CERTIFICATECHECK_H_
+#ifndef UPDATELOGGING_H
+#define UPDATELOGGING_H
 
-#include <wincrypt.h>
+#include "updatedefines.h"
+#include <stdio.h>
 
-struct CertificateCheckInfo
+#ifndef MAXPATHLEN
+# ifdef PATH_MAX
+#  define MAXPATHLEN PATH_MAX
+# elif defined(MAX_PATH)
+#  define MAXPATHLEN MAX_PATH
+# elif defined(_MAX_PATH)
+#  define MAXPATHLEN _MAX_PATH
+# elif defined(CCHMAXPATH)
+#  define MAXPATHLEN CCHMAXPATH
+# else
+#  define MAXPATHLEN 1024
+# endif
+#endif
+
+#if defined(XP_WIN)
+#define NS_tsnprintf(dest, count, fmt, ...) \
+  PR_BEGIN_MACRO \
+  int _count = count - 1; \
+  _snwprintf(dest, _count, fmt, ##__VA_ARGS__); \
+  dest[_count] = L'\0'; \
+  PR_END_MACRO
+#else
+#define NS_tsnprintf snprintf
+#endif
+
+class UpdateLog
 {
-  LPCWSTR name;
-  LPCWSTR issuer;
+public:
+  static UpdateLog & GetPrimaryLog() 
+  {
+    if (!primaryLog) {
+      primaryLog = new UpdateLog();
+    }
+    return *primaryLog;
+  }
+
+  void Init(NS_tchar* sourcePath, NS_tchar* fileName);
+  void Finish();
+  void Printf(const char *fmt, ... );
+
+  ~UpdateLog()
+  {
+    delete primaryLog;
+  }
+
+protected:
+  UpdateLog();
+  FILE *logFP;
+  NS_tchar* sourcePath;
+
+  static UpdateLog* primaryLog;
 };
 
-BOOL DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext, 
-                                  CertificateCheckInfo &infoToMatch);
-DWORD VerifyCertificateTrustForFile(LPCWSTR filePath);
-DWORD CheckCertificateForPEFile(LPCWSTR filePath, 
-                                CertificateCheckInfo &infoToMatch);
+#define LOG(args) UpdateLog::GetPrimaryLog().Printf args
+#define LogInit(PATHNAME_, FILENAME_) \
+  UpdateLog::GetPrimaryLog().Init(PATHNAME_, FILENAME_)
+#define LogFinish() UpdateLog::GetPrimaryLog().Finish()
 
 #endif

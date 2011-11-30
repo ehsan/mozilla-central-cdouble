@@ -37,9 +37,6 @@
 
 #include <windows.h>
 #include "prlog.h"
-
-#ifdef PR_LOGGING
-extern PRLogModuleInfo *gServiceLog;
-#endif
+#include "updatelogging.h"
 
 BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);

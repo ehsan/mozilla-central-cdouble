@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Maintenance service UAC helper functions.
+ * The Original Code is common code between maintenanceservice and updater
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -35,25 +35,16 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _UACHELPER_H_
-#define _UACHELPER_H_
-
-class UACHelper
-{
-public:
-  // Determines if the specified user token is an administrator or not
-  enum UserType {
-    LimitedUser, 
-    AdministratorUACIsOff, 
-    AdministratorUnelevated, 
-    AdministratorElevated
-  };
-
-  static BOOL IsVistaOrLater();
-  static HANDLE OpenUserToken(DWORD sessionID);
-  static HANDLE OpenLinkedToken(HANDLE token);
-  static BOOL IsUserAdmin(HANDLE token, BOOL &isAdmin);
-  static BOOL GetElevationType(HANDLE token, UserType &userType);
-};
-
-#endif
+/**
+ * Launch the post update application as the specified user (helper.exe).
+ * It takes in the path of the callback application to calculate the path
+ * of helper.exe
+ *
+ * @param  appExe       The path to the callback application binary.
+ * @param  userToken    The user token to run as, if NULL the current user
+ *         will be used.
+ * @param updateInfoDir The directory where update info is stored.
+ */
+void LaunchWinPostProcess(const WCHAR *appExe, 
+                          const WCHAR *updateInfoDir, 
+                          HANDLE userToken);

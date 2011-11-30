@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Maintenance service certificate check code.
+ * The Original Code is common code between maintenanceservice and updater
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -28,28 +28,60 @@
  * of those above. If you wish to allow use of your version of this file only
  * under the terms of either the GPL or the LGPL, and not to allow others to
  * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions /PGM and replace them with the notice
+ * decision by deleting the provisions above and replace them with the notice
  * and other provisions required by the GPL or the LGPL. If you do not delete
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _CERTIFICATECHECK_H_
-#define _CERTIFICATECHECK_H_
-
-#include <wincrypt.h>
-
-struct CertificateCheckInfo
-{
-  LPCWSTR name;
-  LPCWSTR issuer;
-};
-
-BOOL DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext, 
-                                  CertificateCheckInfo &infoToMatch);
-DWORD VerifyCertificateTrustForFile(LPCWSTR filePath);
-DWORD CheckCertificateForPEFile(LPCWSTR filePath, 
-                                CertificateCheckInfo &infoToMatch);
-
+#if defined(XP_WIN)
+#include <windows.h>
 #endif
+
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
+
+#include "updatelogging.h"
+
+UpdateLog*  UpdateLog::primaryLog = NULL;
+
+UpdateLog::UpdateLog() : logFP(NULL)
+{
+}
+
+void UpdateLog::Init(NS_tchar* sourcePath, NS_tchar* fileName)
+{
+  if (logFP)
+    return;
+
+  this->sourcePath = sourcePath;
+  NS_tchar logFile[MAXPATHLEN];
+  NS_tsnprintf(logFile, sizeof(logFile)/sizeof(logFile[0]),
+    NS_T("%s/%s"), sourcePath, fileName);
+
+  logFP = NS_tfopen(logFile, NS_T("w"));
+}
+
+void UpdateLog::Finish()
+{
+  if (!logFP)
+    return;
+
+  fclose(logFP);
+  logFP = NULL;
+}
+
+void UpdateLog::Printf(const char *fmt, ... )
+{
+  if (!logFP)
+    return;
+
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(logFP, fmt, ap);
+  va_end(ap);
+}

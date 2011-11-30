@@ -44,6 +44,7 @@
 #include "maintenanceservice.h"
 #include "servicebase.h"
 #include "workmonitor.h"
+#include "shlobj.h"
 
 PRLogModuleInfo *gServiceLog = NULL;
 
@@ -52,15 +53,14 @@ SERVICE_STATUS_HANDLE gSvcStatusHandle = NULL;
 HANDLE ghSvcStopEvent = NULL;
 BOOL gServiceStopping = FALSE;
 
+// logs are pretty small ~10 lines, so 5 seems reasonable.
+#define LOGS_TO_KEEP 5
+
+BOOL GetLogDirectoryPath(WCHAR *path);
+
 int 
 wmain(int argc, WCHAR **argv)
 {
-#ifdef PR_LOGGING
-  if (!gServiceLog) {
-    gServiceLog = PR_NewLogModule("nsMaintenanceService");
-  }
-#endif
-
   // If command-line parameter is "install", install the service
   // or upgrade if already installed.
   // If command-line parameter is "upgrade", upgrade the service
@@ -68,55 +68,48 @@ wmain(int argc, WCHAR **argv)
   // If command line parameter is "uninstall", uninstall the service.
   // Otherwise, the service is probably being started by the SCM.
   if (lstrcmpi(argv[1], L"install") == 0) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Installing service...\n"));
-
+    WCHAR updatePath[MAX_PATH + 1];
+    if (GetLogDirectoryPath(updatePath)) {
+      LogInit(updatePath, L"maintenanceservice-install.log");
+    }
+    LOG(("Installing service...\n"));
     if (!SvcInstall(FALSE)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not install service (%d)\n", GetLastError()));
+      LOG(("Could not install service (%d)\n", GetLastError()));
+      LogFinish();
       return 1;
     }
 
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("The service was installed successfully\n"));
-
+    LOG(("The service was installed successfully\n"));
+    LogFinish();
     return 0;
   } else if (lstrcmpi(argv[1], L"upgrade") == 0) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Upgrading service if installed...\n"));
-
+    WCHAR updatePath[MAX_PATH + 1];
+    if (GetLogDirectoryPath(updatePath)) {
+      LogInit(updatePath, L"maintenanceservice-install.log");
+    }
+    LOG(("Upgrading service if installed...\n"));
     if (!SvcInstall(TRUE)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not upgrade service (%d)\n", GetLastError()));
+      LOG(("Could not upgrade service (%d)\n", GetLastError()));
+      LogFinish();
       return 1;
     }
 
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("The service was upgraded successfully\n"));
+    LOG(("The service was upgraded successfully\n"));
+    LogFinish();
     return 0;
   } else if (lstrcmpi(argv[1], L"uninstall") == 0) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Uninstalling service...\n"));
-
+    WCHAR updatePath[MAX_PATH + 1];
+    if (GetLogDirectoryPath(updatePath)) {
+      LogInit(updatePath, L"maintenanceservice-uninstall.log");
+    }
+    LOG(("Uninstalling service...\n"));
     if (!SvcUninstall()) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not uninstall service (%d)\n", GetLastError()));
+      LOG(("Could not uninstall service (%d)\n", GetLastError()));
+      LogFinish();
       return 1;
     }
-
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("The service was uninstalled successfully\n"));
-
-    return 0;
-  } else if (lstrcmpi(argv[1], L"debug") == 0) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Starting service as a process in debug mode...\n"));
-
-    StartDirectoryChangeMonitor();
-
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("Exiting service as a process in debug mode...\n"));
-
+    LOG(("The service was uninstalled successfully\n"));
+    LogFinish();
     return 0;
   }
 
@@ -128,8 +121,7 @@ wmain(int argc, WCHAR **argv)
   // This call returns when the service has stopped. 
   // The process should simply terminate when the call returns.
   if (!StartServiceCtrlDispatcher(DispatchTable)) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("StartServiceCtrlDispatcher failed (%d)\n", GetLastError()));
+    LOG(("StartServiceCtrlDispatcher failed (%d)\n", GetLastError()));
   }
 
   return 0;
@@ -148,22 +140,97 @@ WINAPI StartMonitoringThreadProc(LPVOID param)
 }
 
 /**
+ * Obtains the base path where logs should be stored
+ *
+ * @param  path      The out buffer for the backup log path of size MAX_PATH +1
+ * @return TRUE if successful.
+ */
+BOOL
+GetLogDirectoryPath(WCHAR *path) 
+{
+  HRESULT hr = SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 
+    SHGFP_TYPE_CURRENT, path);
+  if (FAILED(hr)) {
+    return FALSE;
+  }
+  if (!PathAppendSafe(path, L"Mozilla")) {
+    return FALSE;
+  }
+  // The directory should already be created from the installer, but
+  // just to be safe in case someone deletes.
+  CreateDirectoryW(path, NULL);
+
+  if (!PathAppendSafe(path, L"logs")) {
+    return FALSE;
+  }
+  CreateDirectoryW(path, NULL);
+  return TRUE;
+}
+
+/**
+ * Calculated a backup path based on the log number.
+ *
+ * @param  path      The out buffer to store the log path of size MAX_PATH + 1
+ * @param  basePath  The base directory where the calculated path should go
+ * @param  logNumber The log number, 0 == updater.log
+ * @return TRUE if successful.
+ */
+BOOL
+GetBackupLogPath(LPWSTR path, LPCWSTR basePath, int logNumber)
+{
+  WCHAR logName[64];
+  wcscpy(path, basePath);
+  if (logNumber <= 0) {
+    swprintf(logName, L"maintenanceservice.log");
+  } else {
+    swprintf(logName, L"maintenanceservice-%d.log", logNumber);
+  }
+  return PathAppendSafe(path, logName);
+}
+
+/**
+ * Moves the old log files out of the way before a new one is written.
+ * If you for example keep 3 logs, then this function will do:
+ *   updater2.log -> updater3.log
+ *   updater1.log -> updater2.log
+ *   updater.log -> updater1.log
+ * Which clears room for a new updater.log in the basePath directory
+ * 
+ * @param basePath      The base directory path where log files are stored
+ * @param numLogsToKeep The number of logs to keep
+ */
+void
+BackupOldLogs(LPCWSTR basePath, int numLogsToKeep) 
+{
+  WCHAR oldPath[MAX_PATH + 1];
+  WCHAR newPath[MAX_PATH + 1];
+  for (int i = numLogsToKeep; i >= 1; i--) {
+    if (!GetBackupLogPath(oldPath, basePath, i -1)) 
+      continue;
+    if (!GetBackupLogPath(newPath, basePath, i))
+      continue;
+    if (!MoveFileEx(oldPath, newPath, MOVEFILE_REPLACE_EXISTING))
+      continue;
+  }
+}
+
+/**
  * Main entry point when running as a service.
  */
 void WINAPI 
 SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
 {
-#ifdef PR_LOGGING
-  if (!gServiceLog) {
-    gServiceLog = PR_NewLogModule("nsMaintenanceService");
+  // Setup logging, and backup the old logs
+  WCHAR updatePath[MAX_PATH + 1];
+  if (GetLogDirectoryPath(updatePath)) {
+    BackupOldLogs(updatePath, LOGS_TO_KEEP);
+    LogInit(updatePath, L"maintenanceservice.log");
   }
-#endif
 
   // Register the handler function for the service
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);
   if (!gSvcStatusHandle) {
-    PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-      ("RegisterServiceCtrlHandler failed (%d)\n", GetLastError()));
+    LOG(("RegisterServiceCtrlHandler failed (%d)\n", GetLastError()));
     return; 
   } 
 
@@ -206,9 +273,8 @@ SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
 
     WCHAR stopFilePath[MAX_PATH +1];
     if (!GetUpdateDirectoryPath(stopFilePath)) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not obtain update directory path, terminating thread "
-         "forcefully.\n"));
+      LOG(("Could not obtain update directory path, terminating thread "
+           "forcefully.\n"));
       TerminateThread(thread, 1);
     }
 
@@ -222,8 +288,7 @@ SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
     HANDLE stopFile = CreateFile(stopFilePath, GENERIC_READ, 0, 
                                  NULL, CREATE_ALWAYS, 0, NULL);
     if (stopFile == INVALID_HANDLE_VALUE) {
-      PR_LOG(gServiceLog, PR_LOG_ALWAYS,
-        ("Could not create stop file, terminating thread forcefully.\n"));
+      LOG(("Could not create stop file, terminating thread forcefully.\n"));
       TerminateThread(thread, 3);
     } else {
       CloseHandle(stopFile);
@@ -285,6 +350,7 @@ SvcCtrlHandler(DWORD dwCtrl)
     // Signal the service to stop.
     SetEvent(ghSvcStopEvent);
     ReportSvcStatus(gSvcStatus.dwCurrentState, NO_ERROR, 0);
+    LogFinish();
     break;
   case SERVICE_CONTROL_INTERROGATE: 
     break; 

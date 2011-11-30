@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is Maintenance service certificate check code.
+ * The Original Code is Maintenance service UAC helper functions.
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -28,28 +28,30 @@
  * of those above. If you wish to allow use of your version of this file only
  * under the terms of either the GPL or the LGPL, and not to allow others to
  * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions /PGM and replace them with the notice
+ * decision by deleting the provisions above and replace them with the notice
  * and other provisions required by the GPL or the LGPL. If you do not delete
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _CERTIFICATECHECK_H_
-#define _CERTIFICATECHECK_H_
+#ifndef _UACHELPER_H_
+#define _UACHELPER_H_
 
-#include <wincrypt.h>
-
-struct CertificateCheckInfo
+class UACHelper
 {
-  LPCWSTR name;
-  LPCWSTR issuer;
-};
+public:
+  // Determines if the specified user token is an administrator or not
+  enum UserType {
+    LimitedUser, 
+    AdministratorUACIsOff, 
+    AdministratorUnelevated, 
+    AdministratorElevated
+  };
 
-BOOL DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext, 
-                                  CertificateCheckInfo &infoToMatch);
-DWORD VerifyCertificateTrustForFile(LPCWSTR filePath);
-DWORD CheckCertificateForPEFile(LPCWSTR filePath, 
-                                CertificateCheckInfo &infoToMatch);
+  static BOOL IsVistaOrLater();
+  static HANDLE OpenUserToken(DWORD sessionID);
+  static HANDLE OpenLinkedToken(HANDLE token);
+};
 
 #endif

@@ -129,11 +129,14 @@ WriteConsoleLog();
 
 #ifdef XP_WIN
 BOOL
-WinLaunchChild(const PRUnichar *exePath, int argc, char **argv);
+WinLaunchChild(const PRUnichar *exePath, int argc, 
+               char **argv, HANDLE userToken = NULL);
 BOOL
 WinLaunchServiceCommand(const PRUnichar *exePath, int argc, char **argv);
-BOOL WriteStatusPending(LPCWSTR updateDirPath);
-BOOL WriteStatusApplied(LPCWSTR updateDirPath);
+BOOL
+WriteStatusPending(LPCWSTR updateDirPath);
+BOOL
+WriteStatusApplied(LPCWSTR updateDirPath);
 HANDLE
 OpenUpdaterSignalEvent(const wchar_t *destinationPath, bool create);
 #endif
