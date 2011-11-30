@@ -330,7 +330,7 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
       // The file was not signed or had a signature that was not valid.
       // Get the reason for no signature.
       if (TRUST_E_TIME_STAMP == dwLastError) {
-        // The file was not signed.
+        // The timestamp is expired
         LOG(("The file \"%ls\" has a timestamp error.\n", filePath));
       } else if (TRUST_E_NOSIGNATURE == dwLastError ||
                 TRUST_E_SUBJECT_FORM_UNKNOWN == dwLastError ||
