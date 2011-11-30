@@ -192,7 +192,7 @@ function run_test() {
 
   // Launch the callback helper application so it is in use during the update
   let callbackApp = getApplyDirFile("a/b/" + gCallbackBinFile);
-  let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "20"];
+  let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "40"];
   let callbackAppProcess = AUS_Cc["@mozilla.org/process/util;1"].
                            createInstance(AUS_Ci.nsIProcess);
   callbackAppProcess.init(callbackApp);
