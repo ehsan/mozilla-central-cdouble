@@ -635,6 +635,9 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
                             callbackArgs, 
                             NULL, NULL, FALSE,
                             CREATE_DEFAULT_ERROR_MODE |
+#ifdef DEBUG
+                            CREATE_NEW_CONSOLE |
+#endif
                             CREATE_UNICODE_ENVIRONMENT,
                             environmentBlock, 
                             callbackDirectory, 
