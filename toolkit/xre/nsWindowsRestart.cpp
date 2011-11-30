@@ -596,7 +596,6 @@ WinLaunchChild(const PRUnichar *exePath,
     // the user's token.
     LPVOID environmentBlock = NULL;
     if (!CreateEnvironmentBlock(&environmentBlock, userToken, TRUE)) {
-      //LOG(("Could not create an environment block, setting it to NULL.\n"));
       environmentBlock = NULL;
     }
 
