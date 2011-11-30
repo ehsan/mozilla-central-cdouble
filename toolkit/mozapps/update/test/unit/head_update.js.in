@@ -564,11 +564,12 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
     if (aExpectedStatus == STATE_FAILED) {
       status = status.split(": ")[0];
     }
-    if (status != aExpectedStatus) {
+    if (status == STATE_PENDING) {
       logTestInfo("Still waiting to see the " + aExpectedStatus +
                   " status, got " + status + " for now...");
       return;
     }
+    do_check_eq(status, aExpectedStatus);
 
     timer.cancel();
     timer = null;
