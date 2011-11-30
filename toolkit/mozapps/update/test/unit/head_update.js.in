@@ -87,6 +87,7 @@ const APPLY_TO_DIR_SUFFIX = "_applyToDir/";
 const HELPER_BIN_FILE = "TestAUSHelper" + BIN_SUFFIX;
 const MAR_COMPLETE_FILE = "data/complete.mar";
 const MAR_PARTIAL_FILE = "data/partial.mar";
+const MAR_BOOTSTRAP_FILE = "data/bootstrap.mar";
 const UPDATER_BIN_FILE = "updater" + BIN_SUFFIX;
 const UPDATES_DIR_SUFFIX = "_mar";
 const CHANNEL_CHANGE_FILE = "channelchange";
@@ -461,8 +462,11 @@ let gServiceLaunchedCallbackArgs = null;
  * @param aInitialStatus  the initial value of update.status
  * @param aExpectedStatus the expected value of update.status when the test finishes
  * @param aCallback       the function to be called when the update is finished
+ * @param aUpdatesDir     the updates root directory to use (optional)
+ * @param aCheckSvcLog    whether the service log should be checked (optional)
  */
-function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpdatesDir) {
+function runUpdateUsingService(aInitialStatus, aExpectedStatus,
+                               aCallback, aUpdatesDir, aCheckSvcLog) {
   // Check the service logs for a successful update
   function checkServiceLogs(aOriginalContents) {
     let contents = readServiceLogFile();
@@ -514,7 +518,14 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
     });
   }
 
-  let svcOriginalLog = readServiceLogFile();
+  if (aCheckSvcLog === undefined) {
+    aCheckSvcLog = true; // default to true
+  }
+
+  let svcOriginalLog;
+  if (aCheckSvcLog) {
+    svcOriginalLog = readServiceLogFile();
+  }
 
   let appArgsLogPath = getAppArgsLogPath();
   gServiceLaunchedCallbackLog = appArgsLogPath.replace(/^"|"$/g, "");
@@ -574,7 +585,9 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus, aCallback, aUpda
     timer.cancel();
     timer = null;
 
-    checkServiceLogs(svcOriginalLog);
+    if (aCheckSvcLog) {
+      checkServiceLogs(svcOriginalLog);
+    }
 
     aCallback();
   }
