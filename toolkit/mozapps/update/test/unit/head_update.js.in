@@ -87,7 +87,6 @@ const APPLY_TO_DIR_SUFFIX = "_applyToDir/";
 const HELPER_BIN_FILE = "TestAUSHelper" + BIN_SUFFIX;
 const MAR_COMPLETE_FILE = "data/complete.mar";
 const MAR_PARTIAL_FILE = "data/partial.mar";
-const MAR_BOOTSTRAP_FILE = "data/bootstrap.mar";
 const UPDATER_BIN_FILE = "updater" + BIN_SUFFIX;
 const UPDATES_DIR_SUFFIX = "_mar";
 const CHANNEL_CHANGE_FILE = "channelchange";
@@ -568,7 +567,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
 
   resetEnvironment();
 
-  function timerCallback() {
+  function timerCallback(timer) {
     // Wait for the expected status
     let status = readStatusFile(updatesDir);
     // For failed status, we don't care what the failure code is
