@@ -592,14 +592,12 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     do_register_cleanup(function serviceCleanup() {
       resetEnvironment();
 
-      if (IS_WIN) {
-        // Remove the copy of the application executable used for the test on
-        // Windows if it exists.
-        let appBinCopy = getCurrentProcessDir();
-        appBinCopy.append(FILE_WIN_TEST_EXE);
-        if (appBinCopy.exists()) {
-          appBinCopy.remove(false);
-        }
+      // Remove the copy of the application executable used for the test on
+      // Windows if it exists.
+      let appBinCopy = getCurrentProcessDir();
+      appBinCopy.append(FILE_WIN_TEST_EXE);
+      if (appBinCopy.exists()) {
+        appBinCopy.remove(false);
       }
 
       // This will delete the app console log file if it exists.
@@ -607,15 +605,6 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
 
       // This will delete the app arguments log file if it exists.
       getAppArgsLogPath();
-
-      if (IS_UNIX) {
-        // This will delete the launch script if it exists.
-        getLaunchScript();
-        if (IS_MACOSX) {
-          // This will delete the version script and version file if they exist.
-          getVersionScriptAndFile();
-        }
-      }
     });
   }
 

@@ -527,7 +527,7 @@ var gAdvancedPane = {
       wrk.close();
     } catch(e) {
     }
-    if (!installed) {
+    if (installed != 1) {
       document.getElementById("useService").hidden = true;
     }
   },
