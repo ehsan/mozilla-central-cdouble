@@ -141,14 +141,12 @@ function end_test() {
   updaterIni.append(FILE_UPDATER_INI_BAK);
   updaterIni.moveTo(processDir, FILE_UPDATER_INI);
 
-  if (IS_WIN) {
-    // Remove the copy of the application executable used for the test on
-    // Windows if it exists.
-    let appBinCopy = processDir.clone();
-    appBinCopy.append(FILE_WIN_TEST_EXE);
-    if (appBinCopy.exists()) {
-      appBinCopy.remove(false);
-    }
+  // Remove the copy of the application executable used for the test on
+  // Windows if it exists.
+  let appBinCopy = processDir.clone();
+  appBinCopy.append(FILE_WIN_TEST_EXE);
+  if (appBinCopy.exists()) {
+    appBinCopy.remove(false);
   }
 
   // Remove the files added by the update.
@@ -165,15 +163,6 @@ function end_test() {
   // This will delete the app console log file if it exists.
   getAppConsoleLogPath();
 
-  if (IS_UNIX) {
-    // This will delete the launch script if it exists.
-    getLaunchScript();
-    if (IS_MACOSX) {
-      // This will delete the version script and version file if they exist.
-      getVersionScriptAndFile();
-    }
-  }
-
   cleanUp();
 }
 
@@ -186,9 +175,6 @@ function end_test() {
  */
 function getUpdateTestDir() {
   let updateTestDir = getCurrentProcessDir();
-  if (IS_MACOSX) {
-    updateTestDir = updateTestDir.parent.parent;
-  }
   updateTestDir.append("update_test");
   return updateTestDir;
 }
@@ -214,7 +200,7 @@ function checkUpdateFinished() {
   logTestInfo("contents of " + log.path + ":\n" +  
               contents.replace(/\r\n/g, "\n"));
 
-  if (IS_WIN && contents.indexOf("NS_main: file in use") != -1) {
+  if (contents.indexOf("NS_main: file in use") != -1) {
     do_throw("the application can't be in use when running this test");
   }
 

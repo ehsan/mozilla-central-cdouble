@@ -238,22 +238,12 @@ function run_test() {
   setupUpdaterTest(MAR_COMPLETE_FILE);
 
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  let applyToDir = getApplyDirFile();
 
   // Check that trying to change channels for a complete update changes the
   // update channel (the channel-prefs.js file should be updated).
   let channelchange = updatesDir.clone();
   channelchange.append(CHANNEL_CHANGE_FILE);
   channelchange.create(AUS_Ci.nsIFile.FILE_TYPE, PERMS_FILE);
-
-  // For Mac OS X set the last modified time for the root directory to a date in
-  // the past to test that the last modified time is updated on a successful
-  // update (bug 600098).
-  if (IS_MACOSX) {
-    let now = Date.now();
-    let yesterday = now - (1000 * 60 * 60 * 24);
-    applyToDir.lastModifiedTime = yesterday;
-  }
 
   runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
 }
@@ -263,21 +253,8 @@ function checkUpdateApplied() {
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
 
-  // For Mac OS X check that the last modified time for a directory has been
-  // updated after a successful update (bug 600098).
-  if (IS_MACOSX) {
-    logTestInfo("testing last modified time on the apply to directory has " +
-                "changed after a successful update (bug 600098)");
-    let now = Date.now();
-    let timeDiff = Math.abs(applyToDir.lastModifiedTime - now);
-    do_check_true(timeDiff < MAX_TIME_DIFFERENCE);
-  }
-
   checkFilesAfterUpdateSuccess();
-  // Sorting on Linux is different so skip this check for now.
-  if (!IS_UNIX) {
-    checkUpdateLogContents(LOG_COMPLETE_CC_SUCCESS);
-  }
+  checkUpdateLogContents(LOG_COMPLETE_CC_SUCCESS);
 
   logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);

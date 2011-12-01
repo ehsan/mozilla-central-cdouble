@@ -277,22 +277,12 @@ function run_test() {
   setupUpdaterTest(MAR_PARTIAL_FILE);
 
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  let applyToDir = getApplyDirFile();
 
   // Check that trying to change channels for a partial update doesn't change
   // the update channel (the channel-prefs.js file should not be updated).
   let force = updatesDir.clone();
   force.append(CHANNEL_CHANGE_FILE);
   force.create(AUS_Ci.nsIFile.FILE_TYPE, PERMS_FILE);
-
-  // For Mac OS X set the last modified time for the root directory to a date in
-  // the past to test that the last modified time is updated on all updates since
-  // the precomplete file in the root of the bundle is renamed, etc. (bug 600098).
-  if (IS_MACOSX) {
-    let now = Date.now();
-    let yesterday = now - (1000 * 60 * 60 * 24);
-    applyToDir.lastModifiedTime = yesterday;
-  }
 
   // apply the partial mar
   runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
@@ -303,21 +293,8 @@ function checkUpdateApplied() {
   logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
 
-  // For Mac OS X check that the last modified time for a directory has been
-  // updated after a successful update (bug 600098).
-  if (IS_MACOSX) {
-    logTestInfo("testing last modified time on the apply to directory has " +
-                "changed after a successful update (bug 600098)");
-    let now = Date.now();
-    let timeDiff = Math.abs(applyToDir.lastModifiedTime - now);
-    do_check_true(timeDiff < MAX_TIME_DIFFERENCE);
-  }
-
   checkFilesAfterUpdateSuccess();
-  // Sorting on Linux is different so skip this check for now.
-  if (!IS_UNIX) {
-    checkUpdateLogContents(LOG_PARTIAL_SUCCESS);
-  }
+  checkUpdateLogContents(LOG_PARTIAL_SUCCESS);
 
   logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
