@@ -70,7 +70,7 @@ BEGIN
             VALUE "FileDescription", "NSIS Plug-in for managing Windows services"
             VALUE "FileVersion", "1, 0, 0, 0"
             VALUE "InternalName", "ServicesHelper"
-            VALUE "LegalCopyright", "MPL 1.1/GPL 2.0/LGPL 2.1"
+            VALUE "LegalCopyright", "MPL 1.1+/GPL 2.0+/LGPL 2.1+"
             VALUE "OriginalFilename", "ServicesHelper.dll"
             VALUE "ProductName", "ServicesHelper"
             VALUE "ProductVersion", "1, 0, 0, 0"
