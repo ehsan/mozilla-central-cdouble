@@ -78,7 +78,7 @@ PARALLEL_DIRS += \
   $(NULL)
 
 ifeq ($(OS_ARCH),WINNT)
-PARALLEL_DIRS += maintenanceservice
+DIRS += maintenanceservice
 endif
 
 ifdef BUILD_CTYPES
