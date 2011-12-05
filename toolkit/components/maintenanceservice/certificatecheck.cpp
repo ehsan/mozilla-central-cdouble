@@ -61,20 +61,20 @@ DWORD
 CheckCertificateForPEFile(LPCWSTR filePath, 
                           CertificateCheckInfo &infoToMatch)
 {
-  HCERTSTORE hStore = NULL;
-  HCRYPTMSG hMsg = NULL; 
-  PCCERT_CONTEXT pCertContext = NULL;
-  PCMSG_SIGNER_INFO pSignerInfo = NULL;
+  HCERTSTORE certStore = NULL;
+  HCRYPTMSG cryptMsg = NULL; 
+  PCCERT_CONTEXT certContext = NULL;
+  PCMSG_SIGNER_INFO signerInfo = NULL;
   DWORD lastError = ERROR_SUCCESS;
 
   // Get the HCERTSTORE and HCRYPTMSG from the signed file.
-  DWORD dwEncoding, dwContentType, dwFormatType;
+  DWORD encoding, contentType, formatType;
   BOOL result = CryptQueryObject(CERT_QUERY_OBJECT_FILE,
                                   filePath, 
                                   CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
                                   CERT_QUERY_CONTENT_FLAG_ALL, 
-                                  0, &dwEncoding, &dwContentType,
-                                  &dwFormatType, &hStore, &hMsg, NULL);
+                                  0, &encoding, &contentType,
+                                  &formatType, &certStore, &cryptMsg, NULL);
   if (!result) {
     lastError = GetLastError();
     LOG(("CryptQueryObject failed with %d\n", lastError));
@@ -82,9 +82,9 @@ CheckCertificateForPEFile(LPCWSTR filePath,
   }
 
   // Pass in NULL to get the needed signer information size.
-  DWORD dwSignerInfo;
-  result = CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, 
-                            NULL, &dwSignerInfo);
+  DWORD signerInfoSize;
+  result = CryptMsgGetParam(cryptMsg, CMSG_SIGNER_INFO_PARAM, 0, 
+                            NULL, &signerInfoSize);
   if (!result) {
     lastError = GetLastError();
     LOG(("CryptMsgGetParam failed with %d\n", lastError));
@@ -92,8 +92,8 @@ CheckCertificateForPEFile(LPCWSTR filePath,
   }
 
   // Allocate the needed size for the signer information.
-  pSignerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, dwSignerInfo);
-  if (!pSignerInfo) {
+  signerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, signerInfoSize);
+  if (!signerInfo) {
     lastError = GetLastError();
     LOG(("Unable to allocate memory for Signer Info.\n"));
     goto cleanup;
@@ -101,8 +101,8 @@ CheckCertificateForPEFile(LPCWSTR filePath,
 
   // Get the signer information (PCMSG_SIGNER_INFO).
   // In particular we want the issuer and serial number.
-  result = CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, 
-                            (PVOID)pSignerInfo, &dwSignerInfo);
+  result = CryptMsgGetParam(cryptMsg, CMSG_SIGNER_INFO_PARAM, 0, 
+                            (PVOID)signerInfo, &signerInfoSize);
   if (!result) {
     lastError = GetLastError();
     LOG(("CryptMsgGetParam failed with %d\n", lastError));
@@ -110,36 +110,36 @@ CheckCertificateForPEFile(LPCWSTR filePath,
   }
 
   // Search for the signer certificate in the certificate store.
-  CERT_INFO CertInfo;     
-  CertInfo.Issuer = pSignerInfo->Issuer;
-  CertInfo.SerialNumber = pSignerInfo->SerialNumber;
-  pCertContext = CertFindCertificateInStore(hStore, ENCODING, 0, 
-                                            CERT_FIND_SUBJECT_CERT,
-                                            (PVOID)&CertInfo, NULL);
-  if (!pCertContext) {
+  CERT_INFO certInfo;     
+  certInfo.Issuer = signerInfo->Issuer;
+  certInfo.SerialNumber = signerInfo->SerialNumber;
+  certContext = CertFindCertificateInStore(certStore, ENCODING, 0, 
+                                           CERT_FIND_SUBJECT_CERT,
+                                           (PVOID)&certInfo, NULL);
+  if (!certContext) {
     lastError = GetLastError();
     LOG(("CertFindCertificateInStore failed with %d\n", lastError));
     goto cleanup;
   }
 
-  if (!DoCertificateAttributesMatch(pCertContext, infoToMatch)) {
+  if (!DoCertificateAttributesMatch(certContext, infoToMatch)) {
     lastError = ERROR_NOT_FOUND;
     LOG(("Certificate did not match issuer or name\n"));
     goto cleanup;
   }
 
 cleanup:
-  if (pSignerInfo) {
-    LocalFree(pSignerInfo);
+  if (signerInfo) {
+    LocalFree(signerInfo);
   }
-  if (pCertContext) {
-    CertFreeCertificateContext(pCertContext);
+  if (certContext) {
+    CertFreeCertificateContext(certContext);
   }
-  if (hStore) { 
-    CertCloseStore(hStore, 0);
+  if (certStore) { 
+    CertCloseStore(certStore, 0);
   }
-  if (hMsg) { 
-    CryptMsgClose(hMsg);
+  if (cryptMsg) { 
+    CryptMsgClose(cryptMsg);
   }
   return lastError;
 }
@@ -147,12 +147,12 @@ cleanup:
 /**
  * Checks to see if a file stored at filePath matches the specified info.
  *
- * @param  pCertContext The certificate context of the file
+ * @param  certContext  The certificate context of the file
  * @param  infoToMatch  The acceptable information to match
  * @return FALSE if the info does not match or if any error occurs in the check
  */
 BOOL 
-DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext, 
+DoCertificateAttributesMatch(PCCERT_CONTEXT certContext, 
                              CertificateCheckInfo &infoToMatch)
 {
   DWORD dwData;
@@ -160,7 +160,7 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
 
   if (infoToMatch.issuer) {
     // Pass in NULL to get the needed size of the issuer buffer.
-    dwData = CertGetNameString(pCertContext, 
+    dwData = CertGetNameString(certContext, 
                                CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                CERT_NAME_ISSUER_FLAG, NULL,
                                NULL, 0);
@@ -178,8 +178,8 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
     }
 
     // Get Issuer name.
-    if (!CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
-                            CERT_NAME_ISSUER_FLAG, NULL, szName, dwData)) {
+    if (!CertGetNameString(certContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                           CERT_NAME_ISSUER_FLAG, NULL, szName, dwData)) {
       LOG(("CertGetNameString failed.\n"));
       LocalFree(szName);
       return FALSE;
@@ -198,7 +198,7 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
 
   if (infoToMatch.name) {
     // Pass in NULL to get the needed size of the name buffer.
-    dwData = CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
+    dwData = CertGetNameString(certContext, CERT_NAME_SIMPLE_DISPLAY_TYPE,
                                0, NULL, NULL, 0);
     if (!dwData) {
       LOG(("CertGetNameString failed.\n"));
@@ -213,7 +213,7 @@ DoCertificateAttributesMatch(PCCERT_CONTEXT pCertContext,
     }
 
     // Obtain the name.
-    if (!(CertGetNameString(pCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0,
+    if (!(CertGetNameString(certContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0,
                             NULL, szName, dwData))) {
       LOG(("CertGetNameString failed.\n"));
       LocalFree(szName);
@@ -261,116 +261,41 @@ AllocateAndCopyWideString(LPCWSTR inputString)
 DWORD
 VerifyCertificateTrustForFile(LPCWSTR filePath)
 {
-  // Initialize the WINTRUST_FILE_INFO structure.
-  WINTRUST_FILE_INFO FileData;
-  memset(&FileData, 0, sizeof(FileData));
-  FileData.cbStruct = sizeof(WINTRUST_FILE_INFO);
-  FileData.pcwszFilePath = filePath;
-  FileData.hFile = NULL;
-  FileData.pgKnownSubject = NULL;
+  // Setup the file to check.
+  WINTRUST_FILE_INFO fileToCheck;
+  ZeroMemory(&fileToCheck, sizeof(fileToCheck));
+  fileToCheck.cbStruct = sizeof(WINTRUST_FILE_INFO);
+  fileToCheck.pcwszFilePath = filePath;
 
-  // WVTPolicyGUID specifies the policy to apply on the file
-  // WINTRUST_ACTION_GENERIC_VERIFY_V2 policy checks:
-  //   
-  // 1) The certificate used to sign the file chains up to a root 
-  // certificate located in the trusted root certificate store. This 
-  // implies that the identity of the publisher has been verified by 
-  // a certification authority.
-  // 
-  // 2) In cases where user interface is displayed (which this example
-  // does not do), WinVerifyTrust will check for whether the  
-  // end entity certificate is stored in the trusted publisher store,  
-  // implying that the user trusts content from this publisher.
-  // 
-  // 3) The end entity certificate has sufficient permission to sign 
-  // code, as indicated by the presence of a code signing EKU or no EKU.
-  GUID WVTPolicyGUID = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-  WINTRUST_DATA WinTrustData;
+  // Setup what to check, we want to check it is signed and trusted.
+  WINTRUST_DATA trustData;
+  ZeroMemory(&trustData, sizeof(trustData));
+  trustData.cbStruct = sizeof(trustData);
+  trustData.pPolicyCallbackData = NULL;
+  trustData.pSIPClientData = NULL;
+  trustData.dwUIChoice = WTD_UI_NONE;
+  trustData.fdwRevocationChecks = WTD_REVOKE_NONE; 
+  trustData.dwUnionChoice = WTD_CHOICE_FILE;
+  trustData.dwStateAction = 0;
+  trustData.hWVTStateData = NULL;
+  trustData.pwszURLReference = NULL;
+  // no UI
+  trustData.dwUIContext = 0;
+  trustData.pFile = &fileToCheck;
 
-  // Initialize the WinVerifyTrust input data structure.
-  // Default all fields to 0.
-  memset(&WinTrustData, 0, sizeof(WinTrustData));
-  WinTrustData.cbStruct = sizeof(WinTrustData);
-  // Use default code signing EKU.
-  WinTrustData.pPolicyCallbackData = NULL;
-  // No data to pass to SIP.
-  WinTrustData.pSIPClientData = NULL;
-  // Disable WVT UI.
-  WinTrustData.dwUIChoice = WTD_UI_NONE;
-  // No revocation checking.
-  WinTrustData.fdwRevocationChecks = WTD_REVOKE_NONE; 
-  // Verify an embedded signature on a file.
-  WinTrustData.dwUnionChoice = WTD_CHOICE_FILE;
-  // Default verification.
-  WinTrustData.dwStateAction = 0;
-  // Not applicable for default verification of embedded signature.
-  WinTrustData.hWVTStateData = NULL;
-  // Not used.
-  WinTrustData.pwszURLReference = NULL;
-  // This is not applicable if there is no UI because it changes the UI
-  // to accommodate running applications instead of installing applications.
-  WinTrustData.dwUIContext = 0;
-  // Set pFile.
-  WinTrustData.pFile = &FileData;
-
-  // WinVerifyTrust verifies signatures as specified by the GUID 
-  // and Wintrust_Data.
-  LONG lStatus = WinVerifyTrust(NULL, &WVTPolicyGUID, &WinTrustData);
-  DWORD dwLastError = GetLastError();
-  BOOL validated = FALSE;
-  switch (lStatus) {
-    case ERROR_SUCCESS:
-      // The hash that represents the subject is trusted and there were no
-      // verification errors.  No publisher nor time stamp chain errors.
-      LOG(("The file \"%ls\" is signed and the signature was verified.\n",
-           filePath));
-      validated = TRUE;
-      break;
-    case TRUST_E_NOSIGNATURE:
-      // The file was not signed or had a signature that was not valid.
-      // Get the reason for no signature.
-      if (TRUST_E_TIME_STAMP == dwLastError) {
-        // The timestamp is expired
-        LOG(("The file \"%ls\" has a timestamp error.\n", filePath));
-      } else if (TRUST_E_NOSIGNATURE == dwLastError ||
-                TRUST_E_SUBJECT_FORM_UNKNOWN == dwLastError ||
-                TRUST_E_PROVIDER_UNKNOWN == dwLastError) {
-        // The file was not signed.
-        LOG(("The file \"%ls\" is not signed.\n", filePath));
-      } else {
-        // The signature was not valid or there was an error 
-        // opening the file.
-        LOG(("An unknown error occurred trying to verify the signature of "
-             "the \"%ls\" file.\n", filePath));
-      }
-      break;
-    case TRUST_E_EXPLICIT_DISTRUST:
-      // The hash that represents the subject or the publisher 
-      // is not allowed by the admin or user.
-      LOG(("The signature is present, but specifically disallowed.\n"));
-      break;
-    case TRUST_E_SUBJECT_NOT_TRUSTED:
-      // The user clicked "No" when asked to install and run.
-      // Since the UI is disabled I'm not sure if this happens
-      // some time in the past, or if the error will simply never happen.
-      LOG(("The signature is present, but not trusted.\n"));
-      break;
-    case CRYPT_E_SECURITY_SETTINGS:
-      // The hash that represents the subject or the publisher was not 
-      // explicitly trusted by the admin and the admin policy has disabled 
-      // user trust. No signature, publisher or time stamp errors.
-      LOG(("CRYPT_E_SECURITY_SETTINGS - The hash "
-           "representing the subject or the publisher wasn't "
-           "explicitly trusted by the admin and admin policy "
-           "has disabled user trust. No signature, publisher "
-           "or timestamp errors.\n"));
-      break;
-    default:
-      // The UI was disabled in dwUIChoice or the admin policy has disabled
-      // user trust. lStatus contains the publisher or time stamp chain error.
-      LOG(("Error is: %d\n", lStatus));
-      break;
+  GUID policyGUID = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+  // Check if the file is signed by something that is trusted.
+  LONG ret = WinVerifyTrust(NULL, &policyGUID, &trustData);
+  if (ERROR_SUCCESS == ret) {
+    // The hash that represents the subject is trusted and there were no
+    // verification errors.  No publisher nor time stamp chain errors.
+    LOG(("The file \"%ls\" is signed and the signature was verified.\n",
+        filePath));
+      return ERROR_SUCCESS;
+  } else {
+    DWORD lastError = GetLastError();
+    LOG(("There was an error validating trust of the certificate for file"
+         " \"%ls\". Returned: %d, Last error: %d\n", filePath, ret, lastError));
+    return ret;
   }
-
-  return validated ? ERROR_SUCCESS : dwLastError;
 }
