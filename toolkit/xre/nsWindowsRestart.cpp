@@ -382,13 +382,21 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
     return FALSE;
   }
 
+  // Write out the command ID.
+  // Command ID 1 is for an update work item file, which is the only supported
+  // command at this time.
+  DWORD commandID = 1, commandIDWrote;
+  BOOL result = WriteFile(updateMetaFile, &commandID, 
+                          sizeof(DWORD), 
+                          &commandIDWrote, NULL);
+
   // Write out the command line arguments that are passed to updater.exe
   PRUnichar *commandLineBuffer = MakeCommandLine(argc, argv);
   DWORD sessionID, sessionIDWrote;
   ProcessIdToSessionId(GetCurrentProcessId(), &sessionID);
-  BOOL result = WriteFile(updateMetaFile, &sessionID, 
-                          sizeof(DWORD), 
-                          &sessionIDWrote, NULL);
+  result |= WriteFile(updateMetaFile, &sessionID, 
+                      sizeof(DWORD), 
+                      &sessionIDWrote, NULL);
 
   WCHAR appBuffer[MAX_PATH + 1];
   ZeroMemory(appBuffer, sizeof(appBuffer));
@@ -415,6 +423,7 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
   free(commandLineBuffer);
   if (!result ||
       sessionIDWrote != sizeof(DWORD) ||
+      commandIDWrote != sizeof(DWORD) ||
       appBufferWrote != MAX_PATH * sizeof(WCHAR) ||
       workingDirectoryWrote != MAX_PATH * sizeof(WCHAR) ||
       commandLineWrote != commandLineLength) {

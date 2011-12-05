@@ -274,7 +274,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   }
 
   DWORD fileSize = GetFileSize(metaUpdateFile, NULL);
-  DWORD sessionID = 0;
+  DWORD sessionID = 0, commandID = 0;
   // The file should be in wide characters so if it's of odd size it's
   // an invalid file.
   const int kSanityCheckFileSize = 1024 * 64;
@@ -288,10 +288,17 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     return TRUE;
   }
 
-  // The first 4 bytes are for the process ID
+  // The first 4 bytes are for the command ID.
+  // Currently only command ID 1 which is for updates is supported.
+  DWORD commandIDCount;
+  BOOL result = ReadFile(metaUpdateFile, &commandID, 
+                         sizeof(DWORD), &commandIDCount, NULL);
+  fileSize -= sizeof(DWORD);
+
+  // The next 4 bytes are for the process ID
   DWORD sessionIDCount;
-  BOOL result = ReadFile(metaUpdateFile, &sessionID, 
-                         sizeof(DWORD), &sessionIDCount, NULL);
+  result |= ReadFile(metaUpdateFile, &sessionID, 
+                     sizeof(DWORD), &sessionIDCount, NULL);
   fileSize -= sizeof(DWORD);
 
   // The next MAX_PATH wchar's are for the app to start
@@ -325,7 +332,9 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   }
 
   if (!result ||
-      sessionIDCount != sizeof(DWORD) || 
+      commandID != 1 ||
+      commandIDCount != sizeof(DWORD) ||
+      sessionIDCount != sizeof(DWORD) ||
       updaterPathCount != MAX_PATH * sizeof(WCHAR) ||
       workingDirectoryCount != MAX_PATH * sizeof(WCHAR) ||
       fileSize != 0) {
