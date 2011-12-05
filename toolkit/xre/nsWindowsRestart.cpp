@@ -323,7 +323,7 @@ PathAppendSafe(LPWSTR base, LPCWSTR extra)
  * @return TRUE if the path was obtained successfully.
 */
 BOOL
-GetUpdateDirectoryPath(WCHAR *path) 
+GetUpdateDirectoryPath(PRUnichar *path) 
 {
   HRESULT hr = SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 
     SHGFP_TYPE_CURRENT, path);
@@ -363,13 +363,13 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
     return FALSE;
   }
 
-  WCHAR updateData[MAX_PATH + 1];
+  PRUnichar updateData[MAX_PATH + 1];
   if (!GetUpdateDirectoryPath(updateData)) {
     return FALSE;
   }
 
   // Get a unique filename
-  WCHAR tempFilePath[MAX_PATH + 1];
+  PRUnichar tempFilePath[MAX_PATH + 1];
   const int USE_SYSTEM_TIME = 0;
   if (!GetTempFileNameW(updateData, L"moz", USE_SYSTEM_TIME, tempFilePath)) {
     return FALSE;
@@ -383,32 +383,40 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
     return FALSE;
   }
 
+  // Write out the command ID.
+  // Command ID 1 is for an update work item file, which is the only supported
+  // command at this time.
+  DWORD commandID = 1, commandIDWrote;
+  BOOL result = WriteFile(updateMetaFile, &commandID, 
+                          sizeof(DWORD), 
+                          &commandIDWrote, NULL);
+
   // Write out the command line arguments that are passed to updater.exe
   PRUnichar *commandLineBuffer = MakeCommandLine(argc, argv);
   DWORD sessionID, sessionIDWrote;
   ProcessIdToSessionId(GetCurrentProcessId(), &sessionID);
-  BOOL result = WriteFile(updateMetaFile, &sessionID, 
-                          sizeof(DWORD), 
-                          &sessionIDWrote, NULL);
+  result |= WriteFile(updateMetaFile, &sessionID, 
+                      sizeof(DWORD), 
+                      &sessionIDWrote, NULL);
 
-  WCHAR appBuffer[MAX_PATH + 1];
+  PRUnichar appBuffer[MAX_PATH + 1];
   ZeroMemory(appBuffer, sizeof(appBuffer));
   wcscpy(appBuffer, exePath);
   DWORD appBufferWrote;
   result |= WriteFile(updateMetaFile, appBuffer, 
-                      MAX_PATH * sizeof(WCHAR), 
+                      MAX_PATH * sizeof(PRUnichar), 
                       &appBufferWrote, NULL);
 
-  WCHAR workingDirectory[MAX_PATH + 1];
+  PRUnichar workingDirectory[MAX_PATH + 1];
   ZeroMemory(workingDirectory, sizeof(appBuffer));
   GetCurrentDirectoryW(sizeof(workingDirectory) / sizeof(workingDirectory[0]), 
                        workingDirectory);
   DWORD workingDirectoryWrote;
   result |= WriteFile(updateMetaFile, workingDirectory, 
-                      MAX_PATH * sizeof(WCHAR), 
+                      MAX_PATH * sizeof(PRUnichar), 
                       &workingDirectoryWrote, NULL);
 
-  DWORD commandLineLength = wcslen(commandLineBuffer) * sizeof(WCHAR);
+  DWORD commandLineLength = wcslen(commandLineBuffer) * sizeof(PRUnichar);
   DWORD commandLineWrote;
   result |= WriteFile(updateMetaFile, commandLineBuffer, 
                       commandLineLength, 
@@ -416,8 +424,9 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
   free(commandLineBuffer);
   if (!result ||
       sessionIDWrote != sizeof(DWORD) ||
-      appBufferWrote != MAX_PATH * sizeof(WCHAR) ||
-      workingDirectoryWrote != MAX_PATH * sizeof(WCHAR) ||
+      commandIDWrote != sizeof(DWORD) ||
+      appBufferWrote != MAX_PATH * sizeof(PRUnichar) ||
+      workingDirectoryWrote != MAX_PATH * sizeof(PRUnichar) ||
       commandLineWrote != commandLineLength) {
     updateMetaFile.reset();
     DeleteFileW(tempFilePath);
@@ -429,7 +438,7 @@ WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
   // have a .mz extension.  This ensures that the service will never try to
   // process a partial update work meta file. 
   updateMetaFile.reset();
-  WCHAR completedMetaFilePath[MAX_PATH + 1];
+  PRUnichar completedMetaFilePath[MAX_PATH + 1];
   wcscpy(completedMetaFilePath, tempFilePath);
 
   // Change the file extension of the temp file path from .tmp to .mz
@@ -444,7 +453,7 @@ static BOOL
 WriteStatusFile(LPCWSTR updateDirPath, const char* contents,
                 size_t length)
 {
-  WCHAR updateStatusFilePath[MAX_PATH + 1];
+  PRUnichar updateStatusFilePath[MAX_PATH + 1];
   wcscpy(updateStatusFilePath, updateDirPath);
   if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
     return FALSE;
@@ -501,7 +510,7 @@ WriteStatusApplied(LPCWSTR updateDirPath)
 BOOL
 WriteStatusFailure(LPCWSTR updateDirPath, int errorCode) 
 {
-  WCHAR updateStatusFilePath[MAX_PATH + 1];
+  PRUnichar updateStatusFilePath[MAX_PATH + 1];
   wcscpy(updateStatusFilePath, updateDirPath);
   if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
     return FALSE;

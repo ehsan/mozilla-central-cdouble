@@ -36,7 +36,6 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include <windows.h>
-#include "prlog.h"
 #include "updatelogging.h"
 
 BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);

@@ -1,4 +1,3 @@
-#! /bin/sh
 # ***** BEGIN LICENSE BLOCK *****
 # Version: MPL 1.1/GPL 2.0/LGPL 2.1
 #
@@ -12,19 +11,12 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is Mozilla Build System
-#
-# The Initial Developer of the Original Code is
-# Ben Turner <mozilla@songbirdnest.com>
-#
-# Portions created by the Initial Developer are Copyright (C) 2007
-# the Initial Developer. All Rights Reserved.
-#
 # Contributor(s):
+#   Chris AtLee <catlee@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# either of the GNU General Public License Version 2 or later (the "GPL"),
+# or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
 # in which case the provisions of the GPL or the LGPL are applicable instead
 # of those above. If you wish to allow use of your version of this file only
 # under the terms of either the GPL or the LGPL, and not to allow others to
@@ -36,28 +28,33 @@
 #
 # ***** END LICENSE BLOCK *****
 
-MOZ_APP_BASENAME=Firefox
-MOZ_APP_VENDOR=Mozilla
-MOZ_UPDATER=1
-MOZ_PHOENIX=1
+# We shouldn't sign the first pass of a PGO build
+ifneq (1,$(MOZ_PROFILE_GENERATE))
 
-if test "$OS_ARCH" = "WINNT"; then
-  if ! test "$HAVE_64BIT_OS"; then
-    MOZ_MAINTENANCE_SERVICE=1
-  fi
-fi
+# Signing support
+ifdef MOZ_SIGN_CMD
+ifeq (WINNT,$(OS_ARCH))
+MOZ_INTERNAL_SIGNING_FORMAT := signcode
+MOZ_EXTERNAL_SIGNING_FORMAT := signcode gpg
+SIGN_INCLUDES := \
+    '*.dll' \
+    '*.exe' \
+    $(NULL)
 
-MOZ_CHROME_FILE_FORMAT=omni
-MOZ_SAFE_BROWSING=1
-MOZ_SERVICES_SYNC=1
-MOZ_APP_VERSION=$FIREFOX_VERSION
-MOZ_EXTENSIONS_DEFAULT=" gnomevfs"
-# MOZ_APP_DISPLAYNAME will be set by branding/configure.sh
-# Changing either of these values requires a clobber to ensure correct results,
-# because branding dependencies are broken.
-MOZ_BRANDING_DIRECTORY=browser/branding/nightly
-MOZ_OFFICIAL_BRANDING_DIRECTORY=browser/branding/official
-MOZ_APP_ID={ec8030f7-c20a-464f-9b0e-13a3a9e97384}
-MOZ_PROFILE_MIGRATOR=1
-MOZ_EXTENSION_MANAGER=1
-MOZ_APP_STATIC_INI=1
+SIGN_EXCLUDES := \
+    'D3DCompiler*.dll' \
+    'd3dx9*.dll' \
+    'msvc*.dll' \
+    $(NULL)
+endif # Windows
+
+ifeq (Darwin, $(OS_ARCH))
+MOZ_EXTERNAL_SIGNING_FORMAT := gpg
+endif # Darwin
+
+ifeq (linux-gnu,$(TARGET_OS))
+MOZ_EXTERNAL_SIGNING_FORMAT := gpg
+endif # Linux
+endif # MOZ_SIGN_CMD
+
+endif # MOZ_PROFILE_GENERATE

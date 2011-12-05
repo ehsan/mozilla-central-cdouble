@@ -77,7 +77,7 @@ PARALLEL_DIRS += \
   viewsource \
   $(NULL)
 
-ifeq ($(OS_ARCH),WINNT)
+ifdef MOZ_MAINTENANCE_SERVICE
 DIRS += maintenanceservice
 endif
 

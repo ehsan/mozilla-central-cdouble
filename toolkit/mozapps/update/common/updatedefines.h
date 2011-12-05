@@ -41,6 +41,20 @@
 #include "prtypes.h"
 #include "readstrings.h"
 
+#ifndef MAXPATHLEN
+# ifdef PATH_MAX
+#  define MAXPATHLEN PATH_MAX
+# elif defined(MAX_PATH)
+#  define MAXPATHLEN MAX_PATH
+# elif defined(_MAX_PATH)
+#  define MAXPATHLEN _MAX_PATH
+# elif defined(CCHMAXPATH)
+#  define MAXPATHLEN CCHMAXPATH
+# else
+#  define MAXPATHLEN 1024
+# endif
+#endif
+
 #if defined(XP_WIN)
 # include <windows.h>
 # include <shlwapi.h>
@@ -161,4 +175,3 @@ static int mywcsprintf(WCHAR* dest, size_t count, const WCHAR* fmt, ...)
 #define BACKUP_EXT NS_T(".moz-backup")
 
 #endif
-

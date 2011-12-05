@@ -47,7 +47,7 @@ native HKEY(HKEY);
  *
  * This interface is highly Win32 specific.
  */
-[scriptable, uuid(dbb9ce42-99ee-485d-908b-1c95da48ad9f)]
+[scriptable, uuid(2555b930-d64f-437e-9be7-0a2cb252c1f4)]
 interface nsIWindowsRegKey : nsISupports
 {
   /**

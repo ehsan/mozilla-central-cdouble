@@ -61,9 +61,10 @@ Var InstallType
 Var AddStartMenuSC
 Var AddQuickLaunchSC
 Var AddDesktopSC
+!ifdef MOZ_MAINTENANCE_SERVICE
 Var InstallMaintenanceService
+!endif
 Var PageName
-Var MaintCertKey
 
 ; By defining NO_STARTMENU_DIR an installer that doesn't provide an option for
 ; an application's Start Menu PROGRAMS directory and doesn't define the
@@ -189,7 +190,9 @@ Page custom preOptions leaveOptions
 !insertmacro MUI_PAGE_DIRECTORY
 
 ; Custom Components Page
+!ifdef MOZ_MAINTENANCE_SERVICE
 Page custom preComponents leaveComponents
+!endif
 
 ; Custom Shortcuts Page
 Page custom preShortcuts leaveShortcuts
@@ -284,6 +287,7 @@ Section "-Application" APP_IDX
 
   ClearErrors
 
+!ifdef MOZ_MAINTENANCE_SERVICE
   ; Default for installing the maintenance service 
   ${If} $InstallMaintenanceService == ""
     Call IsUserAdmin
@@ -298,6 +302,7 @@ Section "-Application" APP_IDX
       StrCpy $InstallMaintenanceService "0"
     ${EndIf}
   ${EndIf}
+!endif
 
   ; Default for creating Start Menu shortcut
   ; (1 = create, 0 = don't create)
@@ -396,13 +401,15 @@ Section "-Application" APP_IDX
     ${EndIf}
   ${EndIf}
 
-  ${IF} $InstallMaintenanceService == 1
+  !ifdef MOZ_MAINTENANCE_SERVICE
+  ${If} $InstallMaintenanceService == 1
     ; The user wants to install the maintenance service, so execute
     ; the pre-packaged maintenance service installer. 
     ; This option can only be turned on if the user is an admin so there
     ; is no need to use ExecShell w/ verb runas to enforce elevated.
     nsExec::Exec "$INSTDIR\maintenanceservice_installer.exe" 
   ${EndIf}
+  !endif
 
   ; These need special handling on uninstall since they may be overwritten by
   ; an install into a different location.
@@ -457,7 +464,7 @@ Section "-Application" APP_IDX
   ${Unless} ${Errors}
     GetFunctionAddress $0 FixShortcutAppModelIDs
     UAC::ExecCodeSegment $0
-  ${EndIf}
+  ${EndUnless}
 
   ; UAC only allows elevating to an Admin account so there is no need to add
   ; the Start Menu or Desktop shortcuts from the original unelevated process
@@ -514,25 +521,10 @@ Section "-Application" APP_IDX
     ${EndUnless}
   ${EndIf}
 
-  ; Allow main Mozilla cert information for updates
-  ServicesHelper::PathToUniqueRegistryPath "$INSTDIR"
-  Pop $MaintCertKey
-  ${If} $MaintCertKey != ""
-    ; We always use the 64bit registry for certs.
-    ; This call is ignored on 32-bit systems.
-    ; *Nothing* should be added under here that modifies the registry
-    ; unless it restores the registry view.
-    ; More than one certificate can be specified in a different subfolder
-    ; for example: $MaintCertKey\1, but each individual binary can be signed
-    ; with at most one certificate.  A fallback certificate can only be used
-    ; if the binary is replaced with a different certificate.
-    SetRegView 64
-    WriteRegStr HKLM "$MaintCertKey\0" "name" "Mozilla Corporation"
-    WriteRegStr HKLM "$MaintCertKey\0" "issuer" "Thawte Code Signing CA - G2"
-    WriteRegStr HKLM "$MaintCertKey\0" "programName" ""
-    WriteRegStr HKLM "$MaintCertKey\0" "publisherLink" ""
-    WriteRegStr HKLM "$MaintCertKey\0" "moreInfoLink" "http://www.mozilla.com"
-  ${EndIf} 
+!ifdef MOZ_MAINTENANCE_SERVICE
+  ; Add the registry keys for allowed certificates.
+  ${AddMaintCertKeys}
+!endif
 SectionEnd
 
 ; Cleanup operations to perform at the end of the installation.
@@ -850,27 +842,26 @@ Function leaveShortcuts
   ${EndIf}
 FunctionEnd
 
+!ifdef MOZ_MAINTENANCE_SERVICE
 Function preComponents
-  ; Don't show the custom components page if the
-  ; user is not an admin
-  Call IsUserAdmin
+  ; If the service already exists, don't show this page
+  ServicesHelper::IsInstalled "MozillaMaintenance"
   Pop $R9
-  ${If} $R9 != "true"
+  ${If} $R9 == 1
+    ; The service already exists so don't show this page.
     Abort
   ${EndIf}
 
   ; On Windows 2000 we do not install the maintenance service.
   ${Unless} ${AtLeastWinXP}
     Abort
-  ${EndIf}
+  ${EndUnless}
 
-  ; If the service already exists, don't show this page
-  ; We will always install again (which will upgrade)
-  ; as long as the user is admin
-  ServicesHelper::IsInstalled "MozillaMaintenance"
+  ; Don't show the custom components page if the
+  ; user is not an admin
+  Call IsUserAdmin
   Pop $R9
-  ${If} $R9 == 1
-    ; The service already exists so don't show this page.
+  ${If} $R9 != "true"
     Abort
   ${EndIf}
 
@@ -890,6 +881,7 @@ Function leaveComponents
     Call CheckExistingInstall
   ${EndIf}
 FunctionEnd
+!endif
 
 Function preSummary
   StrCpy $PageName "Summary"
