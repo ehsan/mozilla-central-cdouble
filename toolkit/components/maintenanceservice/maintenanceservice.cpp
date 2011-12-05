@@ -62,18 +62,29 @@ int
 wmain(int argc, WCHAR **argv)
 {
   // If command-line parameter is "install", install the service
-  // or upgrade if already installed.
+  // or upgrade if already installed
+  // If command line parameter is "forceinstall", install the service
+  // even if it is older than what is already installed.
   // If command-line parameter is "upgrade", upgrade the service
   // but do not install it if it is not already installed.
   // If command line parameter is "uninstall", uninstall the service.
   // Otherwise, the service is probably being started by the SCM.
-  if (lstrcmpi(argv[1], L"install") == 0) {
+  bool forceInstall = !lstrcmpi(argv[1], L"forceinstall");
+  if (!lstrcmpi(argv[1], L"install") || forceInstall) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-install.log");
     }
-    LOG(("Installing service...\n"));
-    if (!SvcInstall(FALSE)) {
+
+    LOG(("Installing service"));
+    SvcInstallAction action = InstallSvc;
+    if (forceInstall) {
+      action = ForceInstallSvc;
+      LOG((" with force specified"));
+    }
+    LOG(("...\n"));
+
+    if (!SvcInstall(action)) {
       LOG(("Could not install service (%d)\n", GetLastError()));
       LogFinish();
       return 1;
@@ -82,13 +93,13 @@ wmain(int argc, WCHAR **argv)
     LOG(("The service was installed successfully\n"));
     LogFinish();
     return 0;
-  } else if (lstrcmpi(argv[1], L"upgrade") == 0) {
+  } else if (!lstrcmpi(argv[1], L"upgrade")) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-install.log");
     }
     LOG(("Upgrading service if installed...\n"));
-    if (!SvcInstall(TRUE)) {
+    if (!SvcInstall(UpgradeSvc)) {
       LOG(("Could not upgrade service (%d)\n", GetLastError()));
       LogFinish();
       return 1;
@@ -97,7 +108,7 @@ wmain(int argc, WCHAR **argv)
     LOG(("The service was upgraded successfully\n"));
     LogFinish();
     return 0;
-  } else if (lstrcmpi(argv[1], L"uninstall") == 0) {
+  } else if (!lstrcmpi(argv[1], L"uninstall")) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-uninstall.log");

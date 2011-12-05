@@ -95,11 +95,11 @@ GetVersionNumberFromPath(LPWSTR path, DWORD &A, DWORD &B,
  * If an existing service is already installed, we replace it with the
  * currently running process.
  *
- * @param  upgradeOnly If TRUE will only upgrade an existing install
+ * @param  action The action to perform.
  * @return TRUE if the service was installed/upgraded
  */
 BOOL
-SvcInstall(BOOL upgradeOnly)
+SvcInstall(SvcInstallAction action)
 {
   // Get a handle to the local computer SCM database with full access rights.
   nsAutoServiceHandle schSCManager(OpenSCManager(NULL, NULL, 
@@ -173,7 +173,8 @@ SvcInstall(BOOL upgradeOnly)
     // Check if we need to replace the old binary with the new one
     // If we couldn't get the old version info then we assume we should 
     // replace it.
-    if (!obtainedExistingVersionInfo || 
+    if (ForceInstallSvc == action ||
+        !obtainedExistingVersionInfo || 
         (existingA < newA) ||
         (existingA == newA && existingB < newB) ||
         (existingA == newA && existingB == newB && 
@@ -215,7 +216,7 @@ SvcInstall(BOOL upgradeOnly)
       
       return TRUE; // nothing to do, we already have a newer service installed
     }
-  } else if (upgradeOnly) {
+  } else if (UpgradeSvc == action) {
     // The service does not exist and we are upgrading, so don't install it
     return TRUE;
   }
