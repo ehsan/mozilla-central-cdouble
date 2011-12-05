@@ -41,16 +41,6 @@
 class UACHelper
 {
 public:
-  // Determines if the specified user token is an administrator or not
-  enum UserType {
-    LimitedUser, 
-    AdministratorUACIsOff, 
-    AdministratorUnelevated,
-    // AdministratorElevated means that UAC is on and the 
-    // Administrator is elevated.
-    AdministratorElevated
-  };
-
   static BOOL IsVistaOrLater();
   static HANDLE OpenUserToken(DWORD sessionID);
   static HANDLE OpenLinkedToken(HANDLE token);
