@@ -391,7 +391,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       // If the update process was started, then updater.exe is responsible for
       // setting the failure code and running the callback.  If it could not 
       // be started then we do the work.  We set an error instead of directly
-      // setting status pending so that the app.update.service.failcount
+      // setting status pending so that the app.update.service.errors
       // pref can be updated when the callback app restarts.
       if (!updateProcessWasStarted) {
         if (!WriteStatusFailure(argvTmp[1], SERVICE_UPDATE_ERROR)) {
@@ -410,7 +410,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
     // We can't start the callback in this case because there
     // are not enough command line parameters. We set an error instead of
-    // directly setting status pending so that the app.update.service.failcount
+    // directly setting status pending so that the app.update.service.errors
     // pref can be updated when the callback app restarts.
     if (argcTmp != 2 || !WriteStatusFailure(argvTmp[1], 
                                             SERVICE_UPDATE_ERROR)) {
@@ -424,7 +424,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
     // When there is a certificate error we just want to write pending.
     // That is because a future update will probably fix the certificate
-    // problem, and we don't want to update  app.update.service.failcount.
+    // problem, and we don't want to update  app.update.service.errors.
     // We can't start the callback in this case because it is a sign problem
     // with the callback itself.
     if (!WriteStatusPending(argvTmp[1])) {
@@ -437,7 +437,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
     // When there is a certificate error we just want to write pending.
     // That is because a future update will probably fix the certificate
-    // problem, and we don't want to update app.update.service.failcount.
+    // problem, and we don't want to update app.update.service.errors.
     if (!WriteStatusPending(argvTmp[1])) {
       LOG(("Could not write pending state to update.status.  (%d)\n", 
            GetLastError()));

@@ -41,31 +41,6 @@
 #include "updatedefines.h"
 #include <stdio.h>
 
-#ifndef MAXPATHLEN
-# ifdef PATH_MAX
-#  define MAXPATHLEN PATH_MAX
-# elif defined(MAX_PATH)
-#  define MAXPATHLEN MAX_PATH
-# elif defined(_MAX_PATH)
-#  define MAXPATHLEN _MAX_PATH
-# elif defined(CCHMAXPATH)
-#  define MAXPATHLEN CCHMAXPATH
-# else
-#  define MAXPATHLEN 1024
-# endif
-#endif
-
-#if defined(XP_WIN)
-#define NS_tsnprintf(dest, count, fmt, ...) \
-  PR_BEGIN_MACRO \
-  int _count = count - 1; \
-  _snwprintf(dest, _count, fmt, ##__VA_ARGS__); \
-  dest[_count] = L'\0'; \
-  PR_END_MACRO
-#else
-#define NS_tsnprintf snprintf
-#endif
-
 class UpdateLog
 {
 public:

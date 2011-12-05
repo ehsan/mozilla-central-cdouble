@@ -45,7 +45,9 @@ public:
   enum UserType {
     LimitedUser, 
     AdministratorUACIsOff, 
-    AdministratorUnelevated, 
+    AdministratorUnelevated,
+    // AdministratorElevated means that UAC is on and the 
+    // Administrator is elevated.
     AdministratorElevated
   };
 

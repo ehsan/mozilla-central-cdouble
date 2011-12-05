@@ -197,7 +197,7 @@ pref("app.update.showInstalledUI", false);
 pref("app.update.incompatible.mode", 0);
 
 // Whether or not to attempt using the service for updates.
-pref("app.update.service", true);
+pref("app.update.service.enabled", true);
 
 // Symmetric (can be overridden by individual extensions) update preferences.
 // e.g.

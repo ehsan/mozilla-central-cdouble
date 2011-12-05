@@ -73,12 +73,13 @@ PathGetSiblingFilePath(LPWSTR destinationBuffer,
 /**
  * Launch the post update application as the specified user (helper.exe).
  * It takes in the path of the callback application to calculate the path
- * of helper.exe
+ * of helper.exe.  For service updates this is called from both the system
+ * account and the current user account.
  *
  * @param  appExe       The path to the callback application binary.
+ * @param updateInfoDir The directory where update info is stored.
  * @param  userToken    The user token to run as, if NULL the current user
  *         will be used.
- * @param updateInfoDir The directory where update info is stored.
  */
 void
 LaunchWinPostProcess(const WCHAR *appExe,

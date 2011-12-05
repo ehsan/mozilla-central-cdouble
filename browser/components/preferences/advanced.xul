@@ -110,8 +110,8 @@
                   type="bool"/>
 
 #ifdef XP_WIN
-      <preference id="app.update.service"
-                  name="app.update.service"
+      <preference id="app.update.service.enabled"
+                  name="app.update.service.enabled"
                   type="bool"/>
 #endif
 #endif
@@ -337,7 +337,7 @@
             <checkbox id="useService"
                       label="&useService.label;"
                       accesskey="&useService.accesskey;"
-                      preference="app.update.service"/>
+                      preference="app.update.service.enabled"/>
 #endif
           </groupbox>
 #endif

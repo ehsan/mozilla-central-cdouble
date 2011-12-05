@@ -52,7 +52,6 @@
 #include "prlog.h"
 #include "prenv.h"
 #include "nsVersionComparator.h"
-#include "mozilla/Preferences.h"
 
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
