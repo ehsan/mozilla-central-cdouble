@@ -77,8 +77,10 @@ PARALLEL_DIRS += \
   viewsource \
   $(NULL)
 
+ifdef MOZ_MAINTENANCE_SERVICE
 ifeq ($(OS_ARCH),WINNT)
 DIRS += maintenanceservice
+endif
 endif
 
 ifdef BUILD_CTYPES

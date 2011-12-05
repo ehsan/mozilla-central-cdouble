@@ -61,9 +61,10 @@ Var InstallType
 Var AddStartMenuSC
 Var AddQuickLaunchSC
 Var AddDesktopSC
+!ifdef MOZ_MAINTENANCE_SERVICE
 Var InstallMaintenanceService
+!endif
 Var PageName
-Var MaintCertKey
 
 ; By defining NO_STARTMENU_DIR an installer that doesn't provide an option for
 ; an application's Start Menu PROGRAMS directory and doesn't define the
@@ -189,7 +190,9 @@ Page custom preOptions leaveOptions
 !insertmacro MUI_PAGE_DIRECTORY
 
 ; Custom Components Page
+!ifdef MOZ_MAINTENANCE_SERVICE
 Page custom preComponents leaveComponents
+!endif
 
 ; Custom Shortcuts Page
 Page custom preShortcuts leaveShortcuts
@@ -284,6 +287,7 @@ Section "-Application" APP_IDX
 
   ClearErrors
 
+!ifdef MOZ_MAINTENANCE_SERVICE
   ; Default for installing the maintenance service 
   ${If} $InstallMaintenanceService == ""
     Call IsUserAdmin
@@ -298,6 +302,7 @@ Section "-Application" APP_IDX
       StrCpy $InstallMaintenanceService "0"
     ${EndIf}
   ${EndIf}
+!endif
 
   ; Default for creating Start Menu shortcut
   ; (1 = create, 0 = don't create)
@@ -396,13 +401,15 @@ Section "-Application" APP_IDX
     ${EndIf}
   ${EndIf}
 
-  ${IF} $InstallMaintenanceService == 1
+  !ifdef MOZ_MAINTENANCE_SERVICE
+  ${If} $InstallMaintenanceService == 1
     ; The user wants to install the maintenance service, so execute
     ; the pre-packaged maintenance service installer. 
     ; This option can only be turned on if the user is an admin so there
     ; is no need to use ExecShell w/ verb runas to enforce elevated.
     nsExec::Exec "$INSTDIR\maintenanceservice_installer.exe" 
   ${EndIf}
+  !endif
 
   ; These need special handling on uninstall since they may be overwritten by
   ; an install into a different location.
@@ -513,8 +520,11 @@ Section "-Application" APP_IDX
       ${EndIf}
     ${EndUnless}
   ${EndIf}
+
+!ifdef MOZ_MAINTENANCE_SERVICE
   ; Add the registry keys for allowed certificates.
   ${AddMaintCertKeys}
+!endif
 SectionEnd
 
 ; Cleanup operations to perform at the end of the installation.
@@ -832,6 +842,7 @@ Function leaveShortcuts
   ${EndIf}
 FunctionEnd
 
+!ifdef MOZ_MAINTENANCE_SERVICE
 Function preComponents
   ; If the service already exists, don't show this page
   ServicesHelper::IsInstalled "MozillaMaintenance"
@@ -870,6 +881,7 @@ Function leaveComponents
     Call CheckExistingInstall
   ${EndIf}
 FunctionEnd
+!endif
 
 Function preSummary
   StrCpy $PageName "Summary"

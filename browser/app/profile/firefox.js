@@ -197,7 +197,11 @@ pref("app.update.showInstalledUI", false);
 pref("app.update.incompatible.mode", 0);
 
 // Whether or not to attempt using the service for updates.
+#ifdef XP_WIN
+#ifdef MOZ_MAINTENANCE_SERVICE
 pref("app.update.service.enabled", true);
+#endif
+#endif
 
 // Symmetric (can be overridden by individual extensions) update preferences.
 // e.g.

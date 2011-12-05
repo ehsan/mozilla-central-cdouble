@@ -491,7 +491,7 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
 
-#ifndef MOZ_PHOENIX
+#ifndef MOZ_MAINTENANCE_SERVICE
   // We never want the service to be used unless we have Firefox
   isPendingService = false;
 #endif

@@ -63,8 +63,13 @@ CUSTOM_NSIS_PLUGINS = \
 	InvokeShellVerb.dll \
 	ShellLink.dll \
 	UAC.dll \
+	$(NULL)
+
+ifdef MOZ_MAINTENANCE_SERVICE
+CUSTOM_NSIS_PLUGINS += \
 	ServicesHelper.dll \
 	$(NULL)
+endif
 
 $(CONFIG_DIR)/setup.exe::
 	$(INSTALL) $(addprefix $(MOZILLA_DIR)/toolkit/mozapps/installer/windows/nsis/,$(TOOLKIT_NSIS_FILES)) $(CONFIG_DIR)
@@ -101,7 +106,9 @@ uninstaller::
 	$(NSINSTALL) -D $(DIST)/bin/uninstall
 	cp $(CONFIG_DIR)/helper.exe $(DIST)/bin/uninstall
 
+ifdef MOZ_MAINTENANCE_SERVICE
 maintenanceservice_installer::
 	cd $(CONFIG_DIR) && $(MAKENSISU) maintenanceservice_installer.nsi
 	$(NSINSTALL) -D $(DIST)/bin/
 	cp $(CONFIG_DIR)/maintenanceservice_installer.exe $(DIST)/bin
+endif

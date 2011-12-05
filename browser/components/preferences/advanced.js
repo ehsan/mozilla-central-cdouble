@@ -513,6 +513,8 @@ var gAdvancedPane = {
     warnIncompatible.disabled = radiogroup.disabled || modePref.locked ||
                                 !enabledPref.value || !autoPref.value;
 
+#ifdef XP_WIN
+#ifdef MOZ_MAINTENANCE_SERVICE
     // Check to see if the maintenance service is installed.
     // If it is don't show the preference at all.
     var installed;
@@ -530,6 +532,8 @@ var gAdvancedPane = {
     if (installed != 1) {
       document.getElementById("useService").hidden = true;
     }
+#endif
+#endif
   },
 
   /**

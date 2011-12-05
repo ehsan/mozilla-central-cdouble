@@ -604,7 +604,7 @@ function writeStatusFile(dir, state) {
  * @return  true if the service should be used for updates.
  */
 function shouldUseService() {
-#ifdef MOZ_PHOENIX
+#ifdef MOZ_MAINTENANCE_SERVICE
   return getPref("getBoolPref", 
                  PREF_APP_UPDATE_SERVICE_ENABLED, false);
 #else

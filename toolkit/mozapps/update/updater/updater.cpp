@@ -1403,6 +1403,7 @@ LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
 #elif defined(XP_MACOSX)
   LaunchChild(argc, argv);
 #elif defined(XP_WIN)
+#ifdef MOZ_MAINTENANCE_SERVICE
   // If updater.exe is run as session ID 0 and we have a session ID
   // set, then get the unelevated token and use that to start the callback
   // application.  Getting tokens will only work if the process is running
@@ -1421,6 +1422,9 @@ LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
     }
   }
   WinLaunchChild(argv[0], argc, argv, unelevatedToken);
+#else
+  WinLaunchChild(argv[0], argc, argv, NULL);
+#endif
 
 #else
 # warning "Need implementaton of LaunchCallbackApp"

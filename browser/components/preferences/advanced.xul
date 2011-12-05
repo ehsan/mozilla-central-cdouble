@@ -110,9 +110,11 @@
                   type="bool"/>
 
 #ifdef XP_WIN
+#ifdef MOZ_MAINTENANCE_SERVICE
       <preference id="app.update.service.enabled"
                   name="app.update.service.enabled"
                   type="bool"/>
+#endif
 #endif
 #endif
 
@@ -334,10 +336,12 @@
             </hbox>
 
 #ifdef XP_WIN
+#ifdef MOZ_MAINTENANCE_SERVICE
             <checkbox id="useService"
                       label="&useService.label;"
                       accesskey="&useService.accesskey;"
                       preference="app.update.service.enabled"/>
+#endif
 #endif
           </groupbox>
 #endif

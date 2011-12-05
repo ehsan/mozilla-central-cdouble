@@ -107,6 +107,7 @@
 
   ${RemoveDeprecatedFiles}
 
+!ifdef MOZ_MAINTENANCE_SERVICE
   Call IsUserAdmin
   Pop $R0
   ${If} $R0 == "true"
@@ -130,6 +131,8 @@
       ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
     ${EndIf}
   ${EndIf}
+!endif
+
 !macroend
 !define PostUpdate "!insertmacro PostUpdate"
 
@@ -587,6 +590,7 @@ FunctionEnd
 !macroend
 !define UpdateProtocolHandlers "!insertmacro UpdateProtocolHandlers"
 
+!ifdef MOZ_MAINTENANCE_SERVICE
 ; Adds maintenance service certificate keys for the install dir.
 ; For the cert to work, it must also be signed by a trusted cert for the user.
 !macro AddMaintCertKeys
@@ -615,6 +619,7 @@ FunctionEnd
   Pop $R0
 !macroend
 !define AddMaintCertKeys "!insertmacro AddMaintCertKeys"
+!endif
 
 ; Removes various registry entries for reasons noted below (does not use SHCTX).
 !macro RemoveDeprecatedKeys
@@ -1060,8 +1065,10 @@ Function SetAsDefaultAppUserHKCU
   ${EndIf}
   ${RemoveDeprecatedKeys}
   ${PinToTaskBar}
+!ifdef MOZ_MAINTENANCE_SERVICE
   ; Add the registry keys for allowed certificates.
   ${AddMaintCertKeys}
+!endif
 FunctionEnd
 
 ; Helper for updating the shortcut application model IDs.
