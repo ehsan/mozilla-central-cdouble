@@ -274,7 +274,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   }
 
   DWORD fileSize = GetFileSize(metaUpdateFile, NULL);
-  DWORD sessionID = 0;
+  DWORD sessionID = 0, commandID = 0;
   // The file should be in wide characters so if it's of odd size it's
   // an invalid file.
   const int kSanityCheckFileSize = 1024 * 64;
@@ -288,10 +288,17 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     return TRUE;
   }
 
-  // The first 4 bytes are for the process ID
+  // The first 4 bytes are for the command ID.
+  // Currently only command ID 1 which is for updates is supported.
+  DWORD commandIDCount;
+  BOOL result = ReadFile(metaUpdateFile, &commandID, 
+                         sizeof(DWORD), &commandIDCount, NULL);
+  fileSize -= sizeof(DWORD);
+
+  // The next 4 bytes are for the process ID
   DWORD sessionIDCount;
-  BOOL result = ReadFile(metaUpdateFile, &sessionID, 
-                         sizeof(DWORD), &sessionIDCount, NULL);
+  result |= ReadFile(metaUpdateFile, &sessionID, 
+                     sizeof(DWORD), &sessionIDCount, NULL);
   fileSize -= sizeof(DWORD);
 
   // The next MAX_PATH wchar's are for the app to start
@@ -325,7 +332,9 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   }
 
   if (!result ||
-      sessionIDCount != sizeof(DWORD) || 
+      commandID != 1 ||
+      commandIDCount != sizeof(DWORD) ||
+      sessionIDCount != sizeof(DWORD) ||
       updaterPathCount != MAX_PATH * sizeof(WCHAR) ||
       workingDirectoryCount != MAX_PATH * sizeof(WCHAR) ||
       fileSize != 0) {
@@ -382,7 +391,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       // If the update process was started, then updater.exe is responsible for
       // setting the failure code and running the callback.  If it could not 
       // be started then we do the work.  We set an error instead of directly
-      // setting status pending so that the app.update.service.failcount
+      // setting status pending so that the app.update.service.errors
       // pref can be updated when the callback app restarts.
       if (!updateProcessWasStarted) {
         if (!WriteStatusFailure(argvTmp[1], SERVICE_UPDATE_ERROR)) {
@@ -401,7 +410,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
     // We can't start the callback in this case because there
     // are not enough command line parameters. We set an error instead of
-    // directly setting status pending so that the app.update.service.failcount
+    // directly setting status pending so that the app.update.service.errors
     // pref can be updated when the callback app restarts.
     if (argcTmp != 2 || !WriteStatusFailure(argvTmp[1], 
                                             SERVICE_UPDATE_ERROR)) {
@@ -415,7 +424,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
     // When there is a certificate error we just want to write pending.
     // That is because a future update will probably fix the certificate
-    // problem, and we don't want to update  app.update.service.failcount.
+    // problem, and we don't want to update  app.update.service.errors.
     // We can't start the callback in this case because it is a sign problem
     // with the callback itself.
     if (!WriteStatusPending(argvTmp[1])) {
@@ -428,7 +437,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
 
     // When there is a certificate error we just want to write pending.
     // That is because a future update will probably fix the certificate
-    // problem, and we don't want to update app.update.service.failcount.
+    // problem, and we don't want to update app.update.service.errors.
     if (!WriteStatusPending(argvTmp[1])) {
       LOG(("Could not write pending state to update.status.  (%d)\n", 
            GetLastError()));

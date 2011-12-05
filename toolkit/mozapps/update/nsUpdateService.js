@@ -82,9 +82,9 @@ const PREF_APP_UPDATE_SILENT              = "app.update.silent";
 const PREF_APP_UPDATE_URL                 = "app.update.url";
 const PREF_APP_UPDATE_URL_DETAILS         = "app.update.url.details";
 const PREF_APP_UPDATE_URL_OVERRIDE        = "app.update.url.override";
-const PREF_APP_UPDATE_SERVICE             = "app.update.service";
-const PREF_APP_UPDATE_SERVICE_FAILCOUNT   = "app.update.service.failcount";
-const PREF_APP_UPDATE_SERVICE_MAXFAIL     = "app.update.service.maxfail";
+const PREF_APP_UPDATE_SERVICE_ENABLED     = "app.update.service.enabled";
+const PREF_APP_UPDATE_SERVICE_ERRORS      = "app.update.service.errors";
+const PREF_APP_UPDATE_SERVICE_MAX_ERRORS  = "app.update.service.maxErrors";
 const PREF_PARTNER_BRANCH                 = "app.partner.";
 const PREF_APP_DISTRIBUTION               = "distribution.id";
 const PREF_APP_DISTRIBUTION_VERSION       = "distribution.version";
@@ -152,9 +152,9 @@ const DOWNLOAD_FOREGROUND_INTERVAL  = 0;
 
 const UPDATE_WINDOW_NAME      = "Update:Wizard";
 
-// The default number of times the service can fail while 
-// still considering it for use.
-const DEFAULT_MAX_FAIL_COUNT = 10;
+//  The number of consecutive failures when updating using the service before
+// setting the app.update.service.enabled preference to false.
+const DEFAULT_SERVICE_MAX_ERRORS = 10;
 
 var gLocale     = null;
 
@@ -598,21 +598,15 @@ function writeStatusFile(dir, state) {
 
 /**
  * Determines if the service should be used to attempt an update
- * or not.
+ * or not.  For now this is only when PREF_APP_UPDATE_SERVICE_ENABLED
+ * is true and we have Firefox.
  *
- * @return  true if app.update.service is true and max failures
- *          have not been reached.
+ * @return  true if the service should be used for updates.
  */
 function shouldUseService() {
-#ifdef MOZ_PHOENIX
-  // We never want the service to be used unless we have Firefox
-  var useService = getPref("getBoolPref", PREF_APP_UPDATE_SERVICE, true);
-  var failCount = getPref("getIntPref", 
-                          PREF_APP_UPDATE_SERVICE_FAILCOUNT, 0);
-  var maxFail = getPref("getIntPref", 
-                        PREF_APP_UPDATE_SERVICE_MAXFAIL, 
-                        DEFAULT_MAX_FAIL_COUNT);
-  return useService && failCount < maxFail;
+#ifdef MOZ_MAINTENANCE_SERVICE
+  return getPref("getBoolPref", 
+                 PREF_APP_UPDATE_SERVICE_ENABLED, false);
 #else
   return false;
 #endif
@@ -1427,16 +1421,29 @@ UpdateService.prototype = {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
-        else if (update.errorCode == ELEVATION_CANCELED) {
+        if (update.errorCode == ELEVATION_CANCELED) {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
-        else if (update.errorCode == SERVICE_UPDATE_ERROR) {
+        if (update.errorCode == SERVICE_UPDATE_ERROR) {
           var failCount = getPref("getIntPref", 
-                                  PREF_APP_UPDATE_SERVICE_FAILCOUNT, 0);  
-          failCount++;
-          Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_FAILCOUNT, 
+                                  PREF_APP_UPDATE_SERVICE_ERRORS, 0);
+          var maxFail = getPref("getIntPref", 
+                                PREF_APP_UPDATE_SERVICE_MAX_ERRORS, 
+                                DEFAULT_SERVICE_MAX_ERRORS);
+
+          // As a safety, when the service reaches maximum failures, it will
+          // disable itself and fallback to using the normal update mechanism
+          // without the service.
+          if (failCount >= maxFail) {
+            failCount = 0;
+            Services.prefs.setBoolPref(PREF_APP_UPDATE_SERVICE_ENABLED, false);
+          } else {
+            failCount++;
+          }
+          Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
                                     failCount);
+
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }

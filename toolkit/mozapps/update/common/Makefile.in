@@ -55,7 +55,7 @@ CPPSRCS = \
   $(NULL)
 
 EXPORTS = updatelogging.h \
-	updatedefines.h \
+  updatedefines.h \
   $(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)

@@ -38,7 +38,8 @@
 #define SVC_NAME L"MozillaMaintenance"
 #define SVC_DISPLAY_NAME L"Mozilla Maintenance Service"
 
-BOOL SvcInstall(BOOL upgradeOnly);
+enum SvcInstallAction { UpgradeSvc, InstallSvc, ForceInstallSvc };
+BOOL SvcInstall(SvcInstallAction action);
 BOOL SvcUninstall();
 BOOL StopService();
 BOOL SetUserAccessServiceDACL(SC_HANDLE hService);
