@@ -52,6 +52,7 @@ RequestExecutionLevel admin
 ; Variables
 Var PageName
 Var TempMaintServiceName
+Var FallbackKey
 
 ; Modenr UI
 !include "MUI2.nsh"
@@ -220,6 +221,13 @@ Section "MaintenanceService"
   SetRegView 64
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
+  ; The test slaves use this fallback key to run tests.
+  ; And anyone that wants to run tests themselves should already have 
+  ; this installed.
+  StrCpy $FallbackKey \
+    "SOFTWARE\Mozilla\MaintenanceService\3932ecacee736d366d6436db0f55bce4"
+  WriteRegStr HKLM "$FallbackKey\0" "name" "Mozilla Corporation"
+  WriteRegStr HKLM "$FallbackKey\0" "issuer" "Thawte Code Signing CA - G2"
 
   # The Mozilla/updates directory will have an inherited permission
   # which allows any user to write to it.  Work items are written there.
@@ -241,4 +249,5 @@ Section "Uninstall"
   # Keep this last since it modifies the registry key view
   SetRegView 64
   DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
+  DeleteRegKey HKLM "$FallbackKey\"
 SectionEnd
