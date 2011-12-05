@@ -110,6 +110,8 @@
   Call IsUserAdmin
   Pop $R0
   ${If} $R0 == "true"
+  ; On Windows 2000 we do not install the maintenance service.
+  ${AndIf} ${AtLeastWinXP}
     ; We check to see if the maintenance service install was already attempted.
     ; Since the Maintenance service can be installed either x86 or x64,
     ; always use the 64-bit registry for checking if an attempt was made.
@@ -120,11 +122,11 @@
       ; We call ExecShell (which is ShellExecute) with the verb "runas"
       ; to ask for elevation if the user isn't already elevated.  If the user 
       ; is already elevated it will just launch the program.
-    ExecShell "runas" "$INSTDIR\maintenanceservice_installer.exe"
+      ExecShell "runas" "$INSTDIR\maintenanceservice_installer.exe"
     ${Else}
       ; The maintenance service is already installed.
       ; Do nothing, the maintenance service will launch the 
-    ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
+      ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
     ${EndIf}
   ${EndIf}
 !macroend
