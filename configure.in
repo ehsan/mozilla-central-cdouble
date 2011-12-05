@@ -6389,7 +6389,11 @@ MOZ_ARG_ENABLE_BOOL(maintenance-service,
     MOZ_MAINTENANCE_SERVICER= )
 
 if test -n "$MOZ_MAINTENANCE_SERVICE"; then
+  if test "$OS_ARCH" = "WINNT"; then
     AC_DEFINE(MOZ_MAINTENANCE_SERVICE)
+  else
+    AC_MSG_ERROR([Can only build with --enable-maintenance-service with a Windows target])
+  fi
 fi
 
 dnl ========================================================

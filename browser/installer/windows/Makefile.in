@@ -62,11 +62,9 @@ INSTALLER_FILES = \
 	$(NULL)
 
 ifdef MOZ_MAINTENANCE_SERVICE
-ifeq (WINNT,$(OS_TARGET))
 INSTALLER_FILES += \
 	nsis/maintenanceservice_installer.nsi \
 	$(NULL)
-endif
 endif
 
 

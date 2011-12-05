@@ -529,11 +529,9 @@ bin/libfreebl_32int64_3.so
 
 ; [MaintenanceService]
 ;
-#ifdef XP_WIN32
 #ifdef MOZ_MAINTENANCE_SERVICE
 @BINPATH@/maintenanceservice.exe
 @BINPATH@/maintenanceservice_installer.exe
-#endif
 #endif
 
 ; [Crash Reporter]

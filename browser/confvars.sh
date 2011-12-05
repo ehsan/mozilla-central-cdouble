@@ -41,8 +41,10 @@ MOZ_APP_VENDOR=Mozilla
 MOZ_UPDATER=1
 MOZ_PHOENIX=1
 
-if ! test "$HAVE_64BIT_OS"; then
-  MOZ_MAINTENANCE_SERVICE=1
+if test "$OS_ARCH" = "WINNT"; then
+  if ! test "$HAVE_64BIT_OS"; then
+    MOZ_MAINTENANCE_SERVICE=1
+  fi
 fi
 
 MOZ_CHROME_FILE_FORMAT=omni
