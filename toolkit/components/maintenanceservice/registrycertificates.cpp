@@ -70,7 +70,6 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
   LSTATUS retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
                                   maintenanceServiceKey, 0, 
                                   KEY_READ | KEY_WOW64_64KEY, &baseKeyRaw);
-  nsAutoRegKey baseKey(baseKeyRaw);
   if (retCode != ERROR_SUCCESS) {
     LOG(("Could not open key. (%d)\n", retCode));
     // Our tests run with a different apply directory for each test.
@@ -84,8 +83,8 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
       LOG(("Could not open fallback key. (%d)\n", retCode));
       return FALSE;
     }
-    baseKey.own(baseKeyRaw);
   }
+  nsAutoRegKey baseKey(baseKeyRaw);
 
   // Get the number of subkeys.
   DWORD subkeyCount = 0;
