@@ -50,13 +50,10 @@ RequestExecutionLevel admin
 !addplugindir ./
 
 ; Variables
-Var PageName
 Var TempMaintServiceName
 Var FallbackKey
-
-; Modenr UI
-!include "MUI2.nsh"
-
+Var BrandFullNameDA
+Var BrandFullName
 
 ; Other included files may depend upon these includes!
 ; The following includes are provided by NSIS.
@@ -72,6 +69,7 @@ Var FallbackKey
 !insertmacro GetSize
 
 !define CompanyName "Mozilla Corporation"
+!define BrandFullNameInternal ""
 
 ; The following includes are custom.
 !include defines.nsi
@@ -84,29 +82,30 @@ Var FallbackKey
 !include common.nsh
 !include locales.nsi
 
-; Must be inserted before other macros that use logging
-!insertmacro _LoggingCommon
-!insertmacro SetBrandNameVars
-!insertmacro UpdateShortcutAppModelIDs
+VIAddVersionKey "FileDescription" "${MaintFullName} Installer"
+VIAddVersionKey "OriginalFilename" "maintenanceservice_installer.exe"
 
 Name "${MaintFullName}"
 OutFile "maintenanceservice_installer.exe"
-InstallDir "$PROGRAMFILES\${MaintFullName}"
 
 ; Get installation folder from registry if available
-InstallDirRegKey HKCU "Software\Mozilla\MaintenanceService" ""
+InstallDirRegKey HKLM "Software\Mozilla\MaintenanceService" ""
 
 SetOverwrite on
 
 !define MaintUninstallKey \
  "Software\Microsoft\Windows\CurrentVersion\Uninstall\MozillaMaintenanceService"
 
+; The HAVE_64BIT_OS define also means that we have an x64 build,
+; not just an x64 OS.
 !ifdef HAVE_64BIT_OS
+  ; See below, we actually abort the install for x64 builds currently.
   InstallDir "$PROGRAMFILES64\${MaintFullName}\"
+  Abort
 !else
   InstallDir "$PROGRAMFILES32\${MaintFullName}\"
 !endif
-ShowInstDetails nevershow
+ShowUnInstDetails nevershow
 
 ################################################################################
 # Modern User Interface - MUI
@@ -120,9 +119,7 @@ ShowInstDetails nevershow
 !define MUI_ABORTWARNING
 
 ; Uninstaller Pages
-!define MUI_PAGE_CUSTOMFUNCTION_PRE un.preWelcome
 !insertmacro MUI_UNPAGE_WELCOME
-!insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
@@ -136,35 +133,46 @@ ShowInstDetails nevershow
 !include "customLocale.nsh"
 !verbose pop
 
+; Set this after the locale files to override it if it is in the locale
+; using " " for BrandingText will hide the "Nullsoft Install System..." branding
+BrandingText " "
+
 Function .onInit
   SetSilent silent
+!ifdef HAVE_64BIT_OS
+  ; We plan to eventually enable 64bit native builds to use the maintenance
+  ; service, but for the initial release, to reduce testing and development,
+  ; 64-bit builds will not install the maintenanceservice.
+  Abort
+!endif
+
+  ; On Windows 2000 we do not install the maintenance service.
+  ; We won't run this installer from the parent installer, but just in case 
+  ; someone tries to execute it on Windows 2000...
+  ${Unless} ${AtLeastWinXP}
+    Abort
+  ${EndUnless}
 FunctionEnd
 
 Function un.onInit
   StrCpy $BrandFullNameDA "${MaintFullName}"
-FunctionEnd
-
-Function un.preWelcome
-  StrCpy $PageName "Welcome"
-  ${If} ${FileExists} "$EXEDIR\core\distribution\modern-wizard.bmp"
-    Delete "$PLUGINSDIR\modern-wizard.bmp"
-    CopyFiles /SILENT "$EXEDIR\core\distribution\modern-wizard.bmp" \
-              "$PLUGINSDIR\modern-wizard.bmp"
-  ${EndIf}
+  StrCpy $BrandFullName "${MaintFullName}"
 FunctionEnd
 
 Section "MaintenanceService"
   AllowSkipFiles off
 
-  ${LogHeader} "Installing Main Files"
-
   CreateDirectory $INSTDIR
   SetOutPath $INSTDIR
 
-  ; Stop the maintenance service so we can overwrite any
-  ; binaries that it uses.
-  ; 1 for wait for file release, and 30 second timeout
-  ServicesHelper::Stop "MozillaMaintenance"
+  ; If the service already exists, then stop it if it is running.
+  ServicesHelper::IsInstalled "MozillaMaintenance"
+  Pop $R9
+  ${If} $R9 == 1
+    ; Stop the maintenance service so we can overwrite any
+    ; binaries that it uses.
+    ServicesHelper::Stop "MozillaMaintenance"
+  ${EndIf}
 
   ; If we don't have maintenanceservice.exe already installed
   ; then keep that name.  If we do use maintenanceservice_tmp.exe
@@ -178,7 +186,7 @@ Section "MaintenanceService"
   ; not via calling its 'install' cmdline which works by version comparison.
   CopyFiles "$EXEDIR\maintenanceservice.exe" "$INSTDIR\$TempMaintServiceName"
 
-  ; Install the application updater service.
+  ; Install the application maintenance service.
   ; If a service already exists, the command line parameter will stop the
   ; service and only install itself if it is newer than the already installed
   ; service.  If successful it will remove the old maintenanceservice.exe
@@ -186,15 +194,15 @@ Section "MaintenanceService"
   ClearErrors
   ${GetParameters} $0
   ${GetOptions} "$0" "/Upgrade" $0
-  ${Unless} ${Errors}
+  ${If} ${Errors}
+    nsExec::Exec '"$INSTDIR\$TempMaintServiceName" install'
+  ${Else}
     ; The upgrade cmdline is the same as install except
     ; It will fail if the service isn't already installed.
     nsExec::Exec '"$INSTDIR\$TempMaintServiceName" upgrade'
-  ${Else}
-    nsExec::Exec '"$INSTDIR\$TempMaintServiceName" install'
   ${EndIf}
 
-  ${GetLongPath} "$INSTDIR" $8
+  WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "${MaintUninstallKey}" "DisplayName" "${MaintFullName}"
   WriteRegStr HKLM "${MaintUninstallKey}" "UninstallString" \
                    '"$INSTDIR\uninstall.exe"'
@@ -204,10 +212,8 @@ Section "MaintenanceService"
   WriteRegStr HKLM "${MaintUninstallKey}" "Publisher" "Mozilla"
   WriteRegStr HKLM "${MaintUninstallKey}" "Comments" \
                    "${BrandFullName} ${AppVersion} (${ARCH} ${AB_CD})"
-  ${GetSize} "$8" "/S=0K" $R2 $R3 $R4
+  ${GetSize} "$INSTDIR" "/S=0K" $R2 $R3 $R4
   WriteRegDWORD HKLM "${MaintUninstallKey}" "EstimatedSize" $R2 
-
-  WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   ; Write out that a maintenance service was attempted.
   ; We do this because on upgrades we will check this value and we only
@@ -235,13 +241,33 @@ Section "MaintenanceService"
   CreateDirectory "$APPDATA\Mozilla\updates"
 SectionEnd
 
+; By renaming before deleting we improve things slightly in case
+; there is a file in use error. In this case a new install can happen.
+Function un.RenameDelete
+  Pop $9
+  ; If the .moz-delete file already exists previously, delete it
+  ; If it doesn't exist, the call is ignored.
+  ; We don't need to pass /REBOOTOK here since it was already marked that way
+  ; if it exists.
+  Delete "$9.moz-delete"
+  Rename "$9" "$9.moz-delete"
+  ${If} ${Errors}
+    Delete /REBOOTOK "$9"
+  ${Else} 
+    Delete /REBOOTOK "$9.moz-delete"
+  ${EndIf}
+FunctionEnd
+
 Section "Uninstall"
   ; Delete the service so that no updates will be attempted
   nsExec::Exec '"$INSTDIR\maintenanceservice.exe" uninstall'
 
-  Delete /REBOOTOK "$INSTDIR\maintenanceservice.exe"
-  Delete /REBOOTOK "$INSTDIR\maintenanceservice_tmp.exe"
-  Delete /REBOOTOK "$INSTDIR\Uninstall.exe"
+  Push "$INSTDIR\maintenanceservice.exe"
+  Call un.RenameDelete
+  Push "$INSTDIR\maintenanceservice_tmp.exe"
+  Call un.RenameDelete
+  Push "$INSTDIR\Uninstall.exe"
+  Call un.RenameDelete
   RMDir /REBOOTOK "$INSTDIR"
 
   DeleteRegKey HKLM "${MaintUninstallKey}"

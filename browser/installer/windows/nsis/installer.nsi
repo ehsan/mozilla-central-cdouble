@@ -457,7 +457,7 @@ Section "-Application" APP_IDX
   ${Unless} ${Errors}
     GetFunctionAddress $0 FixShortcutAppModelIDs
     UAC::ExecCodeSegment $0
-  ${EndIf}
+  ${EndUnless}
 
   ; UAC only allows elevating to an Admin account so there is no need to add
   ; the Start Menu or Desktop shortcuts from the original unelevated process
@@ -862,7 +862,7 @@ Function preComponents
   ; On Windows 2000 we do not install the maintenance service.
   ${Unless} ${AtLeastWinXP}
     Abort
-  ${EndIf}
+  ${EndUnless}
 
   ; If the service already exists, don't show this page
   ; We will always install again (which will upgrade)
