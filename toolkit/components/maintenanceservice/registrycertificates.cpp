@@ -84,6 +84,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
       LOG(("Could not open fallback key. (%d)\n", retCode));
       return FALSE;
     }
+    baseKey.own(baseKeyRaw);
   }
 
   // Get the number of subkeys.
