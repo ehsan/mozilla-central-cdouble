@@ -222,8 +222,6 @@ Section "MaintenanceService"
   ; this value to determine if we should show the service update pref.
   ; Since the Maintenance service can be installed either x86 or x64,
   ; always use the 64-bit registry for checking if an attempt was made.
-  ; *Nothing* should be added under here that modifies the registry
-  ; unless it restores the registry view.
   SetRegView 64
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
@@ -234,6 +232,7 @@ Section "MaintenanceService"
     "SOFTWARE\Mozilla\MaintenanceService\3932ecacee736d366d6436db0f55bce4"
   WriteRegStr HKLM "$FallbackKey\0" "name" "Mozilla Corporation"
   WriteRegStr HKLM "$FallbackKey\0" "issuer" "Thawte Code Signing CA - G2"
+  SetRegView lastused
 
   # The Mozilla/updates directory will have an inherited permission
   # which allows any user to write to it.  Work items are written there.
@@ -256,6 +255,7 @@ Function un.RenameDelete
   ${Else} 
     Delete /REBOOTOK "$9.moz-delete"
   ${EndIf}
+  ClearErrors
 FunctionEnd
 
 Section "Uninstall"
@@ -272,8 +272,8 @@ Section "Uninstall"
 
   DeleteRegKey HKLM "${MaintUninstallKey}"
 
-  # Keep this last since it modifies the registry key view
   SetRegView 64
   DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
   DeleteRegKey HKLM "$FallbackKey\"
+  SetRegView lastused
 SectionEnd

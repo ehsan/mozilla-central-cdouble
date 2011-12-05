@@ -392,6 +392,7 @@ Section "Uninstall"
     ; This call is ignored on 32-bit systems.
     SetRegView 64
     DeleteRegKey HKLM "$MaintCertKey\"
+    SetRegView lastused
   ${EndIf}
 
 SectionEnd

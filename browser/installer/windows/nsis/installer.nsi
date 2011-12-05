@@ -513,26 +513,8 @@ Section "-Application" APP_IDX
       ${EndIf}
     ${EndUnless}
   ${EndIf}
-
-  ; Allow main Mozilla cert information for updates
-  ServicesHelper::PathToUniqueRegistryPath "$INSTDIR"
-  Pop $MaintCertKey
-  ${If} $MaintCertKey != ""
-    ; We always use the 64bit registry for certs.
-    ; This call is ignored on 32-bit systems.
-    ; *Nothing* should be added under here that modifies the registry
-    ; unless it restores the registry view.
-    ; More than one certificate can be specified in a different subfolder
-    ; for example: $MaintCertKey\1, but each individual binary can be signed
-    ; with at most one certificate.  A fallback certificate can only be used
-    ; if the binary is replaced with a different certificate.
-    SetRegView 64
-    WriteRegStr HKLM "$MaintCertKey\0" "name" "Mozilla Corporation"
-    WriteRegStr HKLM "$MaintCertKey\0" "issuer" "Thawte Code Signing CA - G2"
-    WriteRegStr HKLM "$MaintCertKey\0" "programName" ""
-    WriteRegStr HKLM "$MaintCertKey\0" "publisherLink" ""
-    WriteRegStr HKLM "$MaintCertKey\0" "moreInfoLink" "http://www.mozilla.com"
-  ${EndIf} 
+  ; Add the registry keys for allowed certificates.
+  ${AddMaintCertKeys}
 SectionEnd
 
 ; Cleanup operations to perform at the end of the installation.
@@ -851,11 +833,11 @@ Function leaveShortcuts
 FunctionEnd
 
 Function preComponents
-  ; Don't show the custom components page if the
-  ; user is not an admin
-  Call IsUserAdmin
+  ; If the service already exists, don't show this page
+  ServicesHelper::IsInstalled "MozillaMaintenance"
   Pop $R9
-  ${If} $R9 != "true"
+  ${If} $R9 == 1
+    ; The service already exists so don't show this page.
     Abort
   ${EndIf}
 
@@ -864,13 +846,11 @@ Function preComponents
     Abort
   ${EndUnless}
 
-  ; If the service already exists, don't show this page
-  ; We will always install again (which will upgrade)
-  ; as long as the user is admin
-  ServicesHelper::IsInstalled "MozillaMaintenance"
+  ; Don't show the custom components page if the
+  ; user is not an admin
+  Call IsUserAdmin
   Pop $R9
-  ${If} $R9 == 1
-    ; The service already exists so don't show this page.
+  ${If} $R9 != "true"
     Abort
   ${EndIf}
 

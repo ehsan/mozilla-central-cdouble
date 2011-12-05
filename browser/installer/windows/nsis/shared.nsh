@@ -117,6 +117,7 @@
     ; always use the 64-bit registry for checking if an attempt was made.
     SetRegView 64
     ReadRegDWORD $5 HKLM "Software\Mozilla\MaintenanceService" "Attempted"
+    SetRegView lastused
     ${If} $5 == ""
       ; An install of maintenance service was never attempted.
       ; We call ExecShell (which is ShellExecute) with the verb "runas"
@@ -466,11 +467,14 @@
 Function SetUninstallKeysFn
   StrCpy $0 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})"
 
+  ClearErrors
   WriteRegStr HKLM "$0" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
     ; If the uninstall keys already exist in HKLM don't create them in HKCU
+    ClearErrors
     ReadRegStr $2 "HKLM" $0 "DisplayName"
     ${If} $2 != ""
+      ClearErrors
       return
     ${EndIf}
 
@@ -582,6 +586,35 @@ FunctionEnd
   ${EndIf}
 !macroend
 !define UpdateProtocolHandlers "!insertmacro UpdateProtocolHandlers"
+
+; Adds maintenance service certificate keys for the install dir.
+; For the cert to work, it must also be signed by a trusted cert for the user.
+!macro AddMaintCertKeys
+  Push $R0
+  ; Allow main Mozilla cert information for updates
+  ; This call will push the needed key on the stack
+  ServicesHelper::PathToUniqueRegistryPath "$INSTDIR"
+  Pop $R0
+  ${If} $R0 != ""
+    ; We always use the 64bit registry for certs.
+    ; This call is ignored on 32-bit systems.
+    ; More than one certificate can be specified in a different subfolder
+    ; for example: $R0\1, but each individual binary can be signed
+    ; with at most one certificate.  A fallback certificate can only be used
+    ; if the binary is replaced with a different certificate.
+    SetRegView 64
+    WriteRegStr HKLM "$R0\0" "name" "Mozilla Corporation"
+    WriteRegStr HKLM "$R0\0" "issuer" "Thawte Code Signing CA - G2"
+    WriteRegStr HKLM "$R0\0" "programName" ""
+    WriteRegStr HKLM "$R0\0" "publisherLink" ""
+    WriteRegStr HKLM "$R0\0" "moreInfoLink" "http://www.mozilla.com"
+    SetRegView lastused
+    ClearErrors
+  ${EndIf} 
+  ; Restore the previously used value back
+  Pop $R0
+!macroend
+!define AddMaintCertKeys "!insertmacro AddMaintCertKeys"
 
 ; Removes various registry entries for reasons noted below (does not use SHCTX).
 !macro RemoveDeprecatedKeys
@@ -1026,8 +1059,9 @@ Function SetAsDefaultAppUserHKCU
     ${EndUnless}
   ${EndIf}
   ${RemoveDeprecatedKeys}
-
   ${PinToTaskBar}
+  ; Add the registry keys for allowed certificates.
+  ${AddMaintCertKeys}
 FunctionEnd
 
 ; Helper for updating the shortcut application model IDs.
