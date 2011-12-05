@@ -101,7 +101,6 @@ SetOverwrite on
 !ifdef HAVE_64BIT_OS
   ; See below, we actually abort the install for x64 builds currently.
   InstallDir "$PROGRAMFILES64\${MaintFullName}\"
-  Abort
 !else
   InstallDir "$PROGRAMFILES32\${MaintFullName}\"
 !endif
