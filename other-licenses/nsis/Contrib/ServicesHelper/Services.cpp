@@ -89,7 +89,7 @@ IsServiceInstalled(LPCWSTR serviceName, BOOL &exists)
  * @param  variables A pointer to the NSIS variables
  * @return 0 if the service does not exist
  *         1 if the service does exist
- *         1 if there was an error.
+ *         -1 if there was an error.
  */
 extern "C" void __declspec(dllexport)
 IsInstalled(HWND hwndParent, int string_size, 
@@ -149,8 +149,8 @@ StopService(LPCWSTR serviceName)
       // + 10 milliseconds to make sure we always approach maxWaitTime
       totalWaitTime += (status.dwWaitHint + 10);
       if (status.dwCurrentState == SERVICE_STOPPED) {
-        break;
         stopped = true;
+        break;
       } else if (totalWaitTime > maxWaitTime) {
         break;
       }

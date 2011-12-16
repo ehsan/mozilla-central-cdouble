@@ -144,7 +144,8 @@ CalculateRegistryPathFromFilePath(const LPCWSTR filePath,
   // Copy in the full path into our own buffer.
   // Copying in the extra slash is OK because we calculate the hash
   // based on the filePathLen which excludes the slash.
-  WCHAR *lowercasePath = new WCHAR[filePathLen + 1];
+  // +2 to account for the possibly trailing slash and the null terminator.
+  WCHAR *lowercasePath = new WCHAR[filePathLen + 2];
   wcscpy(lowercasePath, filePath);
   _wcslwr(lowercasePath);
 
