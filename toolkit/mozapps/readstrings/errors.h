@@ -49,5 +49,8 @@
 #define WRITE_ERROR 7
 #define UNEXPECTED_ERROR 8
 #define ELEVATION_CANCELED 9
+#define CERT_LOAD_ERROR 10
+#define CERT_HANDLING_ERROR 11
+#define CERT_VERIFY_ERROR 12
 
 #endif  // Errors_h__

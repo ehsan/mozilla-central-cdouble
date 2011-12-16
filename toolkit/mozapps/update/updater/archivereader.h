@@ -55,6 +55,7 @@ public:
   ArchiveReader() : mArchive(NULL) {}
   ~ArchiveReader() { Close(); }
 
+  int VerifySignature(const NS_tchar *pathToMAR);
   int Open(const NS_tchar *path);
   void Close();
 

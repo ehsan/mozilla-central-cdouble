@@ -54,6 +54,71 @@ static int outbuf_size = 262144;
 static char *inbuf  = NULL;
 static char *outbuf = NULL;
 
+#ifdef XP_WIN
+#include "resource.h"
+
+bool LoadFileInResource(int name, int type, DWORD& size, 
+                        const char *&data)
+{
+  HMODULE handle = ::GetModuleHandle(NULL);
+  if (!handle) {
+    return false;
+  }
+
+  HRSRC resourceInfoBlockHandle = ::FindResource(handle, 
+                                                 MAKEINTRESOURCE(name),
+                                                 MAKEINTRESOURCE(type));
+  if (!resourceInfoBlockHandle) {
+    FreeLibrary(handle);
+    return false;
+  }
+
+  HGLOBAL resourceHandle = ::LoadResource(handle, resourceInfoBlockHandle);
+  if (!resourceHandle) {
+    FreeLibrary(handle);
+    return false;
+  }
+
+  size = ::SizeofResource(handle, resourceInfoBlockHandle);
+  data = static_cast<const char*>(::LockResource(resourceHandle));
+  FreeLibrary(handle);
+}
+
+int VerifyLoadedCert(const NS_tchar *pathToMAR, int name, int type)
+{
+  DWORD size = 0;
+  const char *data = NULL;
+  if (!LoadFileInResource(name, type, size, data) || !data || !size) {
+    return CERT_LOAD_ERROR;
+  }
+
+  if (mar_verify_signatureW(pathToMAR, data, size, NULL, NULL)) {
+    return CERT_VERIFY_ERROR;
+  }
+
+  return OK;
+}
+#endif
+
+
+int
+ArchiveReader::VerifySignature(const NS_tchar *pathToMAR)
+{
+// Temporary disable for elm only
+#if 0
+#ifdef XP_WIN
+  int rv = VerifyLoadedCert(pathToMAR, IDR_PRIMARY_CERT, TYPE_CERT);
+  if (rv != OK) {
+    rv = VerifyLoadedCert(pathToMAR, IDR_BACKUP_CERT, TYPE_CERT);
+  }
+  return rv;
+#else
+  return 0;
+#endif
+#endif
+  return 0;
+}
+
 int
 ArchiveReader::Open(const NS_tchar *path)
 {
