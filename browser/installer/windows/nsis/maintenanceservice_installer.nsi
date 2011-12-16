@@ -68,6 +68,12 @@ Var BrandFullName
 !insertmacro GetParameters
 !insertmacro GetSize
 
+; The test slaves use this fallback key to run tests.
+; And anyone that wants to run tests themselves should already have 
+; this installed.
+!define FallbackKey \
+  "SOFTWARE\Mozilla\MaintenanceService\3932ecacee736d366d6436db0f55bce4"
+
 !define CompanyName "Mozilla Corporation"
 !define BrandFullNameInternal ""
 
@@ -224,13 +230,9 @@ Section "MaintenanceService"
   SetRegView 64
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
-  ; The test slaves use this fallback key to run tests.
-  ; And anyone that wants to run tests themselves should already have 
-  ; this installed.
-  StrCpy $FallbackKey \
-    "SOFTWARE\Mozilla\MaintenanceService\3932ecacee736d366d6436db0f55bce4"
-  WriteRegStr HKLM "$FallbackKey\0" "name" "Mozilla Corporation"
-  WriteRegStr HKLM "$FallbackKey\0" "issuer" "Thawte Code Signing CA - G2"
+
+  WriteRegStr HKLM "${FallbackKey}\0" "name" "Mozilla Corporation"
+  WriteRegStr HKLM "${FallbackKey}\0" "issuer" "Thawte Code Signing CA - G2"
   SetRegView lastused
 
   # The Mozilla/updates directory will have an inherited permission
@@ -273,6 +275,6 @@ Section "Uninstall"
 
   SetRegView 64
   DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
-  DeleteRegKey HKLM "$FallbackKey\"
+  DeleteRegKey HKLM "${FallbackKey}\"
   SetRegView lastused
 SectionEnd
