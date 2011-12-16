@@ -46,6 +46,7 @@ VPATH     = @srcdir@
 include $(DEPTH)/config/autoconf.mk
 
 PARALLEL_DIRS = \
+  components \
   content \
   locales \
   mozapps/downloads \
@@ -54,12 +55,15 @@ PARALLEL_DIRS = \
   mozapps/preferences \
   mozapps/plugins \
   mozapps/shared \
-  mozapps/update \
   mozapps/webapps \
-  components \
   obsolete \
   profile \
   themes \
+  $(NULL)
+
+DIRS += \
+  mozapps/update \
+  components/maintenanceservice \
   $(NULL)
 
 ifneq (,$(filter gtk2 qt,$(MOZ_WIDGET_TOOLKIT)))
