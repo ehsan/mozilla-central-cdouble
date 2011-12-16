@@ -609,9 +609,6 @@ FunctionEnd
     SetRegView 64
     WriteRegStr HKLM "$R0\0" "name" "Mozilla Corporation"
     WriteRegStr HKLM "$R0\0" "issuer" "Thawte Code Signing CA - G2"
-    WriteRegStr HKLM "$R0\0" "programName" ""
-    WriteRegStr HKLM "$R0\0" "publisherLink" ""
-    WriteRegStr HKLM "$R0\0" "moreInfoLink" "http://www.mozilla.com"
     SetRegView lastused
     ClearErrors
   ${EndIf} 
