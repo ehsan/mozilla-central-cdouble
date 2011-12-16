@@ -102,30 +102,34 @@ PathGetSiblingFilePath(LPWSTR destinationBuffer,
 
 /**
  * Launch the post update application as the specified user (helper.exe).
- * It takes in the path of the callback application to calculate the path
- * of helper.exe.  For service updates this is called from both the system
- * account and the current user account.
+ * For service updates this is called from both the system account and
+ * the current user account.
  *
- * @param  appExe       The path to the callback application binary.
- * @param updateInfoDir The directory where update info is stored.
- * @param  userToken    The user token to run as, if NULL the current user
+ * @param  installationDir The path to the installation directory.
+ * @param  updateInfoDir   The directory where update info is stored.
+ * @param  userToken       The user token to run as, if NULL the current user
  *         will be used.
+ * @return true if the post process applicaiton was started.
  */
-void
-LaunchWinPostProcess(const WCHAR *appExe,
-                     const WCHAR *updateInfoDir,
+bool
+LaunchWinPostProcess(LPCWSTR installationDir,
+                     LPCWSTR updateInfoDir,
                      HANDLE userToken)
 {
+  if (wcslen(installationDir) >= MAX_PATH || 
+      wcslen(updateInfoDir) >= MAX_PATH) {
+    return false;
+  }
+
   WCHAR workingDirectory[MAX_PATH + 1];
-  wcscpy(workingDirectory, appExe);
-  if (!PathRemoveFileSpecW(workingDirectory))
-    return;
+  wcscpy(workingDirectory, installationDir);
 
   // Launch helper.exe to perform post processing (e.g. registry and log file
   // modifications) for the update.
   WCHAR inifile[MAX_PATH + 1];
-  if (!PathGetSiblingFilePath(inifile, appExe, L"updater.ini")) {
-    return;
+  wcscpy(inifile, installationDir);
+  if (!PathAppendSafe(inifile, L"updater.ini")) {
+    return false;
   }
 
   WCHAR exefile[MAX_PATH + 1];
@@ -134,32 +138,33 @@ LaunchWinPostProcess(const WCHAR *appExe,
   bool async = true;
   if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeRelPath", NULL, exefile,
                                 MAX_PATH + 1, inifile)) {
-    return;
+    return false;
   }
 
   if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeArg", NULL, exearg,
                                 MAX_PATH + 1, inifile))
-    return;
+    return false;
 
   if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeAsync", L"TRUE", 
                                 exeasync,
                                 sizeof(exeasync)/sizeof(exeasync[0]), inifile))
-    return;
+    return false;
 
   WCHAR exefullpath[MAX_PATH + 1];
-  if (!PathGetSiblingFilePath(exefullpath, appExe, exefile)) {
-    return;
+  wcscpy(exefullpath, installationDir);
+  if (!PathAppendSafe(exefullpath, exefile)) {
+    return false;
   }
 
   WCHAR dlogFile[MAX_PATH + 1];
   if (!PathGetSiblingFilePath(dlogFile, exefullpath, L"uninstall.update")) {
-    return;
+    return false;
   }
 
   WCHAR slogFile[MAX_PATH + 1];
   wcscpy(slogFile, updateInfoDir);
   if (!PathAppendSafe(slogFile, L"update.log")) {
-    return;
+    return false;
   }
 
   WCHAR dummyArg[14];
@@ -168,7 +173,7 @@ LaunchWinPostProcess(const WCHAR *appExe,
   size_t len = wcslen(exearg) + wcslen(dummyArg);
   WCHAR *cmdline = (WCHAR *) malloc((len + 1) * sizeof(WCHAR));
   if (!cmdline)
-    return;
+    return false;
 
   wcscpy(cmdline, dummyArg);
   wcscat(cmdline, exearg);
@@ -230,6 +235,7 @@ LaunchWinPostProcess(const WCHAR *appExe,
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
   }
+  return ok;
 }
 
 /**
@@ -414,8 +420,10 @@ WinLaunchServiceCommand(LPCWSTR exePath, int argc, LPWSTR* argv)
                           &commandIDWrote, NULL);
 
   // Write out the command line arguments that are passed to updater.exe
-  WCHAR *commandLineBuffer = MakeCommandLine(argc, argv);
-
+  // updater.exe's command line arguments look like this normally:
+  // updater.exe update-dir apply [wait-pid [callback-dir callback-path args]]
+  // We want everything except the callback application and its arguments.
+  LPWSTR commandLineBuffer = MakeCommandLine(min(argc, 4), argv);
   WCHAR appBuffer[MAX_PATH + 1];
   ZeroMemory(appBuffer, sizeof(appBuffer));
   wcscpy(appBuffer, exePath);

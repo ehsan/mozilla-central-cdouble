@@ -35,18 +35,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/**
- * Launch the post update application as the specified user (helper.exe).
- * It takes in the path of the callback application to calculate the path
- * of helper.exe
- *
- * @param  appExe       The path to the callback application binary.
- * @param  userToken    The user token to run as, if NULL the current user
- *         will be used.
- * @param updateInfoDir The directory where update info is stored.
- */
-void LaunchWinPostProcess(const WCHAR *appExe, 
-                          const WCHAR *updateInfoDir, 
+bool LaunchWinPostProcess(LPCWSTR installationDir, 
+                          LPCWSTR updateInfoDir, 
                           HANDLE userToken);
 BOOL StartServiceUpdate(int argc, LPWSTR *argv);
 BOOL GetUpdateDirectoryPath(LPWSTR path);
