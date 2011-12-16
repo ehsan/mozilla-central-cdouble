@@ -1446,7 +1446,7 @@ WriteStatusApplying()
   if (file == NULL)
     return false;
 
-  static const char kApplying[] = "Applying\n";
+  static const char kApplying[] = "applying";
   if (fwrite(kApplying, strlen(kApplying), 1, file) != 1)
     return false;
 
@@ -1600,10 +1600,24 @@ int NS_main(int argc, NS_tchar **argv)
   UACHelper::DisablePrivileges(NULL);
 
   bool useService = false;
+  bool fallbackKeyExists = false;
+
   // We never want the service to be used unless we build with
   // the maintenance service.
 #ifdef MOZ_MAINTENANCE_SERVICE
   IsUpdateStatusPending(useService);
+  // Our tests run with a different apply directory for each test.
+  // We use this registry key on our test slaves to store the 
+  // allowed name/issuers.
+  HKEY fallbackKey;
+  LSTATUS retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
+                                  FallbackKey, 0,
+                                  KEY_READ | KEY_WOW64_64KEY, &fallbackKey);
+  if (ERROR_SUCCESS == retCode) {
+    fallbackKeyExists = true;
+    RegCloseKey(fallbackKey);
+  }
+
 #endif
 #endif
 
@@ -1692,7 +1706,8 @@ int NS_main(int argc, NS_tchar **argv)
                  sizeof(elevatedLockFilePath)/sizeof(elevatedLockFilePath[0]),
                  NS_T("%s/update_elevated.lock"), argv[1]);
 
-    if (updateLockFileHandle == INVALID_HANDLE_VALUE) {
+    if (updateLockFileHandle == INVALID_HANDLE_VALUE || 
+        (useService && fallbackKeyExists)) {
       if (!_waccess(elevatedLockFilePath, F_OK) &&
           NS_tremove(elevatedLockFilePath) != 0) {
         fprintf(stderr, "Update already elevated! Exiting\n");
@@ -1729,17 +1744,11 @@ int NS_main(int argc, NS_tchar **argv)
                                           maintenanceServiceKey, 0, 
                                           KEY_READ | KEY_WOW64_64KEY, 
                                           &baseKey);
-          if (retCode != ERROR_SUCCESS) {
-            // Our tests run with a different apply directory for each test.
-            // We use this registry key on our test slaves to store the 
-            // allowed name/issuers.
-            retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
-                                    L"SOFTWARE\\Mozilla\\MaintenanceService"
-                                    L"\\3932ecacee736d366d6436db0f55bce4", 0,
-                                    KEY_READ | KEY_WOW64_64KEY, &baseKey);
+          if (ERROR_SUCCESS == retCode) {
+            RegCloseKey(baseKey);
+          } else {
+            useService = fallbackKeyExists;
           }
-          useService = retCode == ERROR_SUCCESS;
-          RegCloseKey(baseKey);
         } else {
           useService = FALSE;
         }

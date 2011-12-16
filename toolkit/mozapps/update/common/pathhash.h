@@ -49,4 +49,7 @@
 BOOL CalculateRegistryPathFromFilePath(const LPCWSTR filePath, 
                                        LPWSTR registryPath);
 
+#define FallbackKey \
+  L"SOFTWARE\\Mozilla\\MaintenanceService\\3932ecacee736d366d6436db0f55bce4"
+
 #endif

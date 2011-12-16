@@ -76,8 +76,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
     // We use this registry key on our test slaves to store the 
     // allowed name/issuers.
     retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
-                            L"SOFTWARE\\Mozilla\\MaintenanceService"
-                            L"\\3932ecacee736d366d6436db0f55bce4", 0,
+                            FallbackKey, 0,
                             KEY_READ | KEY_WOW64_64KEY, &baseKeyRaw);
     if (retCode != ERROR_SUCCESS) {
       LOG(("Could not open fallback key. (%d)\n", retCode));
