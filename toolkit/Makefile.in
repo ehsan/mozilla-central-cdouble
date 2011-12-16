@@ -55,7 +55,6 @@ PARALLEL_DIRS = \
   mozapps/preferences \
   mozapps/plugins \
   mozapps/shared \
-  mozapps/update \
   mozapps/webapps \
   obsolete \
   profile \

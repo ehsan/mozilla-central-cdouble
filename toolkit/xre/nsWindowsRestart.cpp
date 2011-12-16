@@ -294,7 +294,7 @@ WinLaunchChild(const PRUnichar *exePath,
 #ifdef DEBUG
                               CREATE_NEW_CONSOLE |
 #endif
-                              CREATE_UNICODE_ENVIRONMENT,
+                              CREATE_UNICODE_ENVIRONMENT,                              
                               environmentBlock,
                               NULL,  // use my current directory
                               &si,

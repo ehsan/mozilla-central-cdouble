@@ -177,7 +177,7 @@ endif
 	$(NSINSTALL) -D $(DIST)/$(PKG_PATH)
 	mv -f "$(DIST)/l10n-stage/$(PACKAGE)" "$(ZIP_OUT)"
 	if test -f "$(DIST)/l10n-stage/$(PACKAGE).asc"; then mv -f "$(DIST)/l10n-stage/$(PACKAGE).asc" "$(ZIP_OUT).asc"; fi
-
+	
 repackage-zip-%: $(STAGEDIST)
 	@$(MAKE) repackage-zip AB_CD=$* ZIP_IN="$(ZIP_IN)"
 
