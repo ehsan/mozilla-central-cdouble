@@ -65,7 +65,6 @@ PRUnichar* MakeCommandLine(int argc, PRUnichar **argv);
 BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
 BOOL WriteStatusPending(LPCWSTR updateDirPath);
 BOOL StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID);
-BOOL StartSelfUpdate(int argcTmp, LPWSTR *argvTmp);
 BOOL PathGetSiblingFilePath(LPWSTR destinationBuffer,  LPCWSTR siblingFilePath, 
                             LPCWSTR newFileName);
 
@@ -382,7 +381,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
                            updateProcessWasStarted,
                            sessionID)) {
       LOG(("updater.exe was launched and run successfully!\n"));
-      StartSelfUpdate(argcTmp, argvTmp);
+      StartServiceUpdate(argcTmp, argvTmp);
     } else {
       LOG(("Error running process in session %d.  "
            "Updating update.status.  Last error: %d\n",
@@ -534,45 +533,6 @@ StartDirectoryChangeMonitor()
 }
 
 /**
- * Starts the upgrade process for update of ourselves
- *
- * @param  argcTmp The argc value normally sent to updater.exe
- * @param  argvTmp The argv value normally sent to updater.exe
- * @return TRUE if successful
- */
-BOOL
-StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
-{
-  if (argcTmp < 2) {
-    return FALSE;
-  }
-
-  STARTUPINFO si = {0};
-  si.cb = sizeof(STARTUPINFO);
-  // No particular desktop because no UI
-  si.lpDesktop = L"";
-  PROCESS_INFORMATION pi = {0};
-
-  WCHAR maintserviceInstallerPath[MAX_PATH + 1];
-  wcscpy(maintserviceInstallerPath, argvTmp[2]);
-  PathAppendSafe(maintserviceInstallerPath, 
-                 L"maintenanceservice_installer.exe");
-  WCHAR cmdLine[64];
-  wcscpy(cmdLine, L"dummyparam.exe /Upgrade");
-  BOOL selfUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
-                                                 cmdLine, 
-                                                 NULL, NULL, FALSE, 
-                                                 CREATE_DEFAULT_ERROR_MODE | 
-                                                 CREATE_UNICODE_ENVIRONMENT, 
-                                                 NULL, argvTmp[2], &si, &pi);
-  if (selfUpdateProcessStarted) {
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-  }
-  return selfUpdateProcessStarted;
-}
-
-/**
  * Starts the callback application from the updater.exe command line arguments.
  *
  * @param  argcTmp           The argc value normally sent to updater.exe
@@ -635,8 +595,8 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
     environmentBlock = NULL;
   }
 
-  STARTUPINFO si = {0};
-  si.cb = sizeof(STARTUPINFO);
+  STARTUPINFOW si = {0};
+  si.cb = sizeof(STARTUPINFOW);
   si.lpDesktop = L"winsta0\\Default";
   PROCESS_INFORMATION pi = {0};
   if (CreateProcessAsUserW(unelevatedToken, 

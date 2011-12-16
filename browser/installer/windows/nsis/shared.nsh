@@ -129,6 +129,13 @@
       ; The maintenance service is already installed.
       ; Do nothing, the maintenance service will launch the 
       ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
+      ; If the update was done from updater.exe without the service, updater.exe
+      ; will do the update of the service.
+      ; The reason we do not do it here is because we don't want to have to
+      ; prompt for limited user accounts when the service isn't used and
+      ; we currently call the PostUpdate twice, once for the user and once
+      ; for the SYSTEM account.  Also, this would stop the maintenance service
+      ; and we need a return result back.
     ${EndIf}
   ${EndIf}
 !endif
