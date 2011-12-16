@@ -137,6 +137,31 @@ int mar_create(const char *dest, int numfiles, char **files);
  */
 int mar_extract(const char *path);
 
+/**
+ * verifies the embedded signature
+ * 
+ * @param pathToMAR  The path of the MAR file who's signature should be checked
+ * @param pathToCert The path of the certificate to use to verify the 
+ *        MAR's signature
+ * @param configDir  Used only if compiled as NSS, specifies the NSS config dir
+ * @param certName   Used only if compiled as NSS, specifies the certName
+ * @return 0 on success
+ *         a negative number if there was an error
+ *         a positive number if the signature does not verify
+ */
+#ifdef XP_WIN
+int mar_verify_signatureW(const PRUnichar *pathToMAR, 
+                          const char *certData,
+                          size_t sizeOfCertData,
+                          const char *configDir,
+                          const char *certName);
+#endif
+int mar_verify_signature(const char *pathToMAR, 
+                         const char *certData,
+                         size_t sizeOfCertData,
+                         const char *configDir,
+                         const char *certName);
+
 #ifdef __cplusplus
 }
 #endif
