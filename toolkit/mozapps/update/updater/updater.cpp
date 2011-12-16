@@ -1384,6 +1384,7 @@ PatchIfFile::Finish(int status)
 #include "nsWindowsRestart.cpp"
 #include "nsWindowsHelpers.h"
 #include "uachelper.h"
+#include "pathhash.h"
 #endif
 
 static void
@@ -1711,6 +1712,23 @@ int NS_main(int argc, NS_tchar **argv)
       if (!cmdLine) {
         CloseHandle(elevatedFileHandle);
         return 1;
+      }
+
+      // Make sure the service registry entries for the instsallation path
+      // are available.  If not don't use the service.
+      if (useService) {
+        WCHAR maintenanceServiceKey[MAX_PATH + 1];
+        if (CalculateRegistryPathFromFilePath(argv[2], maintenanceServiceKey)) {
+          HKEY baseKey;
+          LSTATUS retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
+                                          maintenanceServiceKey, 0, 
+                                          KEY_READ | KEY_WOW64_64KEY, 
+                                          &baseKey);
+          useService = retCode == ERROR_SUCCESS;
+          RegCloseKey(baseKey);
+        } else {
+          useService = FALSE;
+        }
       }
 
       HANDLE serviceInUseEvent = NULL;
