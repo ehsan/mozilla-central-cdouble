@@ -578,7 +578,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     if (aExpectedStatus == STATE_FAILED) {
       status = status.split(": ")[0];
     }
-    if (status == STATE_APPLYING) {
+    // status will probably always be equal to STATE_APPLYING but there is a
+    // race condition where it would be possible on slower machines where status
+    // could be equal to STATE_PENDING_SVC.
+    if (status == STATE_APPLYING || 
+        status == STATE_PENDING_SVC) {
       logTestInfo("Still waiting to see the " + aExpectedStatus +
                   " status, got " + status + " for now...");
       return;

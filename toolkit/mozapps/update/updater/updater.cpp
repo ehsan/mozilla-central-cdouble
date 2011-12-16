@@ -1600,7 +1600,7 @@ int NS_main(int argc, NS_tchar **argv)
   UACHelper::DisablePrivileges(NULL);
 
   bool useService = false;
-  bool fallbackKeyExists = false;
+  bool testOnlyFallbackKeyExists = false;
 
   // We never want the service to be used unless we build with
   // the maintenance service.
@@ -1609,13 +1609,13 @@ int NS_main(int argc, NS_tchar **argv)
   // Our tests run with a different apply directory for each test.
   // We use this registry key on our test slaves to store the 
   // allowed name/issuers.
-  HKEY fallbackKey;
-  LSTATUS retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
-                                  FallbackKey, 0,
-                                  KEY_READ | KEY_WOW64_64KEY, &fallbackKey);
-  if (ERROR_SUCCESS == retCode) {
-    fallbackKeyExists = true;
-    RegCloseKey(fallbackKey);
+  HKEY testOnlyFallbackKey;
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
+                    TEST_ONLY_FALLBACK_KEY_PATH, 0,
+                    KEY_READ | KEY_WOW64_64KEY, 
+                    &testOnlyFallbackKey) == ERROR_SUCCESS) {
+    testOnlyFallbackKeyExists = true;
+    RegCloseKey(testOnlyFallbackKey);
   }
 
 #endif
@@ -1707,7 +1707,7 @@ int NS_main(int argc, NS_tchar **argv)
                  NS_T("%s/update_elevated.lock"), argv[1]);
 
     if (updateLockFileHandle == INVALID_HANDLE_VALUE || 
-        (useService && fallbackKeyExists)) {
+        (useService && testOnlyFallbackKeyExists)) {
       if (!_waccess(elevatedLockFilePath, F_OK) &&
           NS_tremove(elevatedLockFilePath) != 0) {
         fprintf(stderr, "Update already elevated! Exiting\n");
@@ -1740,14 +1740,13 @@ int NS_main(int argc, NS_tchar **argv)
         WCHAR maintenanceServiceKey[MAX_PATH + 1];
         if (CalculateRegistryPathFromFilePath(argv[2], maintenanceServiceKey)) {
           HKEY baseKey;
-          LSTATUS retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
-                                          maintenanceServiceKey, 0, 
-                                          KEY_READ | KEY_WOW64_64KEY, 
-                                          &baseKey);
-          if (ERROR_SUCCESS == retCode) {
+          if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
+                            maintenanceServiceKey, 0, 
+                            KEY_READ | KEY_WOW64_64KEY, 
+                            &baseKey) == ERROR_SUCCESS) {
             RegCloseKey(baseKey);
           } else {
-            useService = fallbackKeyExists;
+            useService = testOnlyFallbackKeyExists;
           }
         } else {
           useService = FALSE;
