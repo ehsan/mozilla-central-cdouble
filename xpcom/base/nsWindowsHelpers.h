@@ -39,6 +39,7 @@
 #define nsWindowsHelpers_h
 
 #include "nsAutoRef.h"
+#include "nscore.h"
 
 NS_SPECIALIZE_TEMPLATE
 class nsAutoRefTraits<HKEY>
