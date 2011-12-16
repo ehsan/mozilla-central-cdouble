@@ -123,6 +123,7 @@
     ; always use the 64-bit registry for checking if an attempt was made.
     SetRegView 64
     ReadRegDWORD $5 HKLM "Software\Mozilla\MaintenanceService" "Attempted"
+    ClearErrors
     SetRegView lastused
 
     ; If the maintenance service is already installed, do nothing.
@@ -486,7 +487,8 @@
     ReadRegStr $2 "HKLM" $0 "DisplayName"
     ${If} $2 == ""
       ; Otherwise we don't have any keys for this product in HKLM so proceeed
-      ; to create them in HKCU.
+      ; to create them in HKCU.  Better handling for this will be done in:
+      ; Bug 711044 - Better handling for 2 uninstall icons
       StrCpy $1 "HKCU"
       SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
     ${EndIf}
@@ -617,8 +619,8 @@
     ; This call is ignored on 32-bit systems.
     SetRegView 64
     DeleteRegKey HKLM "$R0"
-    WriteRegStr HKLM "$R0\0" "name" "Mozilla Corporation"
-    WriteRegStr HKLM "$R0\0" "issuer" "Thawte Code Signing CA - G2"
+    WriteRegStr HKLM "$R0\0" "name" "${CERTIFICATE_NAME}"
+    WriteRegStr HKLM "$R0\0" "issuer" "${CERTIFICATE_ISSUER}"
     SetRegView lastused
     ClearErrors
   ${EndIf} 

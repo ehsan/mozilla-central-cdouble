@@ -104,7 +104,7 @@ public:
 
   static void Release(RawRef aRawRef) 
   {
-    if(aRawRef != NULL && aRawRef != INVALID_HANDLE_VALUE) {
+    if (aRawRef != NULL && aRawRef != INVALID_HANDLE_VALUE) {
       CloseHandle(aRawRef);
     }
   }

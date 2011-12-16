@@ -247,9 +247,9 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
     LogInit(updatePath, L"maintenanceservice.log");
   }
 
-  // Disable every priv we don't need. Any process we start 
-  // from this service with CreateProcess will use our same token.
-  UACHelper::DropAllKnownPrivileges(NULL);
+  // Disable every privilege we don't need. Processes started using
+  // CreateProcess will use the same token as this process.
+  UACHelper::DisablePrivileges(NULL);
 
   // Register the handler function for the service
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);

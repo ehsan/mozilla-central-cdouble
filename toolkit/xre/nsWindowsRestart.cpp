@@ -47,17 +47,11 @@
 #endif
 
 #include "nsUTF8Utils.h"
-#include "nsWindowsHelpers.h"
 
 #include <shellapi.h>
-#include <shlwapi.h>
-#include <stdio.h>
-#include <wchar.h>
-#include <rpc.h>
-#include <userenv.h>
 
-#pragma comment(lib, "shlwapi.lib")
-#pragma comment(lib, "rpcrt4.lib")
+// Needed for CreateEnvironmentBlock
+#include <userenv.h>
 #pragma comment(lib, "userenv.lib")
 
 /**

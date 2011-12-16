@@ -36,9 +36,12 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include <windows.h>
-#include <shlwapi.h>
 #include <stdio.h>
 #include "shlobj.h"
+
+// Needed for PathAppendW
+#include <shlwapi.h>
+#pragma comment(lib, "shlwapi.lib") 
 
 WCHAR*
 MakeCommandLine(int argc, WCHAR **argv);

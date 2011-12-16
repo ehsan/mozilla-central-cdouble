@@ -73,7 +73,9 @@ IsServiceInstalled(LPCWSTR serviceName, BOOL &exists)
   if (!serviceHandle && GetLastError() != ERROR_SERVICE_DOES_NOT_EXIST) {
     CloseServiceHandle(serviceManager);
     return FALSE;
-  } else if (serviceHandle) {
+  }
+ 
+  if (serviceHandle) {
     CloseServiceHandle(serviceHandle);
     exists = TRUE;
   } 
@@ -107,9 +109,9 @@ IsInstalled(HWND hwndParent, int string_size,
 
   BOOL serviceInstalled;
   if (!IsServiceInstalled(serviceName, serviceInstalled)) {
-    pushstring(stacktop, L"-1", 3);
+    pushstring(stacktop, TEXT("-1"), 3);
   } else {
-    pushstring(stacktop, serviceInstalled ? L"1" : L"0", 2);
+    pushstring(stacktop, serviceInstalled ? TEXT("1") : TEXT("0"), 2);
   }
 }
 
@@ -185,9 +187,9 @@ Stop(HWND hwndParent, int string_size,
 #endif
 
   if (StopService(serviceName)) {
-    pushstring(stacktop, L"1", 2);
+    pushstring(stacktop, TEXT("1"), 2);
   } else {
-    pushstring(stacktop, L"0", 2);
+    pushstring(stacktop, TEXT("0"), 2);
   }
 }
 
@@ -217,7 +219,7 @@ PathToUniqueRegistryPath(HWND hwndParent, int string_size,
   if (CalculateRegistryPathFromFilePath(installBasePath, registryPath)) {
     pushstring(stacktop, registryPath, wcslen(registryPath) + 1);
   } else {
-    pushstring(stacktop, L"", 1);
+    pushstring(stacktop, TEXT(""), 1);
   }
 }
 

@@ -878,7 +878,6 @@ Function preComponents
     Abort
   ${Else}
     DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
-    ClearErrors
   ${EndIf}
 
   StrCpy $PageName "Components"

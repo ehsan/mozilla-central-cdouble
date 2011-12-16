@@ -1395,8 +1395,9 @@ LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
   // Run from the specified working directory (see bug 312360). This is not
   // necessary on Windows CE since the application that launches the updater
   // passes the working directory as an --environ: command line argument.
-  if(NS_tchdir(workingDir) != 0)
+  if (NS_tchdir(workingDir) != 0) {
     LOG(("Warning: chdir failed\n"));
+  }
 
 #if defined(USE_EXECV)
   execv(argv[0], argv);
@@ -1413,6 +1414,7 @@ static void
 WriteStatusFile(int status)
 {
   // This is how we communicate our completion status to the main application.
+
   NS_tchar filename[MAXPATHLEN];
   NS_tsnprintf(filename, sizeof(filename)/sizeof(filename[0]),
                NS_T("%s/update.status"), gSourcePath);
@@ -1593,9 +1595,9 @@ int NS_main(int argc, NS_tchar **argv)
   gSourcePath = argv[1];
 
 #ifdef XP_WIN
-  // Disable every priv we don't need. Any process we start 
-  // from with CreateProcess will use our same token.
-  UACHelper::DropAllKnownPrivileges(NULL);
+  // Disable every privilege we don't need. Processes started using
+  // CreateProcess will use the same token as this process.
+  UACHelper::DisablePrivileges(NULL);
 
   bool useService = false;
   // We never want the service to be used unless we build with
@@ -1727,6 +1729,15 @@ int NS_main(int argc, NS_tchar **argv)
                                           maintenanceServiceKey, 0, 
                                           KEY_READ | KEY_WOW64_64KEY, 
                                           &baseKey);
+          if (retCode != ERROR_SUCCESS) {
+            // Our tests run with a different apply directory for each test.
+            // We use this registry key on our test slaves to store the 
+            // allowed name/issuers.
+            retCode = RegOpenKeyExW(HKEY_LOCAL_MACHINE, 
+                                    L"SOFTWARE\\Mozilla\\MaintenanceService"
+                                    L"\\3932ecacee736d366d6436db0f55bce4", 0,
+                                    KEY_READ | KEY_WOW64_64KEY, &baseKey);
+          }
           useService = retCode == ERROR_SUCCESS;
           RegCloseKey(baseKey);
         } else {
@@ -1780,9 +1791,8 @@ int NS_main(int argc, NS_tchar **argv)
         if (IsUpdateStatusSucceeded(updateStatusSucceeded) && 
             updateStatusSucceeded) {
           if (!LaunchWinPostProcess(argv[2], gSourcePath, false, NULL)) {
-            fprintf(stderr, "The post update process which is only run for "
-                    "service updates, and is run unelevated, could not be "
-                    "launched.");
+            fprintf(stderr, "The post update process which runs as the user"
+                    " for service update could not be launched.");
           }
         }
       }

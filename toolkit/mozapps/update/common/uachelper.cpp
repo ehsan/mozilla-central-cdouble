@@ -44,12 +44,12 @@ typedef BOOL (WINAPI *LPWTSQueryUserToken)(ULONG, PHANDLE);
 // See the MSDN documentation with title: Privilege Constants
 // At the time of this writing, this documentation is located at: 
 // http://msdn.microsoft.com/en-us/library/windows/desktop/bb530716%28v=vs.85%29.aspx
-LPCTSTR UACHelper::AllKnownPrivs[] = { 
+LPCTSTR UACHelper::PrivsToDisable[] = { 
   SE_ASSIGNPRIMARYTOKEN_NAME,
   SE_AUDIT_NAME,
   SE_BACKUP_NAME,
-  // From testing, even a low integrity process with the following
-  // priv disabled, ReadDirectoryChanges still succeeds.
+  // From testing ReadDirectoryChanges still succeeds even with a low
+  // integrity process with the following privilege disabled.
   SE_CHANGE_NOTIFY_NAME,
   SE_CREATE_GLOBAL_NAME,
   SE_CREATE_PAGEFILE_NAME,
@@ -149,7 +149,7 @@ UACHelper::OpenLinkedToken(HANDLE token)
  * Enables or disables a privilege for the specified token.
  *
  * @param  token  The token to adjust the privilege on.
- * @param  piv    The privilege to adjust.
+ * @param  priv   The privilege to adjust.
  * @param  enable Whether to enable or disable it
  * @return TRUE if the token was adjusted to the specified value.
  */
@@ -186,9 +186,9 @@ UACHelper::SetPrivilege(HANDLE token, LPCTSTR priv, BOOL enable)
  * @return TRUE if there were no errors
  */
 BOOL
-UACHelper::DropUnneededPrivileges(HANDLE token, 
-                                  LPCTSTR *unneededPrivs, 
-                                  size_t count)
+UACHelper::DisableUnneededPrivileges(HANDLE token, 
+                                     LPCTSTR *unneededPrivs, 
+                                     size_t count)
 {
   HANDLE obtainedToken = NULL;
   if (!token) {
@@ -221,21 +221,21 @@ UACHelper::DropUnneededPrivileges(HANDLE token,
 }
 
 /**
- * Drops all known privileges for the specified token.
- * We use the term 'known' because some privileges could
- * be added in the future and we are not sure if we should
- * explicitly disable these or not.
+ * Disables privileges for the specified token.
+ * The privileges to disable are in PrivsToDisable.
+ * In the future there could be new privs and we are not sure if we should
+ * explicitly disable these or not. 
  * 
  * @param  token The token to drop the privilege on.
  *         Pass NULL for current token.
  * @return TRUE if there were no errors
  */
 BOOL
-UACHelper::DropAllKnownPrivileges(HANDLE token)
+UACHelper::DisablePrivileges(HANDLE token)
 {
-  static const size_t AllKnownPrivsSize = 
-    sizeof(UACHelper::AllKnownPrivs) / sizeof(UACHelper::AllKnownPrivs[0]);
+  static const size_t PrivsToDisableSize = 
+    sizeof(UACHelper::PrivsToDisable) / sizeof(UACHelper::PrivsToDisable[0]);
 
-  return DropUnneededPrivileges(token, UACHelper::AllKnownPrivs, 
-                                AllKnownPrivsSize);
+  return DropUnneededPrivileges(token, UACHelper::PrivsToDisable, 
+                                PrivsToDisableSize);
 }
