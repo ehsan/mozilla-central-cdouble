@@ -36,7 +36,8 @@
  * ***** END LICENSE BLOCK ***** */
 
 bool LaunchWinPostProcess(LPCWSTR installationDir, 
-                          LPCWSTR updateInfoDir, 
+                          LPCWSTR updateInfoDir,
+                          bool forceSync,
                           HANDLE userToken);
 BOOL StartServiceUpdate(int argc, LPWSTR *argv);
 BOOL GetUpdateDirectoryPath(LPWSTR path);

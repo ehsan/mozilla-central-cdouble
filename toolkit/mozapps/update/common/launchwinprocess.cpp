@@ -114,6 +114,7 @@ PathGetSiblingFilePath(LPWSTR destinationBuffer,
 bool
 LaunchWinPostProcess(LPCWSTR installationDir,
                      LPCWSTR updateInfoDir,
+                     bool forceSync,
                      HANDLE userToken)
 {
   if (wcslen(installationDir) >= MAX_PATH || 
@@ -178,19 +179,9 @@ LaunchWinPostProcess(LPCWSTR installationDir,
   wcscpy(cmdline, dummyArg);
   wcscat(cmdline, exearg);
 
-  if (!_wcsnicmp(exeasync, L"false", 6) || 
-      !_wcsnicmp(exeasync, L"0", 2))
-    async = false;
-
-  // If we are running PostUpdate twice, once under session 0 and once 
-  // under the callback session ID, then the first one must be synchronous in
-  // case the 2nd call adds the uninstall keys under the user before the first
-  // program adds them to HKLM.  The HKCU uninstall keys will only be set
-  // if the HKLM ones are not set.
-  DWORD myProcessID = GetCurrentProcessId();
-  DWORD mySessionID = 0;
-  if (ProcessIdToSessionId(myProcessID, &mySessionID) && 
-      !mySessionID && !userToken) {
+  if (forceSync ||
+      !_wcsnicmp(exeasync, L"false", 6) || 
+      !_wcsnicmp(exeasync, L"0", 2)) {
     async = false;
   }
 

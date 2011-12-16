@@ -192,11 +192,13 @@ StartUpdateProcess(LPCWSTR updaterPath,
       LPCWSTR installationDir = argvTmp[2];
       LPCWSTR updateInfoDir = argvTmp[1];
 
-      // Launch the PostProcess with admin access in session 0.  This is
-      // actually launching the post update process but it takes in the 
-      // callback app path to figure out where to apply to.
+      // Launch the PostUpdate process with SYSTEM in session 0. We force sync
+      // because we run this twice and we want to make sure the uninstaller
+      // keys get added to HKLM before the ones try to get added to HKCU.  If
+      // we did it async we'd have a race condition that would sometimes lead
+      // to 2 uninstall icons.
       LOG(("Launching post update process as the service in session 0.\n"));
-      if (!LaunchWinPostProcess(installationDir, updateInfoDir, NULL)) {
+      if (!LaunchWinPostProcess(installationDir, updateInfoDir, true, NULL)) {
         LOG(("The post update process could not be launched.\n"));
       }
       // The post process update with user only access will be done inside

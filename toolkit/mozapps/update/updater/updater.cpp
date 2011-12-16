@@ -1776,7 +1776,7 @@ int NS_main(int argc, NS_tchar **argv)
         bool updateStatusSucceeded = false;
         if (IsUpdateStatusSucceeded(updateStatusSucceeded) && 
             updateStatusSucceeded) {
-          if (!LaunchWinPostProcess(argv[2], gSourcePath, NULL)) {
+          if (!LaunchWinPostProcess(argv[2], gSourcePath, false, NULL)) {
             fprintf(stderr, "The post update process which is only run for "
                     "service updates, and is run unelevated, could not be "
                     "launched.");
@@ -1988,9 +1988,6 @@ int NS_main(int argc, NS_tchar **argv)
   if (argc > callbackIndex) {
 #if defined(XP_WIN)
     if (gSucceeded) {
-      if (!LaunchWinPostProcess(argv[2], gSourcePath, NULL)) {
-        LOG(("NS_main: The post update process could not be launched.\n"));
-      }
       // The service update will only be executed if it is already installed.
       // For first time installs of the service, the install will happen from
       // the PostUpdate process. We do the service update process here 
@@ -2001,6 +1998,9 @@ int NS_main(int argc, NS_tchar **argv)
       // MOZ_USING_SERVICE will not exist.
       WCHAR *sessionIDStr = _wgetenv(L"MOZ_USING_SERVICE");
       if (!sessionIDStr) {
+        if (!LaunchWinPostProcess(argv[2], gSourcePath, false, NULL)) {
+          LOG(("NS_main: The post update process could not be launched.\n"));
+        }
         StartServiceUpdate(argc, argv);
       }
     }
