@@ -41,7 +41,7 @@
 #include "nsAutoRef.h"
 #include "nscore.h"
 
-NS_SPECIALIZE_TEMPLATE
+template<>
 class nsAutoRefTraits<HKEY>
 {
 public:
@@ -59,7 +59,7 @@ public:
   }
 };
 
-NS_SPECIALIZE_TEMPLATE
+template<>
 class nsAutoRefTraits<SC_HANDLE>
 {
 public:
@@ -77,7 +77,7 @@ public:
   }
 };
 
-NS_SPECIALIZE_TEMPLATE
+template<>
 class nsSimpleRef<HANDLE>
 {
 protected:
