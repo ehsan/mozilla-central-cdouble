@@ -36,6 +36,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "servicebase.h"
+#include "nsWindowsHelpers.h"
 
 // Shared code between applications and updater.exe
 #include "nsWindowsRestart.cpp"

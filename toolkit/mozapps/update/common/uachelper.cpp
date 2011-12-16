@@ -236,6 +236,6 @@ UACHelper::DisablePrivileges(HANDLE token)
   static const size_t PrivsToDisableSize = 
     sizeof(UACHelper::PrivsToDisable) / sizeof(UACHelper::PrivsToDisable[0]);
 
-  return DropUnneededPrivileges(token, UACHelper::PrivsToDisable, 
-                                PrivsToDisableSize);
+  return DisableUnneededPrivileges(token, UACHelper::PrivsToDisable, 
+                                   PrivsToDisableSize);
 }
