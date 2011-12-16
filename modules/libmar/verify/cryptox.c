@@ -54,7 +54,6 @@ CryptoX_Result NSS_Init(const char *configDir)
     return status;
   }
 
-  status = NSS_SetDomesticPolicy();
   return SECSuccess == status ? CryptoX_Success : CryptoX_Error;
 }
 

@@ -291,3 +291,56 @@ int mar_read(MarFile *mar, const MarItem *item, int offset, char *buf,
 
   return fread(buf, 1, nr, mar->fp);
 }
+
+/** 
+ * Determines if the MAR in fp is of old format or not.
+ * New MAR formats have 2 extra fields after the offset to index:
+ * HEADER.FileSize and SIGNATURES.NumSignatures.
+ *
+ * @param  fp     The MAR file handle
+ * @param  oldMar An out variable that stores 1 if the MAR is of old format.
+ * @return 0 on successful check.
+*/
+int IsOldMAR(FILE *fp, int *oldMar)
+{
+  PRUint32 offsetToIndex, offsetToContent, oldPos;
+  if (!oldMar) {
+    return -1;
+  }
+
+  oldPos = ftell(fp);
+
+  /* Skip to the start of the signature block */
+  if (fseek(fp, MAR_ID_SIZE, SEEK_SET)) {
+    return -1;
+  }
+
+  /* Read the offset to the index. */
+  if (fread(&offsetToIndex, sizeof(offsetToIndex), 1, fp) != 1)
+    return -1;
+  offsetToIndex = ntohl(offsetToIndex);
+
+  /* Skip to the first index entry past the index size field */
+  if (fseek(fp, offsetToIndex + sizeof(PRUint32), SEEK_SET)) {
+    return -1;
+  }
+
+  /* Read the offset to content field. */
+  if (fread(&offsetToContent, sizeof(offsetToContent), 1, fp) != 1)
+    return -1;
+  offsetToContent = ntohl(offsetToContent);
+
+  /* Check if we have a new or old MAR file */
+  if (offsetToContent == MAR_ID_SIZE + sizeof(PRUint32)) {
+    *oldMar = 1;
+  } else {
+    *oldMar = 0;
+  }
+
+  /* Restore back our old position */
+  if (fseek(fp, oldPos, SEEK_SET)) {
+    return -1;
+  }
+
+  return 0;
+}

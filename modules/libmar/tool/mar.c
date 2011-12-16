@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "mar.h"
 
 #ifdef XP_WIN

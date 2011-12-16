@@ -39,8 +39,11 @@
 #define NSS_SECUTIL_H_
 
 #include "nss.h"
+#include "pk11pub.h"
 #include "cryptohi.h"
 #include "hasht.h"
+#include "cert.h"
+#include "key.h"
 
 struct VFYContextStr {
     SECOidTag hashAlg;  /* the hash algorithm */

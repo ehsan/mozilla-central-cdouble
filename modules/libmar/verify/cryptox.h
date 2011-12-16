@@ -97,7 +97,8 @@ CryptoX_Result CryptoAPI_VerifyBegin(HCRYPTPROV provider, HCRYPTHASH* hash);
 CryptoX_Result CryptoAPI_VerifyUpdate(HCRYPTHASH* hash, 
                                       char *buf, size_t len);
 CryptoX_Result CryptoAPI_LoadPublicKey(HCRYPTPROV hProv, 
-                                       LPCWSTR pathToDERfile, 
+                                       const char *certData,
+                                       size_t sizeOfCertData,
                                        HCRYPTKEY *publicKey,
                                        HCERTSTORE *cert);
 CryptoX_Result CyprtoAPI_VerifySignature(HCRYPTHASH *hash, 

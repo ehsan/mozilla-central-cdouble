@@ -61,6 +61,41 @@ int mar_verify_signature_for_id_fp(FILE *fp,
                                    char *extractedSignature,
                                    size_t extractedSignatureLen,
                                    PRUint32 signatureAlgorithmIDToVerify);
+int IsOldMAR(FILE *fp, int *oldMar);
+
+
+/**
+ * Reads the specified number of bytes from the file pointer and
+ * stores them in the passed buffer.
+ *
+ * @param  fp     The file pointer to read from.
+ * @param  buffer The buffer to store the read results.
+ * @param  size   The number of bytes to read, buffer must be 
+ *         at least of this size.
+ * @param  ctx    The verify context.
+ * @param  err    The name of what is being written to in case of error.
+ * @return  0 on success
+ *         -1 on read error
+ *         -2 on verify update error
+*/
+int ReadAndUpdateVerifyContext(FILE *fp, void *buffer,
+                               PRUint32 size, CryptoX_SignatureHandle *ctx,
+                               const char *err) 
+{
+  if (!size) { 
+    return 0;
+  }
+  if (fread(buffer, size, 1, fp) != 1) {
+    fprintf(stderr, "ERROR: Could not read %s\n", err);
+    return -1;
+  }
+  if (CryptoX_Failed(CryptoX_VerifyUpdate(ctx, (char*)buffer, size))) {
+    fprintf(stderr, "ERROR: Could not update verify context for %s\n", err);
+    return -2;
+  }
+  return 0;
+}
+
 
 /**
  * Verifies a MAR file's signature.
@@ -87,18 +122,21 @@ int mar_verify_signature(const char *pathToMARFile,
   fp = fopen(pathToMARFile, "rb");
   if (!fp) {
     fclose(fp);
+    fprintf(stderr, "ERROR: Could not open MAR file.\n");
     return -1;
   }
 
   if (CryptoX_Failed(CryptoX_InitCryptoLibrary(&provider, 
                                                configDir))) {
     fclose(fp);
+    fprintf(stderr, "ERROR: Could not init crytpo library.\n");
     return -1;
   }
 
   if (CryptoX_Failed(CryptoX_LoadPublicKey(provider, certData, sizeOfCertData,
                                            &key, certName, &cert))) {
     fclose(fp);
+    fprintf(stderr, "ERROR: Could not load public key.\n");
     return -1;
   }
 
@@ -140,19 +178,22 @@ int mar_verify_signatureW(const PRUnichar *pathToMARFile,
   fp = _wfopen(pathToMARFile, L"rb");
   if (!fp) {
     fclose(fp);
+    fprintf(stderr, "ERROR: Could not open MAR file.\n");
     return -1;
   }
 
   if (CryptoX_Failed(CryptoX_InitCryptoLibrary(&provider, 
                                                configDir))) {
     fclose(fp);
-    return -2;
+    fprintf(stderr, "ERROR: Could not init crytpo library.\n");
+    return -1;
   }
 
   if (CryptoX_Failed(CryptoX_LoadPublicKey(provider, certData, sizeOfCertData,
                                            &key, certName, &cert))) {
     fclose(fp);
-    return -3;
+    fprintf(stderr, "ERROR: Could not load public key.\n");
+    return -1;
   }
 
   rv = mar_verify_signature_fp(fp, provider, key);
@@ -181,33 +222,61 @@ int mar_verify_signature_fp(FILE *fp,
                             CryptoX_PublicKey key) {
   char buf[5] = {0};
   PRUint32 signatureAlgorithmID, signatureCount, signatureLen, numVerified = 0;
-  int rv = -1;
+  int rv = -1, oldMar = 0;
   long curPos;
   char *extractedSignature;
   size_t i;
 
+  if (!fp) {
+    fprintf(stderr, "ERROR: Invalid file pointer passed.\n");
+    return -1;
+  }
+
+  /* Determine if the source MAR file has the new fields for signing or not */
+  if (IsOldMAR(fp, &oldMar)) {
+    fprintf(stderr, "ERROR: could not determine if MAR is old or new.\n");
+    return -1;
+  }
+
+  if (oldMar) {
+    fprintf(stderr, "ERROR: The MAR file is in the old format so has"
+                    " no signature to verify.\n");
+    return -1;
+  }
+
   /* Skip to the start of the signature block */
   if (fseek(fp, SIGNATURE_BLOCK_OFFSET, SEEK_SET)) {
+    fprintf(stderr, "ERROR: Could not seek past signature block.\n");
     return -1;
   }
 
   /* Get the number of signatures */
   if (fread(&signatureCount, sizeof(signatureCount), 1, fp) != 1) {
+    fprintf(stderr, "ERROR: Could not read number of signatures.\n");
     return -1;
   }
   signatureCount = ntohl(signatureCount);
   for (i = 0; i < signatureCount; i++) {
     /* Get the signature algorithm ID */
-    if (fread(&signatureAlgorithmID, sizeof(PRUint32), 1, fp) != 1)
+    if (fread(&signatureAlgorithmID, sizeof(PRUint32), 1, fp) != 1) {
+      fprintf(stderr, "ERROR: Could not read signatures algorithm ID.\n");
       return -1;
+    }
     signatureAlgorithmID = ntohl(signatureAlgorithmID);
   
-    if (fread(&signatureLen, sizeof(PRUint32), 1, fp) != 1)
+    if (fread(&signatureLen, sizeof(PRUint32), 1, fp) != 1) {
+      fprintf(stderr, "ERROR: Could not read signatures length.\n");
       return -1;
+    }
     signatureLen = ntohl(signatureLen);
 
     extractedSignature = malloc(signatureLen);
+    if (!extractedSignature) {
+      fprintf(stderr, "ERROR: Could allocate buffer for signature.\n");
+      return -1;
+    }
     if (fread(extractedSignature, signatureLen, 1, fp) != 1) {
+      fprintf(stderr, "ERROR: Could not read extracted signature.\n");
       free(extractedSignature);
       return -1;
     }
@@ -224,6 +293,7 @@ int mar_verify_signature_fp(FILE *fp,
       }
       free(extractedSignature);
       if (fseek(fp, curPos, SEEK_SET)) {
+        fprintf(stderr, "ERROR: Could not seek back to last signature.\n");
         return -1;
       }
     } else {
@@ -232,7 +302,12 @@ int mar_verify_signature_fp(FILE *fp,
   }
 
   // If we reached here and we verified at least one signature, return success.
-  return numVerified > 0 ? 0 : -1;
+  if (numVerified > 0) {
+    return 0;
+  } else {
+    fprintf(stderr, "ERROR: No signatures were verified.\n");
+    return -1;
+  }
 }
 
 /**
@@ -271,72 +346,43 @@ int mar_verify_signature_for_id_fp(FILE *fp,
      Bytes 4-7: index offset 
      Bytes 8-15: size of entire MAR
    */
-  if (fread(buf, SIGNATURE_BLOCK_OFFSET, 1, fp) != 1) {
-    fprintf(stderr, "ERROR: Could not read up until signature block\n");
-    return -2;
-  }
-  if (CryptoX_Failed(CryptoX_VerifyUpdate(&signatureHandle, 
-                                          buf, 
-                                          SIGNATURE_BLOCK_OFFSET))) {
-    fprintf(stderr, "ERROR: Could not update verify context\n");
-    return -3;
+  if (ReadAndUpdateVerifyContext(fp, buf, SIGNATURE_BLOCK_OFFSET, 
+                                 &signatureHandle, "signature block")) {
+    return -1;
   }
 
   /* Bytes 8-11: number of signatures */
-  if (fread(&signatureCount, sizeof(PRUint32), 1, fp) != 1) {
-    fprintf(stderr, "ERROR: Could not read signature count\n");
-    return -4;
-  }
-  if (CryptoX_Failed(CryptoX_VerifyUpdate(&signatureHandle, 
-                                          (char*)&signatureCount, 
-                                          sizeof(signatureCount)))) {
-    fprintf(stderr, "ERROR: Could not update verify context"
-                    " with signature count.\n");
-    return -5;
+  if (ReadAndUpdateVerifyContext(fp, &signatureCount, sizeof(PRUint32), 
+                                 &signatureHandle, "signature count")) {
+    return -1;
   }
   signatureCount = ntohl(signatureCount);
 
   for (i = 0; i < signatureCount; i++) {
     /* Get the signature algorithm ID */
-    if (fread(&signatureAlgorithmID, sizeof(PRUint32), 1, fp) != 1) {
-        fprintf(stderr, "ERROR: Could not update signature algorithm ID.\n");
-        return -6;
+    if (ReadAndUpdateVerifyContext(fp, &signatureAlgorithmID, sizeof(PRUint32),
+                                   &signatureHandle, 
+                                   "signature algorithm ID")) {
+        return -1;
     }
-
-    if (CryptoX_Failed(CryptoX_VerifyUpdate(&signatureHandle, 
-                                            (char*)&signatureAlgorithmID,
-                                            sizeof(PRUint32)))) {
-      fprintf(stderr, "ERROR: Could not update verify context with"
-                      " signature algorithm ID.\n");
-      return -7;
-    }
-
     signatureAlgorithmID = ntohl(signatureAlgorithmID);
 
-    if (fread(&signatureLen, sizeof(PRUint32), 1, fp) != 1) {
-      fprintf(stderr, "ERROR: Could not read signature length.\n");
-      return -8;
-    }
-
-    if (CryptoX_Failed(CryptoX_VerifyUpdate(&signatureHandle, 
-                                            (char*)&signatureLen,
-                                            sizeof(PRUint32)))) {
-      fprintf(stderr, "ERROR: Could not update signature context"
-                      " with signature length.\n");
-      return -9;
+    if (ReadAndUpdateVerifyContext(fp, &signatureLen, sizeof(PRUint32), 
+                                   &signatureHandle, "signature length")) {
+      return -1;
     }
     signatureLen = ntohl(signatureLen);
 
     if (signatureAlgorithmIDToVerify == signatureAlgorithmID && 
         signatureLen != extractedSignatureLen) {
       fprintf(stderr, "ERROR: Signature length is not correct.\n");
-      return -10;
+      return -1;
     }
     
     /* Skip past the signature itself as those are not included */
     if (fseek(fp, signatureLen, SEEK_CUR)) {
       fprintf(stderr, "ERROR: Could not seek past signature.\n");
-      return -11;
+      return -1;
     }
   }
 
@@ -344,13 +390,13 @@ int mar_verify_signature_for_id_fp(FILE *fp,
     int numRead = fread(buf, 1, BLOCKSIZE , fp);
     if (ferror(fp)) {
       fprintf(stderr, "ERROR: Error reading data block.\n");
-      return -12;
+      return -1;
     }
     if (CryptoX_Failed(CryptoX_VerifyUpdate(&signatureHandle, 
                                             buf, numRead))) {
       fprintf(stderr, "ERROR: Error updating verify context with"
                       " data block.\n");
-      return -13;
+      return -1;
     }
   }
 
@@ -359,9 +405,14 @@ int mar_verify_signature_for_id_fp(FILE *fp,
                                              extractedSignature, 
                                              signatureLen))) {
     fprintf(stderr, "ERROR: Error verifying signature.\n");
-    return -14;
+    return -1;
   }
 
   // If we reached here and we verified at least one signature, we have success
-  return signatureCount > 0 ?  0 : -15;
+  if (signatureCount > 0) {
+    return 0;
+  } else {
+    fprintf(stderr, "ERROR: Signature count is 0.\n");
+    return -1;
+  }
 }
