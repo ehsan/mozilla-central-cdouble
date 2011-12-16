@@ -151,7 +151,6 @@ enum {
   PREF_werror,
   PREF_relimit,
   PREF_methodjit,
-  PREF_jitprofiling,
   PREF_methodjit_always,
 
 #ifdef JS_GC_ZEAL
@@ -168,7 +167,6 @@ const char* gPrefsToWatch[] = {
   JS_OPTIONS_DOT_STR "werror",
   JS_OPTIONS_DOT_STR "relimit",
   JS_OPTIONS_DOT_STR "methodjit.content",
-  JS_OPTIONS_DOT_STR "jitprofiling.content",
   JS_OPTIONS_DOT_STR "methodjit_always"
 
 #ifdef JS_GC_ZEAL
@@ -201,9 +199,6 @@ PrefCallback(const char* aPrefName, void* aClosure)
     }
     if (Preferences::GetBool(gPrefsToWatch[PREF_methodjit])) {
       newOptions |= JSOPTION_METHODJIT;
-    }
-    if (Preferences::GetBool(gPrefsToWatch[PREF_jitprofiling])) {
-      newOptions |= JSOPTION_PROFILING;
     }
     if (Preferences::GetBool(gPrefsToWatch[PREF_methodjit_always])) {
       newOptions |= JSOPTION_METHODJIT_ALWAYS;
@@ -458,6 +453,51 @@ ResumeWorkersForWindow(JSContext* aCx, nsPIDOMWindow* aWindow)
   if (runtime) {
     runtime->ResumeWorkersForWindow(aCx, aWindow);
   }
+}
+
+namespace {
+
+class WorkerTaskRunnable : public WorkerRunnable
+{
+public:
+  WorkerTaskRunnable(WorkerPrivate* aPrivate, WorkerTask* aTask)
+    : WorkerRunnable(aPrivate, WorkerThread, UnchangedBusyCount),
+      mTask(aTask)
+  { }
+
+  virtual bool PreDispatch(JSContext* aCx, WorkerPrivate* aWorkerPrivate) {
+    return true;
+  }
+
+  virtual void PostDispatch(JSContext* aCx, WorkerPrivate* aWorkerPrivate,
+                            bool aDispatchResult)
+  { }
+
+  virtual bool WorkerRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate);
+
+private:
+  nsRefPtr<WorkerTask> mTask;
+};
+
+bool
+WorkerTaskRunnable::WorkerRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
+{
+  return mTask->RunTask(aCx);
+}
+
+}
+
+bool
+WorkerCrossThreadDispatcher::PostTask(WorkerTask* aTask)
+{
+  mozilla::MutexAutoLock lock(mMutex);
+  if (!mPrivate) {
+    return false;
+  }
+
+  nsRefPtr<WorkerTaskRunnable> runnable = new WorkerTaskRunnable(mPrivate, aTask);
+  runnable->Dispatch(nsnull);
+  return true;
 }
 
 END_WORKERS_NAMESPACE
@@ -1041,7 +1081,7 @@ RuntimeService::SuspendWorkersForWindow(JSContext* aCx,
   GetWorkersForWindow(aWindow, workers);
 
   if (!workers.IsEmpty()) {
-    JSAutoRequest ar(aCx);
+    AutoSafeJSContext cx(aCx);
     for (PRUint32 index = 0; index < workers.Length(); index++) {
       if (!workers[index]->Suspend(aCx)) {
         NS_WARNING("Failed to cancel worker!");
@@ -1060,7 +1100,7 @@ RuntimeService::ResumeWorkersForWindow(JSContext* aCx,
   GetWorkersForWindow(aWindow, workers);
 
   if (!workers.IsEmpty()) {
-    JSAutoRequest ar(aCx);
+    AutoSafeJSContext cx(aCx);
     for (PRUint32 index = 0; index < workers.Length(); index++) {
       if (!workers[index]->Resume(aCx)) {
         NS_WARNING("Failed to cancel worker!");

@@ -48,14 +48,14 @@
  * We are specializing nsAutoRef class.
  */
 
-NS_SPECIALIZE_TEMPLATE
+template <>
 class nsAutoRefTraits<DBusGProxy> : public nsPointerRefTraits<DBusGProxy>
 {
 public:
   static void Release(DBusGProxy* ptr) { g_object_unref(ptr); }
 };
 
-NS_SPECIALIZE_TEMPLATE
+template <>
 class nsAutoRefTraits<GHashTable> : public nsPointerRefTraits<GHashTable>
 {
 public:
@@ -199,7 +199,7 @@ UPowerClient::UPowerClient()
   , mTrackedDevice(nsnull)
   , mLevel(kDefaultLevel)
   , mCharging(kDefaultCharging)
-  , mRemainingTime(kUnknownRemainingTime)
+  , mRemainingTime(kDefaultRemainingTime)
 {
 }
 
@@ -279,7 +279,7 @@ UPowerClient::StopListening()
   // We should now show the default values, not the latest we got.
   mLevel = kDefaultLevel;
   mCharging = kDefaultCharging;
-  mRemainingTime = kUnknownRemainingTime;
+  mRemainingTime = kDefaultRemainingTime;
 }
 
 void

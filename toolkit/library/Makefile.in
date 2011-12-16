@@ -112,7 +112,6 @@ LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/base
 endif
 
 ifneq (,$(filter WINNT OS2,$(OS_ARCH)))
-REQUIRES += libreg
 DEFINES += -DZLIB_DLL=1
 endif
 
@@ -147,6 +146,10 @@ STATIC_LIBS += \
   hal_s \
   $(NULL)
 
+ifdef MOZ_B2G_RIL #{
+STATIC_LIBS += mozril_s
+endif #}
+
 ifdef MOZ_IPDL_TESTS
 STATIC_LIBS += ipdlunittest_s
 endif
@@ -161,7 +164,7 @@ STATIC_LIBS += \
   xpcom_core \
   ucvutil_s \
   chromium_s \
-  mozreg_s \
+  snappy_s \
   $(NULL)
 
 # component libraries
@@ -196,6 +199,12 @@ COMPONENT_LIBS += \
   rdf \
   windowds \
   $(NULL)
+
+ifneq (WINNT,$(OS_ARCH))
+COMPONENT_LIBS += \
+  uconvd \
+  $(NULL)
+endif
 
 ifdef BUILD_CTYPES
 COMPONENT_LIBS += \
@@ -304,6 +313,7 @@ endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),android)
 COMPONENT_LIBS += widget_android
+STATIC_LIBS += skia_npapi
 endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),gonk)
@@ -377,6 +387,10 @@ EXTRA_DSO_LDOPTS += \
   $(SQLITE_LIBS) \
   $(NULL)
 
+ifdef MOZ_GRAPHITE
+EXTRA_DSO_LDOPTS += $(MOZ_GRAPHITE_LIBS)
+endif
+
 ifdef MOZ_NATIVE_ZLIB
 EXTRA_DSO_LDOPTS += $(ZLIB_LIBS)
 else
@@ -414,7 +428,10 @@ OS_LIBS += -lGLESv2
 endif
 
 ifeq (gonk,$(MOZ_WIDGET_TOOLKIT))
-OS_LIBS += -lui
+OS_LIBS += \
+  -lui \
+  -lmedia \
+  $(NULL)
 endif
 
 EXTRA_DEPS += \

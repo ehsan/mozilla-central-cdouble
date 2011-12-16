@@ -530,7 +530,7 @@ nsContentUtils::InitializeEventTable() {
 #include "nsEventNameList.h"
 #undef WINDOW_ONLY_EVENT
 #undef EVENT
-    nsnull
+    { nsnull }
   };
 
   sAtomEventTable = new nsDataHashtable<nsISupportsHashKey, EventNameMapping>;
@@ -578,7 +578,7 @@ nsContentUtils::InitializeTouchEventTable()
 #include "nsEventNameList.h"
 #undef TOUCH_EVENT
 #undef EVENT
-      nsnull
+      { nsnull }
     };
     // Subtract one from the length because of the trailing null
     for (PRUint32 i = 0; i < ArrayLength(touchEventArray) - 1; ++i) {
@@ -756,7 +756,7 @@ struct NormalizeNewlinesCharTraits<CharT*> {
 
 #else
 
-NS_SPECIALIZE_TEMPLATE
+template <>
 struct NormalizeNewlinesCharTraits<char*> {
   public:
     typedef char value_type;
@@ -771,7 +771,7 @@ struct NormalizeNewlinesCharTraits<char*> {
     char* mCharPtr;
 };
 
-NS_SPECIALIZE_TEMPLATE
+template <>
 struct NormalizeNewlinesCharTraits<PRUnichar*> {
   public:
     typedef PRUnichar value_type;
