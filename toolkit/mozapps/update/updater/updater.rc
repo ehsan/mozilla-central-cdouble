@@ -45,6 +45,17 @@ IDR_BACKUP_CERT TYPE_CERT  "backupCert.der"
 
 /////////////////////////////////////////////////////////////////////////////
 //
+// Embedded an identifier to uniquely identiy this as a Mozilla updater.
+//
+
+STRINGTABLE
+{
+  IDS_UPDATER_IDENTITY, "moz-updater.exe-4cdccec4-5ee0-4a06-9817-4cd899a9db49"
+} 
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // Dialog
 //
 
