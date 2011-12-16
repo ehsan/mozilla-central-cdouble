@@ -73,23 +73,23 @@ BOOL VerifySameFiles(LPCWSTR file1Path, LPCWSTR file2Path, BOOL &sameContent)
     return TRUE;
   }
 
-  char buf1[COMAPARE_BLOCKSIZE];
-  char buf2[COMAPARE_BLOCKSIZE];
-  DWORD numBlocks = fileSize1 / COMAPARE_BLOCKSIZE;
-  DWORD leftOver = fileSize1 % COMAPARE_BLOCKSIZE;
+  char buf1[COMPARE_BLOCKSIZE];
+  char buf2[COMPARE_BLOCKSIZE];
+  DWORD numBlocks = fileSize1 / COMPARE_BLOCKSIZE;
+  DWORD leftOver = fileSize1 % COMPARE_BLOCKSIZE;
   DWORD readAmount;
   for (DWORD i = 0; i < numBlocks; i++) {
-    if (!ReadFile(file1, buf1, COMAPARE_BLOCKSIZE, &readAmount, NULL) || 
-        readAmount != COMAPARE_BLOCKSIZE) {
+    if (!ReadFile(file1, buf1, COMPARE_BLOCKSIZE, &readAmount, NULL) || 
+        readAmount != COMPARE_BLOCKSIZE) {
       return FALSE;
     }
 
-    if (!ReadFile(file2, buf2, COMAPARE_BLOCKSIZE, &readAmount, NULL) || 
-        readAmount != COMAPARE_BLOCKSIZE) {
+    if (!ReadFile(file2, buf2, COMPARE_BLOCKSIZE, &readAmount, NULL) || 
+        readAmount != COMPARE_BLOCKSIZE) {
       return FALSE;
     }
 
-    if (memcmp(buf1, buf2, COMAPARE_BLOCKSIZE)) {
+    if (memcmp(buf1, buf2, COMPARE_BLOCKSIZE)) {
       // sameContent is already set to FALSE
       return TRUE;
     }

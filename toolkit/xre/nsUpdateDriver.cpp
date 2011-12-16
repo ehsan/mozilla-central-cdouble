@@ -507,7 +507,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
   rv = updatesDir->AppendNative(NS_LITERAL_CSTRING("0"));
   if (NS_FAILED(rv))
     return rv;
-
+ 
   const char *processingUpdates = PR_GetEnv("MOZ_PROCESS_UPDATES");
   if (processingUpdates && *processingUpdates) {
     // Enable the tests to request us to use a different update root directory

@@ -245,7 +245,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   // Indicate that the service is busy and shouldn't be used by anyone else
   // by opening or creating a named event.  Programs should check if this 
   // event exists before writing a work item out.  It should already be
-  // created by udpater.exe so CreateEventW will lead to an open named event.
+  // created by updater.exe so CreateEventW will lead to an open named event.
   nsAutoHandle serviceRunningEvent(CreateEventW(NULL, TRUE, 
                                                 FALSE, SERVICE_EVENT_NAME));
 
@@ -348,7 +348,8 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   LPWSTR* argvTmp = CommandLineToArgvW(cmdlineBufferWide, &argcTmp);
 
   // Verify that the updater.exe that we are executing is the same
-  // as the one in the installation directory.
+  // as the one in the installation directory which we are updating.
+  // The installation dir that we are installing to is argvTmp[2].
   WCHAR installDirUpdater[MAX_PATH + 1];
   wcsncpy(installDirUpdater, argvTmp[2], MAX_PATH);
   if (!PathAppendSafe(installDirUpdater, L"updater.exe")) {
@@ -388,9 +389,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   if (!updaterModule) {
     LOG(("updater.exe module could not be loaded. (%d)\n", GetLastError()));
     result = FALSE;
-  }
-
-  if (updaterModule != NULL) {
+  } else {
     char updaterIdentity[64];
     if (!LoadStringA(updaterModule, IDS_UPDATER_IDENTITY, 
                      updaterIdentity, sizeof(updaterIdentity))) {
@@ -403,9 +402,6 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       LOG(("The updater.exe identity string is not valid.\n"));
       result = FALSE;
     }
-  }
-
-  if (updaterModule) {
     FreeLibrary(updaterModule);
   }
 

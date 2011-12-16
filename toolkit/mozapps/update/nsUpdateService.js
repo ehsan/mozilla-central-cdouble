@@ -137,9 +137,9 @@ const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
 
 // From updater/errors.h:
-const WRITE_ERROR                          = 7;
-const UNEXPECTED_ERROR                     = 8;
-const ELEVATION_CANCELED                   = 9;
+const WRITE_ERROR        = 7;
+const UNEXPECTED_ERROR   = 8;
+const ELEVATION_CANCELED = 9;
 const SERVICE_UPDATER_COULD_NOT_BE_STARTED = 16000;
 const SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS = 16001;
 const SERVICE_UPDATER_SIGN_ERROR           = 16002;
@@ -156,7 +156,7 @@ const DOWNLOAD_FOREGROUND_INTERVAL  = 0;
 
 const UPDATE_WINDOW_NAME      = "Update:Wizard";
 
-//  The number of consecutive failures when updating using the service before
+// The number of consecutive failures when updating using the service before
 // setting the app.update.service.enabled preference to false.
 const DEFAULT_SERVICE_MAX_ERRORS = 10;
 

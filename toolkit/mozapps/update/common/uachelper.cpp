@@ -40,42 +40,48 @@
 #include "updatelogging.h"
 
 typedef BOOL (WINAPI *LPWTSQueryUserToken)(ULONG, PHANDLE);
-LPCTSTR UACHelper::AllPrivs[] = { 
-  SE_CREATE_TOKEN_NAME,
+
+// See the MSDN documentation with title: Privilege Constants
+// At the time of this writing, this documentation is located at: 
+// http://msdn.microsoft.com/en-us/library/windows/desktop/bb530716%28v=vs.85%29.aspx
+LPCTSTR UACHelper::AllKnownPrivs[] = { 
   SE_ASSIGNPRIMARYTOKEN_NAME,
-  SE_LOCK_MEMORY_NAME,
-  SE_INCREASE_QUOTA_NAME,
-  SE_UNSOLICITED_INPUT_NAME,
-  SE_MACHINE_ACCOUNT_NAME,
-  SE_TCB_NAME,
-  SE_SECURITY_NAME,
-  SE_TAKE_OWNERSHIP_NAME,
-  SE_LOAD_DRIVER_NAME,
-  SE_SYSTEM_PROFILE_NAME,
-  SE_SYSTEMTIME_NAME,
-  SE_PROF_SINGLE_PROCESS_NAME,
-  SE_INC_BASE_PRIORITY_NAME,
+  SE_AUDIT_NAME,
+  SE_BACKUP_NAME,
+  // From testing, even a low integrity process with the following
+  // priv disabled, ReadDirectoryChanges still succeeds.
+  SE_CHANGE_NOTIFY_NAME,
+  SE_CREATE_GLOBAL_NAME,
   SE_CREATE_PAGEFILE_NAME,
   SE_CREATE_PERMANENT_NAME,
-  SE_BACKUP_NAME,
-  SE_RESTORE_NAME,
-  SE_SHUTDOWN_NAME,
+  SE_CREATE_SYMBOLIC_LINK_NAME,
+  SE_CREATE_TOKEN_NAME,
   SE_DEBUG_NAME,
-  SE_AUDIT_NAME,
-  SE_SYSTEM_ENVIRONMENT_NAME,
-  SE_CHANGE_NOTIFY_NAME,
-  SE_REMOTE_SHUTDOWN_NAME,
-  SE_UNDOCK_NAME,
-  SE_SYNC_AGENT_NAME,
   SE_ENABLE_DELEGATION_NAME,
-  SE_MANAGE_VOLUME_NAME,
   SE_IMPERSONATE_NAME,
-  SE_CREATE_GLOBAL_NAME,
-  SE_TRUSTED_CREDMAN_ACCESS_NAME,
-  SE_RELABEL_NAME,
+  SE_INC_BASE_PRIORITY_NAME,
+  SE_INCREASE_QUOTA_NAME,
   SE_INC_WORKING_SET_NAME,
+  SE_LOAD_DRIVER_NAME,
+  SE_LOCK_MEMORY_NAME,
+  SE_MACHINE_ACCOUNT_NAME,
+  SE_MANAGE_VOLUME_NAME,
+  SE_PROF_SINGLE_PROCESS_NAME,
+  SE_RELABEL_NAME,
+  SE_REMOTE_SHUTDOWN_NAME,
+  SE_RESTORE_NAME,
+  SE_SECURITY_NAME,
+  SE_SHUTDOWN_NAME,
+  SE_SYNC_AGENT_NAME,
+  SE_SYSTEM_ENVIRONMENT_NAME,
+  SE_SYSTEM_PROFILE_NAME,
+  SE_SYSTEMTIME_NAME,
+  SE_TAKE_OWNERSHIP_NAME,
+  SE_TCB_NAME,
   SE_TIME_ZONE_NAME,
-  SE_CREATE_SYMBOLIC_LINK_NAME
+  SE_TRUSTED_CREDMAN_ACCESS_NAME,
+  SE_UNDOCK_NAME,
+  SE_UNSOLICITED_INPUT_NAME
 };
 
 /**
@@ -139,10 +145,10 @@ UACHelper::OpenLinkedToken(HANDLE token)
 }
 
 /**
- * Enables or disables a privlege for the specified token.
+ * Enables or disables a privilege for the specified token.
  *
- * @param  token The token to adjust the privlege on.
- * @param  piv    The privlege to adjust.
+ * @param  token  The token to adjust the privilege on.
+ * @param  piv    The privilege to adjust.
  * @param  enable Whether to enable or disable it
  * @return TRUE if the token was adjusted to the specified value.
  */
@@ -161,48 +167,48 @@ UACHelper::SetPrivilege(HANDLE token, LPCTSTR priv, BOOL enable)
 
   SetLastError(ERROR_SUCCESS);
   if (!AdjustTokenPrivileges(token, false, &tokenPriv,
-                              sizeof(tokenPriv), NULL, NULL)) {
+                             sizeof(tokenPriv), NULL, NULL)) {
     return FALSE; 
   } 
 
-  return GetLastError()  == ERROR_SUCCESS;
+  return GetLastError() == ERROR_SUCCESS;
 }
 
 /**
  * For each privilege that is specified, an attempt will be made to 
  * drop the privilege. 
  * 
- * @param  token        The token to adjust the privlege on. 
+ * @param  token         The token to adjust the privilege on. 
  *         Pass NULL for current token.
- * @param  uneededPrivs An array of uneeded privileges.
- * @param  count        The size of the array
+ * @param  unneededPrivs An array of unneeded privileges.
+ * @param  count         The size of the array
  * @return TRUE if there were no errors
  */
 BOOL
-UACHelper::DropUneededPrivileges(HANDLE token, 
-                                 LPCTSTR *uneededPrivs, 
-                                 size_t count)
+UACHelper::DropUnneededPrivileges(HANDLE token, 
+                                  LPCTSTR *unneededPrivs, 
+                                  size_t count)
 {
   HANDLE obtainedToken = NULL;
   if (!token) {
     // Note: This handle is a pseudo-handle and need not be closed
     HANDLE process = GetCurrentProcess();
-     if (!OpenProcessToken(process, TOKEN_ALL_ACCESS_P, &obtainedToken)) {
+    if (!OpenProcessToken(process, TOKEN_ALL_ACCESS_P, &obtainedToken)) {
       LOG(("Could not obtain token for current process, no "
            "privileges changed. (%d)\n", GetLastError()));
       return FALSE;
-     }
+    }
     token = obtainedToken;
   }
 
   BOOL result = TRUE;
   for (size_t i = 0; i < count; i++) {
-    if (SetPrivilege(token, uneededPrivs[i], FALSE)) {
-      LOG(("Disabled uneeded token privilege: %s.\n", 
-            uneededPrivs[i]));
+    if (SetPrivilege(token, unneededPrivs[i], FALSE)) {
+      LOG(("Disabled unneeded token privilege: %s.\n", 
+           unneededPrivs[i]));
     } else {
       LOG(("Could not disable token privilege value: %s. (%d)\n", 
-            uneededPrivs[i], GetLastError()));
+           unneededPrivs[i], GetLastError()));
       result = FALSE;
     }
   }
@@ -214,17 +220,21 @@ UACHelper::DropUneededPrivileges(HANDLE token,
 }
 
 /**
- * Drops all privileges for the specified token.
+ * Drops all known privileges for the specified token.
+ * We use the term 'known' because some privileges could
+ * be added in the future and we are not sure if we should
+ * explicitly disable these or not.
  * 
- * @param  token The token to drop the privlege on.
+ * @param  token The token to drop the privilege on.
  *         Pass NULL for current token.
  * @return TRUE if there were no errors
  */
 BOOL
-UACHelper::DropAllPrivileges(HANDLE token)
+UACHelper::DropAllKnownPrivileges(HANDLE token)
 {
-  static const size_t AllPrivsSize = 
-    sizeof(UACHelper::AllPrivs) / sizeof(UACHelper::AllPrivs[0]);
+  static const size_t AllKnownPrivsSize = 
+    sizeof(UACHelper::AllKnownPrivs) / sizeof(UACHelper::AllKnownPrivs[0]);
 
-  return DropUneededPrivileges(token, UACHelper::AllPrivs, AllPrivsSize);
+  return DropUnneededPrivileges(token, UACHelper::AllKnownPrivs, 
+                                AllKnownPrivsSize);
 }

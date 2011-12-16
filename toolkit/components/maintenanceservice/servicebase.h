@@ -44,7 +44,7 @@ BOOL VerifySameFiles(LPCWSTR file1Path, LPCWSTR file2Path, BOOL &sameContent);
 // 32KiB for comparing files at a time seems reasonable.
 // The bigger the better for speed, but this will be used
 // on the stack so I don't want it to be too big.
-#define COMAPARE_BLOCKSIZE 32768
+#define COMPARE_BLOCKSIZE 32768
 
 // The following string resource value is used to uniquely identify the signed
 // Mozilla application as an updater.  Before the maintenance service will 
@@ -53,5 +53,3 @@ BOOL VerifySameFiles(LPCWSTR file1Path, LPCWSTR file2Path, BOOL &sameContent);
 #define UPDATER_IDENTITY_STRING \
   "moz-updater.exe-4cdccec4-5ee0-4a06-9817-4cd899a9db49"
 #define IDS_UPDATER_IDENTITY 1006
-
-

@@ -239,7 +239,7 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
 
   // Disable every priv we don't need. Any process we start 
   // from this service with CreateProcess will use our same token.
-  UACHelper::DropAllPrivileges(NULL);
+  UACHelper::DropAllKnownPrivileges(NULL);
 
   // Register the handler function for the service
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);
