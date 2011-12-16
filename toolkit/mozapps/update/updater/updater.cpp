@@ -1830,6 +1830,18 @@ int NS_main(int argc, NS_tchar **argv)
 #if defined(XP_WIN)
     if (gSucceeded) {
       LaunchWinPostProcess(argv[callbackIndex], gSourcePath, NULL);
+      // The service update will only be executed if it is already installed.
+      // For first time installs of the service, the install will happen from
+      // the PostUpdate process. We do the service update process here 
+      // because it's possible we are updating with updater.exe without the 
+      // service if the service failed to apply the update even know it is
+      // installed. We want to update the service to a newer version in that
+      // case. If we are not running through the service, then MOZ_SESSION_ID
+      // will not exist.
+      WCHAR *sessionIDStr = _wgetenv(L"MOZ_SESSION_ID");
+      if (!sessionIDStr) {
+        StartServiceUpdate(argc, argv);
+      }
     }
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 0);
 #endif /* XP_WIN */

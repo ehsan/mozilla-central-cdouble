@@ -65,12 +65,15 @@ PRUnichar* MakeCommandLine(int argc, PRUnichar **argv);
 BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
 BOOL WriteStatusPending(LPCWSTR updateDirPath);
 BOOL StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID);
-BOOL StartSelfUpdate(int argcTmp, LPWSTR *argvTmp);
 BOOL PathGetSiblingFilePath(LPWSTR destinationBuffer,  LPCWSTR siblingFilePath, 
                             LPCWSTR newFileName);
 
-// The error code is 16000 since Windows system error codes only go up to 15999
-const int SERVICE_UPDATE_ERROR = 16000;
+// The error codes start from 16000 since Windows system error 
+// codes only go up to 15999
+const int SERVICE_UPDATER_COULD_NOT_BE_STARTED = 16000;
+const int SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS = 16001;
+const int SERVICE_UPDATER_SIGN_ERROR = 16002;
+const int SERVICE_CALLBACK_SIGN_ERROR = 16003;
 
 /**
  * Runs an update process in the specified sessionID as an elevated process.
@@ -249,6 +252,12 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     return FALSE;
   }
 
+  // Indicate that the service is busy and shouldn't be used by anyone else
+  // by creating a named event.  Programs should check if this event exists 
+  // before writing a work item out.
+  nsAutoHandle serviceRunning(CreateEventW(NULL, TRUE, 
+                                           FALSE, SERVICE_EVENT_NAME));
+
   LOG(("Processing new command meta file: %ls\n", notifyInfo.FileName));
   WCHAR fullMetaUpdateFilePath[MAX_PATH + 1];
   wcscpy(fullMetaUpdateFilePath, monitoringBasePath);
@@ -382,7 +391,7 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
                            updateProcessWasStarted,
                            sessionID)) {
       LOG(("updater.exe was launched and run successfully!\n"));
-      StartSelfUpdate(argcTmp, argvTmp);
+      StartServiceUpdate(argcTmp, argvTmp);
     } else {
       LOG(("Error running process in session %d.  "
            "Updating update.status.  Last error: %d\n",
@@ -394,7 +403,8 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
       // setting status pending so that the app.update.service.errors
       // pref can be updated when the callback app restarts.
       if (!updateProcessWasStarted) {
-        if (!WriteStatusFailure(argvTmp[1], SERVICE_UPDATE_ERROR)) {
+        if (!WriteStatusFailure(argvTmp[1], 
+                                SERVICE_UPDATER_COULD_NOT_BE_STARTED)) {
           LOG(("Could not write update.status service update failure."
                "Last error: %d\n", GetLastError()));
         }
@@ -412,8 +422,9 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     // are not enough command line parameters. We set an error instead of
     // directly setting status pending so that the app.update.service.errors
     // pref can be updated when the callback app restarts.
-    if (argcTmp != 2 || !WriteStatusFailure(argvTmp[1], 
-                                            SERVICE_UPDATE_ERROR)) {
+    if (argcTmp != 2 || 
+        !WriteStatusFailure(argvTmp[1], 
+                            SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS)) {
       LOG(("Could not write update.status service update failure."
            "Last error: %d\n", GetLastError()));
     }
@@ -422,12 +433,10 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
          "in session %d. Updating update.status.  Last error: %d\n",
          sessionID, GetLastError()));
 
-    // When there is a certificate error we just want to write pending.
-    // That is because a future update will probably fix the certificate
-    // problem, and we don't want to update  app.update.service.errors.
-    // We can't start the callback in this case because it is a sign problem
-    // with the callback itself.
-    if (!WriteStatusPending(argvTmp[1])) {
+    // When there is a certificate check error on the callback application, we
+    // want to write out the error.
+    if (!WriteStatusFailure(argvTmp[1], 
+                            SERVICE_CALLBACK_SIGN_ERROR)) {
       LOG(("Could not write pending state to update.status.  (%d)\n", 
            GetLastError()));
     }
@@ -435,10 +444,10 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     LOG(("Could not start process due to certificate check error on "
          "updater.exe. Updating update.status.  Last error: %d\n", GetLastError()));
 
-    // When there is a certificate error we just want to write pending.
-    // That is because a future update will probably fix the certificate
-    // problem, and we don't want to update app.update.service.errors.
-    if (!WriteStatusPending(argvTmp[1])) {
+    // When there is a certificate check error on the updater.exe application,
+    // we want to write out the error.
+    if (!WriteStatusFailure(argvTmp[1], 
+                            SERVICE_UPDATER_SIGN_ERROR)) {
       LOG(("Could not write pending state to update.status.  (%d)\n", 
            GetLastError()));
     }
@@ -534,45 +543,6 @@ StartDirectoryChangeMonitor()
 }
 
 /**
- * Starts the upgrade process for update of ourselves
- *
- * @param  argcTmp The argc value normally sent to updater.exe
- * @param  argvTmp The argv value normally sent to updater.exe
- * @return TRUE if successful
- */
-BOOL
-StartSelfUpdate(int argcTmp, LPWSTR *argvTmp)
-{
-  if (argcTmp < 2) {
-    return FALSE;
-  }
-
-  STARTUPINFO si = {0};
-  si.cb = sizeof(STARTUPINFO);
-  // No particular desktop because no UI
-  si.lpDesktop = L"";
-  PROCESS_INFORMATION pi = {0};
-
-  WCHAR maintserviceInstallerPath[MAX_PATH + 1];
-  wcscpy(maintserviceInstallerPath, argvTmp[2]);
-  PathAppendSafe(maintserviceInstallerPath, 
-                 L"maintenanceservice_installer.exe");
-  WCHAR cmdLine[64];
-  wcscpy(cmdLine, L"dummyparam.exe /Upgrade");
-  BOOL selfUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
-                                                 cmdLine, 
-                                                 NULL, NULL, FALSE, 
-                                                 CREATE_DEFAULT_ERROR_MODE | 
-                                                 CREATE_UNICODE_ENVIRONMENT, 
-                                                 NULL, argvTmp[2], &si, &pi);
-  if (selfUpdateProcessStarted) {
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-  }
-  return selfUpdateProcessStarted;
-}
-
-/**
  * Starts the callback application from the updater.exe command line arguments.
  *
  * @param  argcTmp           The argc value normally sent to updater.exe
@@ -635,8 +605,8 @@ StartCallbackApp(int argcTmp, LPWSTR *argvTmp, DWORD callbackSessionID)
     environmentBlock = NULL;
   }
 
-  STARTUPINFO si = {0};
-  si.cb = sizeof(STARTUPINFO);
+  STARTUPINFOW si = {0};
+  si.cb = sizeof(STARTUPINFOW);
   si.lpDesktop = L"winsta0\\Default";
   PROCESS_INFORMATION pi = {0};
   if (CreateProcessAsUserW(unelevatedToken, 

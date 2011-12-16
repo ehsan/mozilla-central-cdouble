@@ -202,3 +202,62 @@ LaunchWinPostProcess(const WCHAR *appExe,
   }
 }
 
+/**
+ * Starts the upgrade process for update of the service if it is
+ * already installed.
+ *
+ * @param  argc The argc value normally sent to updater.exe
+ * @param  argv The argv value normally sent to updater.exe
+ * @return TRUE if successful
+ */
+BOOL
+StartServiceUpdate(int argc, LPWSTR *argv)
+{
+  if (argc < 2) {
+    return FALSE;
+  }
+
+  // Get a handle to the local computer SCM database
+  SC_HANDLE manager = OpenSCManager(NULL, NULL, 
+                                    SC_MANAGER_ALL_ACCESS);
+  if (!manager) {
+    return FALSE;
+  }
+
+  // Open the service
+  SC_HANDLE svc = OpenServiceW(manager, L"MozillaMaintenance", 
+                               SERVICE_ALL_ACCESS);
+  if (!svc) {
+    CloseServiceHandle(manager);
+    return FALSE;
+  }
+  CloseServiceHandle(svc);
+  CloseServiceHandle(manager);
+
+  // If we reach here, then the service is installed, so
+  // proceed with upgrading it.
+
+  STARTUPINFOW si = {0};
+  si.cb = sizeof(STARTUPINFOW);
+  // No particular desktop because no UI
+  si.lpDesktop = L"";
+  PROCESS_INFORMATION pi = {0};
+
+  WCHAR maintserviceInstallerPath[MAX_PATH + 1];
+  wcscpy(maintserviceInstallerPath, argv[2]);
+  PathAppendSafe(maintserviceInstallerPath, 
+                 L"maintenanceservice_installer.exe");
+  WCHAR cmdLine[64];
+  wcscpy(cmdLine, L"dummyparam.exe /Upgrade");
+  BOOL svcUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
+                                                cmdLine, 
+                                                NULL, NULL, FALSE, 
+                                                CREATE_DEFAULT_ERROR_MODE | 
+                                                CREATE_UNICODE_ENVIRONMENT, 
+                                                NULL, argv[2], &si, &pi);
+  if (svcUpdateProcessStarted) {
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+  }
+  return svcUpdateProcessStarted;
+}

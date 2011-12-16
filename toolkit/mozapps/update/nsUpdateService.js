@@ -137,9 +137,12 @@ const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
 
 // From updater/errors.h:
-const WRITE_ERROR          = 7;
-const ELEVATION_CANCELED   = 9;
-const SERVICE_UPDATE_ERROR = 16000;
+const WRITE_ERROR                          = 7;
+const ELEVATION_CANCELED                   = 9;
+const SERVICE_UPDATER_COULD_NOT_BE_STARTED = 16000;
+const SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS = 16001;
+const SERVICE_UPDATER_SIGN_ERROR           = 16002;
+const SERVICE_CALLBACK_SIGN_ERROR          = 16003;
 
 
 const CERT_ATTR_CHECK_FAILED_NO_UPDATE  = 100;
@@ -1425,7 +1428,10 @@ UpdateService.prototype = {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
-        if (update.errorCode == SERVICE_UPDATE_ERROR) {
+        if (update.errorCode == SERVICE_UPDATER_COULD_NOT_BE_STARTED ||
+            update.errorCode == SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS ||
+            update.errorCode == SERVICE_UPDATER_SIGN_ERROR || 
+            update.errorCode == SERVICE_CALLBACK_SIGN_ERROR) {
           var failCount = getPref("getIntPref", 
                                   PREF_APP_UPDATE_SERVICE_ERRORS, 0);
           var maxFail = getPref("getIntPref", 

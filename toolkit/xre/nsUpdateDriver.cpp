@@ -496,6 +496,23 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   isPendingService = false;
 #endif
 
+  if (isPendingService) {
+    // Make sure the service isn't already busy processing another work item.
+    SetLastError(ERROR_SUCCESS);
+    HANDLE serviceRunningEvent = 
+      OpenEvent(EVENT_ALL_ACCESS, 
+                FALSE, 
+                L"Global\\moz-5b780de9-065b-4341-a04f-ddd94b3723e5");
+    // Only use the service if we know the event exists.
+    // If we have a non NULL handle, or if ERROR_ACCESS_DENIED is returned,
+    // then the event exists.
+    isPendingService = !serviceRunningEvent && 
+                       GetLastError() != ERROR_ACCESS_DENIED;
+    if (serviceRunningEvent) {
+      CloseHandle(serviceRunningEvent);
+    }
+  }
+
   // Launch the update operation using the service if the status file said so.
   // We also set the status to pending to ensure we never attempt to use the 
   // service more than once in a row for a single update.
