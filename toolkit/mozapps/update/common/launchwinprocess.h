@@ -49,3 +49,6 @@ void LaunchWinPostProcess(const WCHAR *appExe,
                           const WCHAR *updateInfoDir, 
                           HANDLE userToken);
 BOOL StartServiceUpdate(int argc, LPWSTR *argv);
+BOOL GetUpdateDirectoryPath(LPWSTR path);
+BOOL WinLaunchServiceCommand(LPCWSTR exePath, int argc, WCHAR **argv);
+#define SERVICE_EVENT_NAME L"Global\\moz-5b780de9-065b-4341-a04f-ddd94b3723e5"

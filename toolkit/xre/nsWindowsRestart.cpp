@@ -51,7 +51,6 @@
 
 #include <shellapi.h>
 #include <shlwapi.h>
-#include <shlobj.h>
 #include <stdio.h>
 #include <wchar.h>
 #include <rpc.h>
@@ -237,69 +236,6 @@ FreeAllocStrings(int argc, PRUnichar **argv)
 }
 
 /**
- * Determines if the maintenance service is running or not.
- * 
- * @return TRUE if the maintenance service is running.
-*/
-BOOL 
-EnsureWindowsServiceRunning() {
-  // Get a handle to the SCM database.
-  nsAutoServiceHandle serviceManager(OpenSCManager(NULL, NULL, 
-                                                   SC_MANAGER_CONNECT | 
-                                                   SC_MANAGER_ENUMERATE_SERVICE));
-  if (!serviceManager)  {
-    return FALSE;
-  }
-
-  // Get a handle to the service.
-  nsAutoServiceHandle service(OpenServiceW(serviceManager, 
-                                           L"MozillaMaintenance", 
-                                           SERVICE_QUERY_STATUS | SERVICE_START));
-  if (!service) { 
-    return FALSE;
-  }
-
-  // Make sure the service is not stopped.
-  SERVICE_STATUS_PROCESS ssp;
-  DWORD bytesNeeded;
-  if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
-                            sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
-    return FALSE;
-  }
-
-  if (ssp.dwCurrentState == SERVICE_STOPPED) {
-    if (!StartService(service, 0, NULL)) {
-      return FALSE;
-    }
-
-    // Make sure we can get into a started state without waiting too long.
-    // This usually starts instantly but the extra code is just in case it
-    // takes longer.
-    DWORD totalWaitTime = 0;
-    static const int maxWaitTime = 1000 * 5; // Never wait more than 5 seconds
-    while (QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
-                                sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
-      if (ssp.dwCurrentState == SERVICE_RUNNING) {
-        break;
-      } else if (ssp.dwCurrentState == SERVICE_START_PENDING &&
-                 totalWaitTime > maxWaitTime) {
-        // We will probably eventually start, but we can't wait any longer.
-        break;
-      } else if (ssp.dwCurrentState != SERVICE_START_PENDING) {
-        return FALSE;
-      }
-
-      Sleep(ssp.dwWaitHint);
-      // Increment by at least 10 milliseconds to ensure we always make 
-      // progress towards maxWaitTime in case dwWaitHint is 0.
-      totalWaitTime += (ssp.dwWaitHint + 10);
-    }
-  }
-
-  return ssp.dwCurrentState == SERVICE_RUNNING;
-}
-
-/**
  * Joins a base directory path with a filename.
  *
  * @param  base  The base directory path of size MAX_PATH + 1
@@ -314,138 +250,6 @@ PathAppendSafe(LPWSTR base, LPCWSTR extra)
   }
 
   return PathAppendW(base, extra);
-}
-
-/**
- * Obtains the directory path to store work item files.
- * 
- * @return TRUE if the path was obtained successfully.
-*/
-BOOL
-GetUpdateDirectoryPath(PRUnichar *path) 
-{
-  HRESULT hr = SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 
-    SHGFP_TYPE_CURRENT, path);
-  if (FAILED(hr)) {
-    return FALSE;
-  }
-  if (!PathAppendSafe(path, L"Mozilla")) {
-    return FALSE;
-  }
-  // The directory should already be created from the installer, but
-  // just to be safe in case someone deletes.
-  CreateDirectoryW(path, NULL);
-
-  if (!PathAppendSafe(path, L"updates")) {
-    return FALSE;
-  }
-  CreateDirectoryW(path, NULL);
-  return TRUE;
-}
-
-/**
- * Launch a service initiated action with the specified arguments.
- *
- * @param  exePath The path of the executable to run
- * @param  argc    The total number of arguments in argv
- * @param  argv
- *         An array of null terminated strings to pass to the exePath, 
- *         argv[0] is ignored
- * @return TRUE if successful
- */
-BOOL
-WinLaunchServiceCommand(const PRUnichar *exePath, int argc, PRUnichar **argv)
-{
-  // Ensure the service is running, if not we should try to start it, if it is
-  // not in a running state we cannot execute a service command.
-  if (!EnsureWindowsServiceRunning()) {
-    return FALSE;
-  }
-
-  PRUnichar updateData[MAX_PATH + 1];
-  if (!GetUpdateDirectoryPath(updateData)) {
-    return FALSE;
-  }
-
-  // Get a unique filename
-  PRUnichar tempFilePath[MAX_PATH + 1];
-  const int USE_SYSTEM_TIME = 0;
-  if (!GetTempFileNameW(updateData, L"moz", USE_SYSTEM_TIME, tempFilePath)) {
-    return FALSE;
-  }
-  
-  const int FILE_SHARE_NONE = 0;
-  nsAutoHandle updateMetaFile(CreateFileW(tempFilePath, GENERIC_WRITE, 
-                                          FILE_SHARE_NONE, NULL, CREATE_ALWAYS, 
-                                          0, NULL));
-  if (updateMetaFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
-
-  // Write out the command ID.
-  // Command ID 1 is for an update work item file, which is the only supported
-  // command at this time.
-  DWORD commandID = 1, commandIDWrote;
-  BOOL result = WriteFile(updateMetaFile, &commandID, 
-                          sizeof(DWORD), 
-                          &commandIDWrote, NULL);
-
-  // Write out the command line arguments that are passed to updater.exe
-  PRUnichar *commandLineBuffer = MakeCommandLine(argc, argv);
-  DWORD sessionID, sessionIDWrote;
-  ProcessIdToSessionId(GetCurrentProcessId(), &sessionID);
-  result |= WriteFile(updateMetaFile, &sessionID, 
-                      sizeof(DWORD), 
-                      &sessionIDWrote, NULL);
-
-  PRUnichar appBuffer[MAX_PATH + 1];
-  ZeroMemory(appBuffer, sizeof(appBuffer));
-  wcscpy(appBuffer, exePath);
-  DWORD appBufferWrote;
-  result |= WriteFile(updateMetaFile, appBuffer, 
-                      MAX_PATH * sizeof(PRUnichar), 
-                      &appBufferWrote, NULL);
-
-  PRUnichar workingDirectory[MAX_PATH + 1];
-  ZeroMemory(workingDirectory, sizeof(appBuffer));
-  GetCurrentDirectoryW(sizeof(workingDirectory) / sizeof(workingDirectory[0]), 
-                       workingDirectory);
-  DWORD workingDirectoryWrote;
-  result |= WriteFile(updateMetaFile, workingDirectory, 
-                      MAX_PATH * sizeof(PRUnichar), 
-                      &workingDirectoryWrote, NULL);
-
-  DWORD commandLineLength = wcslen(commandLineBuffer) * sizeof(PRUnichar);
-  DWORD commandLineWrote;
-  result |= WriteFile(updateMetaFile, commandLineBuffer, 
-                      commandLineLength, 
-                      &commandLineWrote, NULL);
-  free(commandLineBuffer);
-  if (!result ||
-      sessionIDWrote != sizeof(DWORD) ||
-      commandIDWrote != sizeof(DWORD) ||
-      appBufferWrote != MAX_PATH * sizeof(PRUnichar) ||
-      workingDirectoryWrote != MAX_PATH * sizeof(PRUnichar) ||
-      commandLineWrote != commandLineLength) {
-    updateMetaFile.reset();
-    DeleteFileW(tempFilePath);
-    return FALSE;
-  }
-
-  // Note we construct the 'service work' meta object with a .tmp extension,
-  // When we want the service to start processing it we simply rename it to
-  // have a .mz extension.  This ensures that the service will never try to
-  // process a partial update work meta file. 
-  updateMetaFile.reset();
-  PRUnichar completedMetaFilePath[MAX_PATH + 1];
-  wcscpy(completedMetaFilePath, tempFilePath);
-
-  // Change the file extension of the temp file path from .tmp to .mz
-  LPWSTR extensionPart = 
-    &(completedMetaFilePath[wcslen(completedMetaFilePath) - 3]);
-  wcscpy(extensionPart, L"mz");
-  return MoveFileExW(tempFilePath, completedMetaFilePath, 
-                     MOVEFILE_REPLACE_EXISTING);
 }
 
 /**
@@ -506,37 +310,6 @@ WriteStatusFailure(LPCWSTR updateDirPath, int errorCode)
                       toWrite, &wrote, NULL); 
   return ok && wrote == toWrite;
 }
-
-/**
- * Launch a service initiated action with the specified arguments.
- *
- * @param  exePath The path of the executable to run
- * @param  argc    The total number of arguments in argv
- * @param  argv    An array of null terminated strings to pass to the exePath, 
- *         argv[0] is ignored
- * @return TRUE if successful
- */
-BOOL
-WinLaunchServiceCommand(const PRUnichar *exePath, int argc, char **argv)
-{
-  PRUnichar** argvConverted = new PRUnichar*[argc];
-  if (!argvConverted)
-    return FALSE;
-
-  for (int i = 0; i < argc; ++i) {
-    argvConverted[i] = AllocConvertUTF8toUTF16(argv[i]);
-    if (!argvConverted[i]) {
-      FreeAllocStrings(i, argvConverted);
-      return FALSE;
-    }
-  }
-
-  BOOL ok = WinLaunchServiceCommand(exePath, argc, argvConverted);
-  FreeAllocStrings(argc, argvConverted);
-  return ok;
-}
-
-
 
 /**
  * Launch a child process with the specified arguments.
