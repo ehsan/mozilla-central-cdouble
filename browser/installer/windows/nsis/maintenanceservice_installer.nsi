@@ -231,8 +231,11 @@ Section "MaintenanceService"
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
 
-  WriteRegStr HKLM "${FallbackKey}\0" "name" "Mozilla Corporation"
-  WriteRegStr HKLM "${FallbackKey}\0" "issuer" "Thawte Code Signing CA - G2"
+  ; Included here for debug purposes only.  
+  ; These keys are used to bypass the installation dir is a valid installation
+  ; check from the service so that tests can be run.
+  ; WriteRegStr HKLM "${FallbackKey}\0" "name" "Mozilla Corporation"
+  ; WriteRegStr HKLM "${FallbackKey}\0" "issuer" "Thawte Code Signing CA - G2"
   SetRegView lastused
 
   # The Mozilla/updates directory will have an inherited permission

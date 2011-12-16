@@ -60,22 +60,6 @@
 #pragma comment(lib, "rpcrt4.lib")
 #pragma comment(lib, "userenv.lib")
 
-#ifndef ERROR_ELEVATION_REQUIRED
-#define ERROR_ELEVATION_REQUIRED 740L
-#endif
-
-BOOL (WINAPI *pCreateProcessWithTokenW)(HANDLE,
-                                        DWORD,
-                                        LPCWSTR,
-                                        LPWSTR,
-                                        DWORD,
-                                        LPVOID,
-                                        LPCWSTR,
-                                        LPSTARTUPINFOW,
-                                        LPPROCESS_INFORMATION);
-
-BOOL (WINAPI *pIsUserAnAdmin)(VOID);
-
 /**
  * Get the length that the string will take and takes into account the
  * additional length if the string needs to be quoted and if characters need to
@@ -236,82 +220,6 @@ FreeAllocStrings(int argc, PRUnichar **argv)
 }
 
 /**
- * Joins a base directory path with a filename.
- *
- * @param  base  The base directory path of size MAX_PATH + 1
- * @param  extra The filename to append
- * @return TRUE if the file name was successful appended to base
- */
-BOOL
-PathAppendSafe(LPWSTR base, LPCWSTR extra)
-{
-  if (wcslen(base) + wcslen(extra) >= MAX_PATH) {
-    return FALSE;
-  }
-
-  return PathAppendW(base, extra);
-}
-
-/**
- * Sets update.status to pending so that the next startup will not use
- * the service and instead will attempt an update the with a UAC prompt.
- *
- * @param  updateDirPath The path of the update directory
- * @return TRUE if successful
- */
-BOOL
-WriteStatusPending(LPCWSTR updateDirPath)
-{
-  PRUnichar updateStatusFilePath[MAX_PATH + 1];
-  wcscpy(updateStatusFilePath, updateDirPath);
-  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
-    return FALSE;
-  }
-
-  const char pending[] = "pending";
-  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
-                                      NULL, CREATE_ALWAYS, 0, NULL));
-  if (statusFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
-
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, pending, 
-                      sizeof(pending) - 1, &wrote, NULL); 
-  return ok && (wrote == sizeof(pending) - 1);
-}
-
-/**
- * Sets update.status to a specific failure code
- *
- * @param  updateDirPath The path of the update directory
- * @return TRUE if successful
- */
-BOOL
-WriteStatusFailure(LPCWSTR updateDirPath, int errorCode) 
-{
-  PRUnichar updateStatusFilePath[MAX_PATH + 1];
-  wcscpy(updateStatusFilePath, updateDirPath);
-  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
-    return FALSE;
-  }
-
-  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
-                                      NULL, CREATE_ALWAYS, 0, NULL));
-  if (statusFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
-  char failure[32];
-  sprintf(failure, "failed: %d", errorCode);
-
-  DWORD toWrite = strlen(failure);
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, failure, 
-                      toWrite, &wrote, NULL); 
-  return ok && wrote == toWrite;
-}
-
-/**
  * Launch a child process with the specified arguments.
  * @note argv[0] is ignored
  * @note The form of this function that takes char **argv expects UTF-8
@@ -354,8 +262,9 @@ WinLaunchChild(const PRUnichar *exePath,
   BOOL ok;
 
   cl = MakeCommandLine(argc, argv);
-  if (!cl)
+  if (!cl) {
     return FALSE;
+  }
 
   STARTUPINFOW si = {0};
   si.cb = sizeof(STARTUPINFOW);

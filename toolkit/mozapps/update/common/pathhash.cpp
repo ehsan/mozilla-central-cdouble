@@ -46,7 +46,7 @@
  * @param hash      The binary data sequence
  * @param hashSize  The size of the binary data sequence
  * @param hexString A buffer to store the hex string, must be of 
- *        size 2 * @hashSize
+ *                  size 2 * @hashSize
 */
 static void
 BinaryDataToHexString(const BYTE *hash, DWORD &hashSize, 
@@ -75,44 +75,44 @@ CalculateMD5(const char *data, DWORD dataSize,
   HCRYPTPROV hProv = 0;
   HCRYPTHASH hHash = 0;
 
-  if(!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, 0)) {
-    if (NTE_BAD_KEYSET == GetLastError()) {
-      // Maybe it doesn't exist, try to create it.
-      if(!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, 
-                              CRYPT_NEWKEYSET)) {
-        return FALSE;
-      }
-    } else {
+  if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, 0)) {
+    if (NTE_BAD_KEYSET != GetLastError()) {
+      return FALSE;
+    }
+ 
+    // Maybe it doesn't exist, try to create it.
+    if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, 
+                            CRYPT_NEWKEYSET)) {
       return FALSE;
     }
   }
 
-  if(!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash)) {
+  if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash)) {
     return FALSE;
   }
 
-  if(!CryptHashData(hHash, reinterpret_cast<const BYTE*>(data), 
+  if (!CryptHashData(hHash, reinterpret_cast<const BYTE*>(data), 
                     dataSize, 0)) {
     return FALSE;
   }
 
   DWORD dwCount = sizeof(DWORD);
-  if(!CryptGetHashParam(hHash, HP_HASHSIZE, (BYTE *)&hashSize, 
+  if (!CryptGetHashParam(hHash, HP_HASHSIZE, (BYTE *)&hashSize, 
                         &dwCount, 0)) {
     return FALSE;
   }
   
   *hash = new BYTE[hashSize];
   ZeroMemory(*hash, hashSize);
-  if(!CryptGetHashParam(hHash, HP_HASHVAL, *hash, &hashSize, 0)) {
+  if (!CryptGetHashParam(hHash, HP_HASHVAL, *hash, &hashSize, 0)) {
     return FALSE;
   }
 
-  if(hHash) {
+  if (hHash) {
     CryptDestroyHash(hHash);
   }
 
-  if(hProv) {
+  if (hProv) {
     CryptReleaseContext(hProv,0);
   }
 
@@ -124,7 +124,7 @@ CalculateMD5(const char *data, DWORD dataSize,
  *
  * @param  filePath     The input file path to get a registry path from
  * @param  registryPath A buffer to write the registry path to, must 
- *         be of size in WCHARs MAX_PATH + 1
+ *                      be of size in WCHARs MAX_PATH + 1
  * @return TRUE if successful
 */
 BOOL
@@ -132,8 +132,9 @@ CalculateRegistryPathFromFilePath(const LPCWSTR filePath,
                                   LPWSTR registryPath)
 {
   size_t filePathLen = wcslen(filePath); 
-  if (!filePathLen)
+  if (!filePathLen) {
     return FALSE;
+  }
 
   // If the file path ends in a slash, ignore that character
   if (filePath[filePathLen -1] == L'\\' || 

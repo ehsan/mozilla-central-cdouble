@@ -53,7 +53,7 @@
 #include "servicebase.h"
 #include "registrycertificates.h"
 #include "uachelper.h"
-#include "launchwinprocess.h"
+#include "updatehelper.h"
 
 extern BOOL gServiceStopping;
 
@@ -75,12 +75,12 @@ const int SERVICE_UPDATER_COMPARE_ERROR = 16003;
 const int SERVICE_UPDATER_IDENTITY_ERROR = 16004;
 
 /**
- * Runs an update process as the service SYSTEM account.
+ * Runs an update process as the service using the SYSTEM account.
  *
  * @param  updaterPath    The path to the update process to start.
- * @param  workingDir     The working directory to execute the update process in.
+ * @param  workingDir     The working directory to execute the update process in
  * @param  cmdLine        The command line parameters to pass to updater.exe
- * @param  processStarted Returns TRUE if the process was started.
+ * @param  processStarted Set to TRUE if the process was started.
  * @return TRUE if the update process was run had a return code of 0.
  */
 BOOL
@@ -192,20 +192,17 @@ StartUpdateProcess(LPCWSTR updaterPath,
       LPCWSTR installationDir = argvTmp[2];
       LPCWSTR updateInfoDir = argvTmp[1];
 
-      // Launch the PostUpdate process with SYSTEM in session 0. We force sync
-      // because we run this twice and we want to make sure the uninstaller
-      // keys get added to HKLM before the ones try to get added to HKCU.  If
-      // we did it async we'd have a race condition that would sometimes lead
-      // to 2 uninstall icons.
+      // Launch the PostProcess with admin access in session 0.  This is
+      // actually launching the post update process but it takes in the 
+      // callback app path to figure out where to apply to.
+      // The PostUpdate process with user only access will be done inside
+      // the unelevated updater.exe after the update process is complete
+      // from the service.  We don't know here which session to start
+      // the user PostUpdate process from.
       LOG(("Launching post update process as the service in session 0.\n"));
       if (!LaunchWinPostProcess(installationDir, updateInfoDir, true, NULL)) {
         LOG(("The post update process could not be launched.\n"));
       }
-      // The post process update with user only access will be done inside
-      // the unelevated updater.exe after the update process is complete
-      // from the service.  We don't know here which session to start
-      // the user one from so that's why we let the unelevated updater.exe
-      // do it.
     }
   }
 
@@ -341,8 +338,8 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
   cmdlineBuffer[cmdLineBufferRead] = '\0';
   cmdlineBuffer[cmdLineBufferRead + 1] = '\0';
   WCHAR *cmdlineBufferWide = reinterpret_cast<WCHAR*>(cmdlineBuffer.get());
-  LOG(("An update command was detected and is being processed for command meta"
-       " file: %ls\n", notifyInfo.FileName));
+  LOG(("An update command was detected and is being processed for command meta "
+       "file: %ls\n", notifyInfo.FileName));
 
   int argcTmp = 0;
   LPWSTR* argvTmp = CommandLineToArgvW(cmdlineBufferWide, &argcTmp);
@@ -457,6 +454,8 @@ ProcessWorkItem(LPCWSTR monitoringBasePath,
     LOG(("Not enough command line parameters specified. "
          "Updating update.status.\n"));
 
+    // We can only update update.status if argvTmp[1] exists.  argvTmp[1] is
+    // the directory where the update.status file exists.
     if (argcTmp != 2 || 
         !WriteStatusFailure(argvTmp[1], 
                             SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS)) {

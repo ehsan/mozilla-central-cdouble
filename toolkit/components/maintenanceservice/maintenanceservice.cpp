@@ -92,7 +92,9 @@ wmain(int argc, WCHAR **argv)
     LOG(("The service was installed successfully\n"));
     LogFinish();
     return 0;
-  } else if (!lstrcmpi(argv[1], L"upgrade")) {
+  } 
+
+  if (!lstrcmpi(argv[1], L"upgrade")) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-install.log");
@@ -107,7 +109,9 @@ wmain(int argc, WCHAR **argv)
     LOG(("The service was upgraded successfully\n"));
     LogFinish();
     return 0;
-  } else if (!lstrcmpi(argv[1], L"uninstall")) {
+  }
+
+  if (!lstrcmpi(argv[1], L"uninstall")) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-uninstall.log");
@@ -152,7 +156,7 @@ WINAPI StartMonitoringThreadProc(LPVOID param)
 /**
  * Obtains the base path where logs should be stored
  *
- * @param  path      The out buffer for the backup log path of size MAX_PATH +1
+ * @param  path The out buffer for the backup log path of size MAX_PATH + 1
  * @return TRUE if successful.
  */
 BOOL
@@ -163,6 +167,7 @@ GetLogDirectoryPath(WCHAR *path)
   if (FAILED(hr)) {
     return FALSE;
   }
+
   if (!PathAppendSafe(path, L"Mozilla")) {
     return FALSE;
   }
@@ -215,12 +220,17 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
   WCHAR oldPath[MAX_PATH + 1];
   WCHAR newPath[MAX_PATH + 1];
   for (int i = numLogsToKeep; i >= 1; i--) {
-    if (!GetBackupLogPath(oldPath, basePath, i -1)) 
+    if (!GetBackupLogPath(oldPath, basePath, i -1)) {
       continue;
-    if (!GetBackupLogPath(newPath, basePath, i))
+    }
+
+    if (!GetBackupLogPath(newPath, basePath, i)) {
       continue;
-    if (!MoveFileEx(oldPath, newPath, MOVEFILE_REPLACE_EXISTING))
+    }
+
+    if (!MoveFileEx(oldPath, newPath, MOVEFILE_REPLACE_EXISTING)) {
       continue;
+    }
   }
 }
 

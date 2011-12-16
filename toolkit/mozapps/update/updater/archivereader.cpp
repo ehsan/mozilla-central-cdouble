@@ -104,7 +104,6 @@ int VerifyLoadedCert(const NS_tchar *pathToMAR, int name, int type)
 int
 ArchiveReader::VerifySignature(const NS_tchar *pathToMAR)
 {
-// Temporary disable for elm only
 #if 0
 #ifdef XP_WIN
   int rv = VerifyLoadedCert(pathToMAR, IDR_PRIMARY_CERT, TYPE_CERT);

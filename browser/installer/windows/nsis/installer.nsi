@@ -285,23 +285,6 @@ Section "-Application" APP_IDX
 
   ClearErrors
 
-!ifdef MOZ_MAINTENANCE_SERVICE
-  ; Default for installing the maintenance service 
-  ${If} $InstallMaintenanceService == ""
-    Call IsUserAdmin
-    Pop $R0
-    ${If} $R0 == "true"
-    ; On Windows 2000 we do not install the maintenance service.
-    ${AndIf} ${AtLeastWinXP}
-      ; The user is an admin so we should default to install service yes
-      StrCpy $InstallMaintenanceService "1"
-    ${Else}
-      ; The user is not admin so we should default to install service no
-      StrCpy $InstallMaintenanceService "0"
-    ${EndIf}
-  ${EndIf}
-!endif
-
   ; Default for creating Start Menu shortcut
   ; (1 = create, 0 = don't create)
   ${If} $AddStartMenuSC == ""
@@ -399,15 +382,36 @@ Section "-Application" APP_IDX
     ${EndIf}
   ${EndIf}
 
-  !ifdef MOZ_MAINTENANCE_SERVICE
-  ${If} $InstallMaintenanceService == 1
+!ifdef MOZ_MAINTENANCE_SERVICE
+  ; If the maintenance service page was displayed then a value was already 
+  ; explicitly selected for installing the maintenance service and 
+  ; and so InstallMaintenanceService will already be 0 or 1.
+  ; If the maintenance service page was not displayed then 
+  ; InstallMaintenanceService will be equal to "".
+  ${If} $InstallMaintenanceService == ""
+    Call IsUserAdmin
+    Pop $R0
+    ${If} $R0 == "true"
+    ; Only proceed if we have HKLM write access
+    ${AndIf} $TmpVal == "HKLM"
+    ; On Windows 2000 we do not install the maintenance service.
+    ${AndIf} ${AtLeastWinXP}
+      ; The user is an admin so we should default to install service yes
+      StrCpy $InstallMaintenanceService "1"
+    ${Else}
+      ; The user is not admin so we should default to install service no
+      StrCpy $InstallMaintenanceService "0"
+    ${EndIf}
+  ${EndIf}
+
+  ${If} $InstallMaintenanceService == "1"
     ; The user wants to install the maintenance service, so execute
     ; the pre-packaged maintenance service installer. 
     ; This option can only be turned on if the user is an admin so there
     ; is no need to use ExecShell w/ verb runas to enforce elevated.
     nsExec::Exec "$INSTDIR\maintenanceservice_installer.exe" 
   ${EndIf}
-  !endif
+!endif
 
   ; These need special handling on uninstall since they may be overwritten by
   ; an install into a different location.
@@ -520,8 +524,10 @@ Section "-Application" APP_IDX
   ${EndIf}
 
 !ifdef MOZ_MAINTENANCE_SERVICE
-  ; Add the registry keys for allowed certificates.
-  ${AddMaintCertKeys}
+  ${If} $TmpVal == "HKLM"
+    ; Add the registry keys for allowed certificates.
+    ${AddMaintCertKeys}
+  ${EndIf}
 !endif
 SectionEnd
 
@@ -861,6 +867,18 @@ Function preComponents
   Pop $R9
   ${If} $R9 != "true"
     Abort
+  ${EndIf}
+
+  ; Only show the maintenance service page if we have write access to HKLM
+  ClearErrors
+  WriteRegStr HKLM "Software\Mozilla" \
+              "${BrandShortName}InstallerTest" "Write Test"
+  ${If} ${Errors}
+    ClearErrors
+    Abort
+  ${Else}
+    DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
+    ClearErrors
   ${EndIf}
 
   StrCpy $PageName "Components"

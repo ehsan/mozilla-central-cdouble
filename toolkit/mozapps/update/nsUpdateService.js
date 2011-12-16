@@ -1426,10 +1426,12 @@ UpdateService.prototype = {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
+
         if (update.errorCode == ELEVATION_CANCELED) {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
+
         if (update.errorCode == SERVICE_UPDATER_COULD_NOT_BE_STARTED ||
             update.errorCode == SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS ||
             update.errorCode == SERVICE_UPDATER_SIGN_ERROR ||
@@ -1445,13 +1447,13 @@ UpdateService.prototype = {
           // disable itself and fallback to using the normal update mechanism
           // without the service.
           if (failCount >= maxFail) {
-            failCount = 0;
             Services.prefs.setBoolPref(PREF_APP_UPDATE_SERVICE_ENABLED, false);
+            Services.prefs.clearUserPref(PREF_APP_UPDATE_SERVICE_ERRORS);
           } else {
             failCount++;
+            Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
+                                      failCount);
           }
-          Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
-                                    failCount);
 
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;

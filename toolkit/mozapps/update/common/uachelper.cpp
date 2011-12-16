@@ -136,13 +136,14 @@ UACHelper::OpenLinkedToken(HANDLE token)
   TOKEN_LINKED_TOKEN tlt;
   HANDLE hNewLinkedToken = NULL;
   DWORD len;
-  if(GetTokenInformation(token, (TOKEN_INFORMATION_CLASS)TokenLinkedToken, 
-                         &tlt, sizeof(TOKEN_LINKED_TOKEN), &len)) {
+  if (GetTokenInformation(token, (TOKEN_INFORMATION_CLASS)TokenLinkedToken, 
+                          &tlt, sizeof(TOKEN_LINKED_TOKEN), &len)) {
     token = tlt.LinkedToken;
     hNewLinkedToken = token;
   }
   return hNewLinkedToken;
 }
+
 
 /**
  * Enables or disables a privilege for the specified token.

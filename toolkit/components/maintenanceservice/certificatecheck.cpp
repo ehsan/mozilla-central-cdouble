@@ -292,10 +292,10 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
     LOG(("The file \"%ls\" is signed and the signature was verified.\n",
         filePath));
       return ERROR_SUCCESS;
-  } else {
-    DWORD lastError = GetLastError();
-    LOG(("There was an error validating trust of the certificate for file"
-         " \"%ls\". Returned: %d, Last error: %d\n", filePath, ret, lastError));
-    return ret;
   }
+
+  DWORD lastError = GetLastError();
+  LOG(("There was an error validating trust of the certificate for file"
+       " \"%ls\". Returned: %d, Last error: %d\n", filePath, ret, lastError));
+  return ret;
 }

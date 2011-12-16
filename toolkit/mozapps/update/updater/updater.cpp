@@ -119,7 +119,7 @@ void LaunchMacPostProcess(const char* aAppExe);
 #endif
 
 #ifdef XP_WIN
-#include "launchwinprocess.h"
+#include "updatehelper.h"
 
 // Closes the handle if valid and if the updater is elevated returns with the
 // return code specified. This prevents multiple launches of the callback
@@ -1382,7 +1382,6 @@ PatchIfFile::Finish(int status)
 
 #ifdef XP_WIN
 #include "nsWindowsRestart.cpp"
-#include "nsWindowsHelpers.h"
 #include "uachelper.h"
 #include "pathhash.h"
 #endif
@@ -1601,9 +1600,9 @@ int NS_main(int argc, NS_tchar **argv)
   bool useService = false;
   // We never want the service to be used unless we build with
   // the maintenance service.
-  #ifdef MOZ_MAINTENANCE_SERVICE
-    IsUpdateStatusPending(useService);
-  #endif
+#ifdef MOZ_MAINTENANCE_SERVICE
+  IsUpdateStatusPending(useService);
+#endif
 #endif
 
   if (!WriteStatusApplying()) {
@@ -1996,12 +1995,11 @@ int NS_main(int argc, NS_tchar **argv)
       // For first time installs of the service, the install will happen from
       // the PostUpdate process. We do the service update process here 
       // because it's possible we are updating with updater.exe without the 
-      // service if the service failed to apply the update even know it is
-      // installed. We want to update the service to a newer version in that
-      // case. If we are not running through the service, then
-      // MOZ_USING_SERVICE will not exist.
-      WCHAR *sessionIDStr = _wgetenv(L"MOZ_USING_SERVICE");
-      if (!sessionIDStr) {
+      // service if the service failed to apply the update. We want to update
+      // the service to a newer version in that case. If we are not running
+      // through the service, then MOZ_USING_SERVICE will not exist.
+      WCHAR *usingService = _wgetenv(L"MOZ_USING_SERVICE");
+      if (!usingService) {
         if (!LaunchWinPostProcess(argv[2], gSourcePath, false, NULL)) {
           LOG(("NS_main: The post update process could not be launched.\n"));
         }

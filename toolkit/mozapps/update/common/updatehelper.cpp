@@ -37,6 +37,7 @@
 
 #include <windows.h>
 #include <shlwapi.h>
+#include <stdio.h>
 #include "shlobj.h"
 
 WCHAR*
@@ -77,7 +78,6 @@ GetUpdateDirectoryPath(LPWSTR path)
  * @param  destinationBuffer A buffer of size MAX_PATH + 1 to store the result.
  * @param  siblingFIlePath   The path of another file in the same directory
  * @param  newFileName       The filename of another file in the same directory
- *
  * @return TRUE if successful
  */
 BOOL
@@ -90,8 +90,9 @@ PathGetSiblingFilePath(LPWSTR destinationBuffer,
   }
 
   wcscpy(destinationBuffer, siblingFilePath);
-  if (!PathRemoveFileSpecW(destinationBuffer))
+  if (!PathRemoveFileSpecW(destinationBuffer)) {
     return FALSE;
+  }
 
   if (wcslen(destinationBuffer) + wcslen(newFileName) >= MAX_PATH) {
     return FALSE;
@@ -102,26 +103,24 @@ PathGetSiblingFilePath(LPWSTR destinationBuffer,
 
 /**
  * Launch the post update application as the specified user (helper.exe).
- * For service updates this is called from both the system account and
- * the current user account.
+ * It takes in the path of the callback application to calculate the path
+ * of helper.exe.  For service updates this is called from both the system
+ * account and the current user account.
  *
- * @param  installationDir The path to the installation directory.
+ * @param  installationDir The path to the callback application binary.
  * @param  updateInfoDir   The directory where update info is stored.
+ * @param  forceSync       If true even if the ini file specifies async, the
+ *                         process will wait for termination of PostUpdate.
  * @param  userToken       The user token to run as, if NULL the current user
- *         will be used.
- * @return true if the post process applicaiton was started.
+ *                         will be used.
+ * @return TRUE if there was no error starting the process.
  */
-bool
-LaunchWinPostProcess(LPCWSTR installationDir,
-                     LPCWSTR updateInfoDir,
+BOOL
+LaunchWinPostProcess(const WCHAR *installationDir,
+                     const WCHAR *updateInfoDir,
                      bool forceSync,
                      HANDLE userToken)
 {
-  if (wcslen(installationDir) >= MAX_PATH || 
-      wcslen(updateInfoDir) >= MAX_PATH) {
-    return false;
-  }
-
   WCHAR workingDirectory[MAX_PATH + 1];
   wcscpy(workingDirectory, installationDir);
 
@@ -130,7 +129,7 @@ LaunchWinPostProcess(LPCWSTR installationDir,
   WCHAR inifile[MAX_PATH + 1];
   wcscpy(inifile, installationDir);
   if (!PathAppendSafe(inifile, L"updater.ini")) {
-    return false;
+    return FALSE;
   }
 
   WCHAR exefile[MAX_PATH + 1];
@@ -139,17 +138,20 @@ LaunchWinPostProcess(LPCWSTR installationDir,
   bool async = true;
   if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeRelPath", NULL, exefile,
                                 MAX_PATH + 1, inifile)) {
-    return false;
+    return FALSE;
   }
 
   if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeArg", NULL, exearg,
-                                MAX_PATH + 1, inifile))
-    return false;
+                                MAX_PATH + 1, inifile)) {
+    return FALSE;
+  }
 
   if (!GetPrivateProfileStringW(L"PostUpdateWin", L"ExeAsync", L"TRUE", 
                                 exeasync,
-                                sizeof(exeasync)/sizeof(exeasync[0]), inifile))
-    return false;
+                                sizeof(exeasync)/sizeof(exeasync[0]), 
+                                inifile)) {
+    return FALSE;
+  }
 
   WCHAR exefullpath[MAX_PATH + 1];
   wcscpy(exefullpath, installationDir);
@@ -159,13 +161,13 @@ LaunchWinPostProcess(LPCWSTR installationDir,
 
   WCHAR dlogFile[MAX_PATH + 1];
   if (!PathGetSiblingFilePath(dlogFile, exefullpath, L"uninstall.update")) {
-    return false;
+    return FALSE;
   }
 
   WCHAR slogFile[MAX_PATH + 1];
   wcscpy(slogFile, updateInfoDir);
   if (!PathAppendSafe(slogFile, L"update.log")) {
-    return false;
+    return FALSE;
   }
 
   WCHAR dummyArg[14];
@@ -173,8 +175,9 @@ LaunchWinPostProcess(LPCWSTR installationDir,
 
   size_t len = wcslen(exearg) + wcslen(dummyArg);
   WCHAR *cmdline = (WCHAR *) malloc((len + 1) * sizeof(WCHAR));
-  if (!cmdline)
-    return false;
+  if (!cmdline) {
+    return FALSE;
+  }
 
   wcscpy(cmdline, dummyArg);
   wcscat(cmdline, exearg);
@@ -184,7 +187,7 @@ LaunchWinPostProcess(LPCWSTR installationDir,
       !_wcsnicmp(exeasync, L"0", 2)) {
     async = false;
   }
-
+  
   // We want to launch the post update helper app to update the Windows
   // registry even if there is a failure with removing the uninstall.update
   // file or copying the update.log file.
@@ -341,11 +344,15 @@ EnsureWindowsServiceRunning()
                                 sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
       if (ssp.dwCurrentState == SERVICE_RUNNING) {
         break;
-      } else if (ssp.dwCurrentState == SERVICE_START_PENDING &&
-                 totalWaitTime > maxWaitTime) {
+      }
+      
+      if (ssp.dwCurrentState == SERVICE_START_PENDING &&
+          totalWaitTime > maxWaitTime) {
         // We will probably eventually start, but we can't wait any longer.
         break;
-      } else if (ssp.dwCurrentState != SERVICE_START_PENDING) {
+      }
+      
+      if (ssp.dwCurrentState != SERVICE_START_PENDING) {
         CloseServiceHandle(service);
         CloseServiceHandle(serviceManager);
         return FALSE;
@@ -368,9 +375,8 @@ EnsureWindowsServiceRunning()
  *
  * @param  exePath The path of the executable to run
  * @param  argc    The total number of arguments in argv
- * @param  argv
- *         An array of null terminated strings to pass to the exePath, 
- *         argv[0] is ignored
+ * @param  argv    An array of null terminated strings to pass to the exePath, 
+ *                 argv[0] is ignored
  * @return TRUE if successful
  */
 BOOL
@@ -415,6 +421,10 @@ WinLaunchServiceCommand(LPCWSTR exePath, int argc, LPWSTR* argv)
   // updater.exe update-dir apply [wait-pid [callback-dir callback-path args]]
   // We want everything except the callback application and its arguments.
   LPWSTR commandLineBuffer = MakeCommandLine(min(argc, 4), argv);
+  if (!commandLineBuffer) {
+    return FALSE;
+  }
+
   WCHAR appBuffer[MAX_PATH + 1];
   ZeroMemory(appBuffer, sizeof(appBuffer));
   wcscpy(appBuffer, exePath);
@@ -462,4 +472,82 @@ WinLaunchServiceCommand(LPCWSTR exePath, int argc, LPWSTR* argv)
   wcscpy(extensionPart, L"mz");
   return MoveFileExW(tempFilePath, completedMetaFilePath, 
                      MOVEFILE_REPLACE_EXISTING);
+}
+
+/**
+ * Joins a base directory path with a filename.
+ *
+ * @param  base  The base directory path of size MAX_PATH + 1
+ * @param  extra The filename to append
+ * @return TRUE if the file name was successful appended to base
+ */
+BOOL
+PathAppendSafe(LPWSTR base, LPCWSTR extra)
+{
+  if (wcslen(base) + wcslen(extra) >= MAX_PATH) {
+    return FALSE;
+  }
+
+  return PathAppendW(base, extra);
+}
+
+/**
+ * Sets update.status to pending so that the next startup will not use
+ * the service and instead will attempt an update the with a UAC prompt.
+ *
+ * @param  updateDirPath The path of the update directory
+ * @return TRUE if successful
+ */
+BOOL
+WriteStatusPending(LPCWSTR updateDirPath)
+{
+  WCHAR updateStatusFilePath[MAX_PATH + 1];
+  wcscpy(updateStatusFilePath, updateDirPath);
+  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
+    return FALSE;
+  }
+
+  const char pending[] = "pending";
+  HANDLE statusFile = CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
+                                  NULL, CREATE_ALWAYS, 0, NULL);
+  if (statusFile == INVALID_HANDLE_VALUE) {
+    return FALSE;
+  }
+
+  DWORD wrote;
+  BOOL ok = WriteFile(statusFile, pending, 
+                      sizeof(pending) - 1, &wrote, NULL); 
+  CloseHandle(statusFile);
+  return ok && (wrote == sizeof(pending) - 1);
+}
+
+/**
+ * Sets update.status to a specific failure code
+ *
+ * @param  updateDirPath The path of the update directory
+ * @return TRUE if successful
+ */
+BOOL
+WriteStatusFailure(LPCWSTR updateDirPath, int errorCode) 
+{
+  WCHAR updateStatusFilePath[MAX_PATH + 1];
+  wcscpy(updateStatusFilePath, updateDirPath);
+  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
+    return FALSE;
+  }
+
+  HANDLE statusFile = CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
+                                  NULL, CREATE_ALWAYS, 0, NULL);
+  if (statusFile == INVALID_HANDLE_VALUE) {
+    return FALSE;
+  }
+  char failure[32];
+  sprintf(failure, "failed: %d", errorCode);
+
+  DWORD toWrite = strlen(failure);
+  DWORD wrote;
+  BOOL ok = WriteFile(statusFile, failure, 
+                      toWrite, &wrote, NULL); 
+  CloseHandle(statusFile);
+  return ok && wrote == toWrite;
 }

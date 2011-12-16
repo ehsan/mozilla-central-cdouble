@@ -43,7 +43,7 @@
  *
  * @param  filePath     The input file path to get a registry path from
  * @param  registryPath A buffer to write the registry path to, must 
- *         be of size in WCHARs MAX_PATH + 1
+ *                      be of size in WCHARs MAX_PATH + 1
  * @return TRUE if successful
 */
 BOOL CalculateRegistryPathFromFilePath(const LPCWSTR filePath, 
