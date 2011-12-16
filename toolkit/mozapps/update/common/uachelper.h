@@ -44,6 +44,13 @@ public:
   static BOOL IsVistaOrLater();
   static HANDLE OpenUserToken(DWORD sessionID);
   static HANDLE OpenLinkedToken(HANDLE token);
+  static BOOL DropAllPrivileges(HANDLE token);
+
+private:
+  static BOOL SetPrivilege(HANDLE token, LPCTSTR privs, BOOL enable);
+  static BOOL DropUneededPrivileges(HANDLE token, 
+                                    LPCTSTR *uneededPrivs, size_t count);
+  static LPCTSTR AllPrivs[];  
 };
 
 #endif

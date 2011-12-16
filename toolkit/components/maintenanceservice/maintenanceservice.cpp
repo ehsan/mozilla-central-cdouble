@@ -45,6 +45,7 @@
 #include "servicebase.h"
 #include "workmonitor.h"
 #include "shlobj.h"
+#include "uachelper.h"
 
 SERVICE_STATUS gSvcStatus = { 0 }; 
 SERVICE_STATUS_HANDLE gSvcStatusHandle = NULL; 
@@ -235,6 +236,10 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
     BackupOldLogs(updatePath, LOGS_TO_KEEP);
     LogInit(updatePath, L"maintenanceservice.log");
   }
+
+  // Disable every priv we don't need. Any process we start 
+  // from this service with CreateProcess will use our same token.
+  UACHelper::DropAllPrivileges(NULL);
 
   // Register the handler function for the service
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);
