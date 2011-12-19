@@ -72,6 +72,7 @@
 #include "jsxml.h"
 #endif
 
+#include "ds/Sort.h"
 #include "frontend/TokenStream.h"
 #include "vm/GlobalObject.h"
 
@@ -92,7 +93,6 @@ static JSObject *iterator_iterator(JSContext *cx, JSObject *obj, JSBool keysonly
 Class js::IteratorClass = {
     "Iterator",
     JSCLASS_HAS_PRIVATE |
-    JSCLASS_CONCURRENT_FINALIZER |
     JSCLASS_HAS_CACHED_PROTO(JSProto_Iterator),
     JS_PropertyStub,         /* addProperty */
     JS_PropertyStub,         /* delProperty */
@@ -117,6 +117,8 @@ Class js::IteratorClass = {
         NULL                 /* unused  */
     }
 };
+
+static const gc::AllocKind ITERATOR_FINALIZE_KIND = gc::FINALIZE_OBJECT2;
 
 void
 NativeIterator::mark(JSTracer *trc)
@@ -220,8 +222,8 @@ EnumerateNativeProperties(JSContext *cx, JSObject *obj, JSObject *pobj, uintN fl
     for (Shape::Range r = pobj->lastProperty()->all(); !r.empty(); r.popFront()) {
         const Shape &shape = r.front();
 
-        if (!JSID_IS_DEFAULT_XML_NAMESPACE(shape.propid) &&
-            !Enumerate(cx, obj, pobj, shape.propid, shape.enumerable(), flags, ht, props))
+        if (!JSID_IS_DEFAULT_XML_NAMESPACE(shape.propid()) &&
+            !Enumerate(cx, obj, pobj, shape.propid(), shape.enumerable(), flags, ht, props))
         {
             return false;
         }
@@ -254,6 +256,36 @@ EnumerateDenseArrayProperties(JSContext *cx, JSObject *obj, JSObject *pobj, uint
 
     return true;
 }
+
+#ifdef JS_MORE_DETERMINISTIC
+
+struct SortComparatorIds
+{
+    JSContext   *const cx;
+
+    SortComparatorIds(JSContext *cx)
+      : cx(cx) {}
+
+    bool operator()(jsid a, jsid b, bool *lessOrEqualp)
+    {
+        /* Pick an arbitrary total order on jsids that is stable across executions. */
+        JSString *astr = IdToString(cx, a);
+	if (!astr)
+	    return false;
+        JSString *bstr = IdToString(cx, b);
+        if (!bstr)
+            return false;
+
+        int32 result;
+        if (!CompareStrings(cx, astr, bstr, &result))
+            return false;
+
+        *lessOrEqualp = (result <= 0);
+        return true;
+    }
+};
+
+#endif /* JS_MORE_DETERMINISTIC */
 
 static bool
 Snapshot(JSContext *cx, JSObject *obj, uintN flags, AutoIdVector *props)
@@ -321,6 +353,35 @@ Snapshot(JSContext *cx, JSObject *obj, uintN flags, AutoIdVector *props)
             break;
     } while ((pobj = pobj->getProto()) != NULL);
 
+#ifdef JS_MORE_DETERMINISTIC
+
+    /*
+     * In some cases the enumeration order for an object depends on the
+     * execution mode (interpreter vs. JIT), especially for native objects
+     * with a class enumerate hook (where resolving a property changes the
+     * resulting enumeration order). These aren't really bugs, but the
+     * differences can change the generated output and confuse correctness
+     * fuzzers, so we sort the ids if such a fuzzer is running.
+     *
+     * We don't do this in the general case because (a) doing so is slow,
+     * and (b) it also breaks the web, which expects enumeration order to
+     * follow the order in which properties are added, in certain cases.
+     * Since ECMA does not specify an enumeration order for objects, both
+     * behaviors are technically correct to do.
+     */
+
+    jsid *ids = props->begin();
+    size_t n = props->length();
+
+    Vector<jsid> tmp(cx);
+    if (!tmp.resizeUninitialized(n))
+        return false;
+
+    if (!MergeSort(ids, n, tmp.begin(), SortComparatorIds(cx)))
+        return false;
+
+#endif /* JS_MORE_DETERMINISTIC */
+
     return true;
 }
 
@@ -354,6 +415,8 @@ size_t sCustomIteratorCount = 0;
 static inline bool
 GetCustomIterator(JSContext *cx, JSObject *obj, uintN flags, Value *vp)
 {
+    JS_CHECK_RECURSION(cx, return false);
+
     /* Check whether we have a valid __iterator__ method. */
     JSAtom *atom = cx->runtime->atomState.iteratorAtom;
     if (!js_GetMethod(cx, obj, ATOM_TO_JSID(atom), JSGET_NO_METHOD_BARRIER, vp))
@@ -410,23 +473,21 @@ static inline JSObject *
 NewIteratorObject(JSContext *cx, uintN flags)
 {
     if (flags & JSITER_ENUMERATE) {
-        /*
-         * Non-escaping native enumerator objects do not need map, proto, or
-         * parent. However, code in jstracer.cpp and elsewhere may find such a
-         * native enumerator object via the stack and (as for all objects that
-         * are not stillborn, with the exception of "NoSuchMethod" internal
-         * helper objects) expect it to have a non-null map pointer, so we
-         * share an empty Enumerator scope in the runtime.
-         */
-        JSObject *obj = js_NewGCObject(cx, FINALIZE_OBJECT0);
+        types::TypeObject *type = cx->compartment->getEmptyType(cx);
+        if (!type)
+            return NULL;
+
+        Shape *emptyEnumeratorShape = EmptyShape::getInitialShape(cx, &IteratorClass, NULL, NULL,
+                                                                  ITERATOR_FINALIZE_KIND);
+        if (!emptyEnumeratorShape)
+            return NULL;
+
+        JSObject *obj = JSObject::create(cx, ITERATOR_FINALIZE_KIND,
+                                         emptyEnumeratorShape, type, NULL);
         if (!obj)
             return NULL;
 
-        EmptyShape *emptyEnumeratorShape = EmptyShape::getEmptyEnumeratorShape(cx);
-        if (!emptyEnumeratorShape)
-            return NULL;
-        obj->init(cx, &IteratorClass, &types::emptyTypeObject, NULL, NULL, false);
-        obj->setMap(emptyEnumeratorShape);
+        JS_ASSERT(obj->numFixedSlots() == JSObject::ITER_CLASS_NFIXED_SLOTS);
         return obj;
     }
 
@@ -438,7 +499,7 @@ NativeIterator::allocateIterator(JSContext *cx, uint32 slength, const AutoIdVect
 {
     size_t plength = props.length();
     NativeIterator *ni = (NativeIterator *)
-        cx->malloc_(sizeof(NativeIterator) + plength * sizeof(jsid) + slength * sizeof(uint32));
+        cx->malloc_(sizeof(NativeIterator) + plength * sizeof(jsid) + slength * sizeof(Shape *));
     if (!ni)
         return NULL;
     ni->props_array = ni->props_cursor = (HeapId *) (ni + 1);
@@ -455,7 +516,7 @@ NativeIterator::init(JSObject *obj, uintN flags, uint32 slength, uint32 key)
 {
     this->obj.init(obj);
     this->flags = flags;
-    this->shapes_array = (uint32 *) this->props_end;
+    this->shapes_array = (const Shape **) this->props_end;
     this->shapes_length = slength;
     this->shapes_key = key;
 }
@@ -480,7 +541,8 @@ VectorToKeyIterator(JSContext *cx, JSObject *obj, uintN flags, AutoIdVector &key
     JS_ASSERT(!(flags & JSITER_FOREACH));
 
     if (obj) {
-        obj->flags |= JSObject::ITERATED;
+        if (obj->hasSingletonType() && !obj->setIteratedSingleton(cx))
+            return false;
         types::MarkTypeObjectFlags(cx, obj, types::OBJECT_FLAG_ITERATED);
     }
 
@@ -504,7 +566,7 @@ VectorToKeyIterator(JSContext *cx, JSObject *obj, uintN flags, AutoIdVector &key
         JSObject *pobj = obj;
         size_t ind = 0;
         do {
-            ni->shapes_array[ind++] = pobj->shape();
+            ni->shapes_array[ind++] = pobj->lastProperty();
             pobj = pobj->getProto();
         } while (pobj);
         JS_ASSERT(ind == slength);
@@ -532,7 +594,8 @@ VectorToValueIterator(JSContext *cx, JSObject *obj, uintN flags, AutoIdVector &k
     JS_ASSERT(flags & JSITER_FOREACH);
 
     if (obj) {
-        obj->flags |= JSObject::ITERATED;
+        if (obj->hasSingletonType() && !obj->setIteratedSingleton(cx))
+            return false;
         types::MarkTypeObjectFlags(cx, obj, types::OBJECT_FLAG_ITERATED);
     }
 
@@ -572,7 +635,7 @@ UpdateNativeIterator(NativeIterator *ni, JSObject *obj)
 bool
 GetIterator(JSContext *cx, JSObject *obj, uintN flags, Value *vp)
 {
-    Vector<uint32, 8> shapes(cx);
+    Vector<const Shape *, 8> shapes(cx);
     uint32 key = 0;
 
     bool keysOnly = (flags == JSITER_ENUMERATE);
@@ -601,9 +664,9 @@ GetIterator(JSContext *cx, JSObject *obj, uintN flags, Value *vp)
                 NativeIterator *lastni = last->getNativeIterator();
                 if (!(lastni->flags & (JSITER_ACTIVE|JSITER_UNREUSABLE)) &&
                     obj->isNative() &&
-                    obj->shape() == lastni->shapes_array[0] &&
+                    obj->lastProperty() == lastni->shapes_array[0] &&
                     proto && proto->isNative() &&
-                    proto->shape() == lastni->shapes_array[1] &&
+                    proto->lastProperty() == lastni->shapes_array[1] &&
                     !proto->getProto()) {
                     vp->setObject(*last);
                     UpdateNativeIterator(lastni, obj);
@@ -621,14 +684,15 @@ GetIterator(JSContext *cx, JSObject *obj, uintN flags, Value *vp)
             JSObject *pobj = obj;
             do {
                 if (!pobj->isNative() ||
+                    pobj->hasUncacheableProto() ||
                     obj->getOps()->enumerate ||
                     pobj->getClass()->enumerate != JS_EnumerateStub) {
                     shapes.clear();
                     goto miss;
                 }
-                uint32 shape = pobj->shape();
-                key = (key + (key << 16)) ^ shape;
-                if (!shapes.append(shape))
+                const Shape *shape = pobj->lastProperty();
+                key = (key + (key << 16)) ^ ((jsuword)shape >> 3);
+                if (!shapes.append((Shape *) shape))
                     return false;
                 pobj = pobj->getProto();
             } while (pobj);
@@ -1049,7 +1113,7 @@ js_IteratorNext(JSContext *cx, JSObject *iterobj, Value *rval)
             if (rval->isInt32() && StaticStrings::hasInt(i = rval->toInt32())) {
                 str = cx->runtime->staticStrings.getInt(i);
             } else {
-                str = js_ValueToString(cx, *rval);
+                str = ToString(cx, *rval);
                 if (!str)
                     return false;
             }
@@ -1208,7 +1272,7 @@ js_NewGenerator(JSContext *cx)
     JSObject *proto = global->getOrCreateGeneratorPrototype(cx);
     if (!proto)
         return NULL;
-    JSObject *obj = NewNonFunction<WithProto::Given>(cx, &GeneratorClass, proto, global);
+    JSObject *obj = NewObjectWithGivenProto(cx, &GeneratorClass, proto, global);
     if (!obj)
         return NULL;
 

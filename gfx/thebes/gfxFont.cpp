@@ -384,6 +384,16 @@ gfxFontEntry::ShareFontTableAndGetBlob(PRUint32 aTag,
     return entry->ShareTableAndGetBlob(*aBuffer, &mFontTableCache);
 }
 
+#ifdef MOZ_GRAPHITE
+void
+gfxFontEntry::CheckForGraphiteTables()
+{
+    AutoFallibleTArray<PRUint8,16384> buffer;
+    mHasGraphiteTables =
+        NS_SUCCEEDED(GetFontTable(TRUETYPE_TAG('S','i','l','f'), buffer));
+}
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // class gfxFontFamily
@@ -1064,9 +1074,7 @@ gfxFont::gfxFont(gfxFontEntry *aFontEntry, const gfxFontStyle *aFontStyle,
     mStyle(*aFontStyle),
     mAdjustedSize(0.0),
     mFUnitsConvFactor(0.0f),
-    mAntialiasOption(anAAOption),
-    mPlatformShaper(nsnull),
-    mHarfBuzzShaper(nsnull)
+    mAntialiasOption(anAAOption)
 {
 #ifdef DEBUG_TEXT_RUN_STORAGE_METRICS
     ++gFontCount;
@@ -1603,7 +1611,15 @@ gfxFont::InitTextRun(gfxContext *aContext,
 {
     bool ok = false;
 
-    if (mHarfBuzzShaper && !aPreferPlatformShaping) {
+#ifdef MOZ_GRAPHITE
+    if (mGraphiteShaper && gfxPlatform::GetPlatform()->UseGraphiteShaping()) {
+        ok = mGraphiteShaper->InitTextRun(aContext, aTextRun, aString,
+                                          aRunStart, aRunLength,
+                                          aRunScript);
+    }
+#endif
+
+    if (!ok && mHarfBuzzShaper && !aPreferPlatformShaping) {
         if (gfxPlatform::GetPlatform()->UseHarfBuzzForScript(aRunScript)) {
             ok = mHarfBuzzShaper->InitTextRun(aContext, aTextRun, aString,
                                               aRunStart, aRunLength,
@@ -1832,7 +1848,7 @@ gfxFont::SanitizeMetrics(gfxFont::Metrics *aMetrics, bool aIsBadUnderlineFont)
 {
     // Even if this font size is zero, this font is created with non-zero size.
     // However, for layout and others, we should return the metrics of zero size font.
-    if (mStyle.size == 0) {
+    if (mStyle.size == 0.0) {
         memset(aMetrics, 0, sizeof(gfxFont::Metrics));
         return;
     }

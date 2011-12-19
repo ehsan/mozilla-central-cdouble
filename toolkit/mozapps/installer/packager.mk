@@ -86,6 +86,7 @@ SDK           = $(SDK_PATH)$(PKG_BASENAME).sdk$(SDK_SUFFIX)
 ifndef LIBXUL_SDK
 JSSHELL_BINS  = \
   $(DIST)/bin/js$(BIN_SUFFIX) \
+  $(DIST)/bin/mozutils$(DLL_SUFFIX) \
   $(NULL)
 ifndef MOZ_NATIVE_NSPR
 JSSHELL_BINS += $(DIST)/bin/$(LIB_PREFIX)nspr4$(DLL_SUFFIX)
@@ -259,9 +260,6 @@ endif #Create an RPM file
 
 ifeq ($(MOZ_PKG_FORMAT),APK)
 
-# we have custom stuff for Android
-MOZ_OMNIJAR =
-
 JAVA_CLASSPATH = $(ANDROID_SDK)/android.jar
 include $(topsrcdir)/config/android-common.mk
 
@@ -294,6 +292,7 @@ DIST_FILES = \
   libsoftokn3.so \
   extensions \
   application.ini \
+  package-name.txt \
   platform.ini \
   greprefs.js \
   browserconfig.properties \
@@ -301,6 +300,7 @@ DIST_FILES = \
   chrome.manifest \
   update.locale \
   removed-files \
+  recommended-addons.json \
   $(NULL)
 
 NON_DIST_FILES = \
@@ -324,9 +324,9 @@ endif
 endif
 
 ifeq ($(MOZ_BUILD_APP),mobile/xul)
-GECKO_APP_AP_PATH = ../embedding/android
+GECKO_APP_AP_PATH = $(call core_abspath,$(DEPTH)/embedding/android)
 else
-GECKO_APP_AP_PATH = ../mobile/android/base
+GECKO_APP_AP_PATH = $(call core_abspath,$(DEPTH)/mobile/android/base)
 endif
 
 PKG_SUFFIX      = .apk
@@ -343,7 +343,8 @@ INNER_MAKE_PACKAGE	= \
     done && \
     unzip -o $(_ABS_DIST)/gecko.ap_ && \
     rm $(_ABS_DIST)/gecko.ap_ && \
-    $(ZIP) -r9D $(_ABS_DIST)/gecko.ap_ $(DIST_FILES) -x $(NON_DIST_FILES) ) && \
+    $(ZIP) -r9D $(_ABS_DIST)/gecko.ap_ $(DIST_FILES) -x $(NON_DIST_FILES) && \
+    $(ZIP) -0 $(_ABS_DIST)/gecko.ap_ $(OMNIJAR_NAME)) && \
   rm -f $(_ABS_DIST)/gecko.apk && \
   $(APKBUILDER) $(_ABS_DIST)/gecko.apk -v $(APKBUILDER_FLAGS) -z $(_ABS_DIST)/gecko.ap_ -f $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/classes.dex && \
   cp $(_ABS_DIST)/gecko.apk $(_ABS_DIST)/gecko-unsigned-unaligned.apk && \
@@ -353,8 +354,9 @@ INNER_UNMAKE_PACKAGE	= \
   mkdir $(MOZ_PKG_DIR) && \
   cd $(MOZ_PKG_DIR) && \
   $(UNZIP) $(UNPACKAGE) && \
-  mv lib/$(ABI_DIR)/*.so . && \
-  rm -rf lib
+  mv lib/$(ABI_DIR)/libmozutils.so . && \
+  mv lib/$(ABI_DIR)/*plugin-container* $(MOZ_CHILD_PROCESS_NAME) && \
+  rm -rf lib/$(ABI_DIR)
 endif
 ifeq ($(MOZ_PKG_FORMAT),DMG)
 ifndef _APPNAME
@@ -528,7 +530,8 @@ endif
 endif
 
 ifdef MOZ_SIGN_PREPARED_PACKAGE_CMD
-MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(MOZ_SIGN_PREPARED_PACKAGE_CMD) $(MOZ_PKG_DIR) && $(INNER_MAKE_PACKAGE)
+MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(MOZ_SIGN_PREPARED_PACKAGE_CMD) \
+		  $(MOZ_PKG_DIR) && $(INNER_MAKE_PACKAGE)
 else
 MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(INNER_MAKE_PACKAGE)
 endif
@@ -567,14 +570,15 @@ FREEBL_32INT64	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)free
 FREEBL_64FPU	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl_64fpu_3$(DLL_SUFFIX)
 FREEBL_64INT	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl_64int_3$(DLL_SUFFIX)
 
-SIGN_NSS	+= $(SIGN_CMD) $(SOFTOKN) && \
-	$(SIGN_CMD) $(NSSDBM) && \
-	if test -f $(FREEBL); then $(SIGN_CMD) $(FREEBL); fi && \
-	if test -f $(FREEBL_32FPU); then $(SIGN_CMD) $(FREEBL_32FPU); fi && \
-	if test -f $(FREEBL_32INT); then $(SIGN_CMD) $(FREEBL_32INT); fi && \
-	if test -f $(FREEBL_32INT64); then $(SIGN_CMD) $(FREEBL_32INT64); fi && \
-	if test -f $(FREEBL_64FPU); then $(SIGN_CMD) $(FREEBL_64FPU); fi && \
-	if test -f $(FREEBL_64INT); then $(SIGN_CMD) $(FREEBL_64INT); fi;
+SIGN_NSS	+= \
+  $(SIGN_CMD) $(SOFTOKN) && \
+  $(SIGN_CMD) $(NSSDBM) && \
+  if test -f $(FREEBL); then $(SIGN_CMD) $(FREEBL); fi && \
+  if test -f $(FREEBL_32FPU); then $(SIGN_CMD) $(FREEBL_32FPU); fi && \
+  if test -f $(FREEBL_32INT); then $(SIGN_CMD) $(FREEBL_32INT); fi && \
+  if test -f $(FREEBL_32INT64); then $(SIGN_CMD) $(FREEBL_32INT64); fi && \
+  if test -f $(FREEBL_64FPU); then $(SIGN_CMD) $(FREEBL_64FPU); fi && \
+  if test -f $(FREEBL_64INT); then $(SIGN_CMD) $(FREEBL_64INT); fi;
 
 endif # MOZ_PSM
 endif # !CROSS_COMPILE
@@ -900,6 +904,7 @@ CHECKSUM_ALGORITHM = 'sha512'
 
 # This variable defines where the checksum file will be located
 CHECKSUM_FILE = "$(DIST)/$(PKG_PATH)/$(PKG_BASENAME).checksums"
+CHECKSUM_FILES = $(CHECKSUM_FILE)
 
 UPLOAD_FILES= \
   $(call QUOTED_WILDCARD,$(DIST)/$(PACKAGE)) \
@@ -921,7 +926,7 @@ ifeq (gpg,$(filter gpg,$(MOZ_EXTERNAL_SIGNING_FORMAT)))
 # upload. We also want to sign our checksums file
 SIGN_CHECKSUM_CMD=$(MOZ_SIGN_CMD) -f gpg $(CHECKSUM_FILE)
 
-UPLOAD_FILES += $(CHECKSUM_FILE).asc
+CHECKSUM_FILES += $(CHECKSUM_FILE).asc
 UPLOAD_FILES += $(call QUOTED_WILDCARD,$(DIST)/$(COMPLETE_MAR).asc)
 UPLOAD_FILES += $(call QUOTED_WILDCARD,$(wildcard $(DIST)/$(PARTIAL_MAR).asc))
 UPLOAD_FILES += $(call QUOTED_WILDCARD,$(INSTALLER_PACKAGE).asc)
@@ -944,7 +949,7 @@ checksum:
 upload: checksum
 	$(PYTHON) $(MOZILLA_DIR)/build/upload.py --base-path $(DIST) \
 		$(UPLOAD_FILES) \
-		$(CHECKSUM_FILE)
+		$(CHECKSUM_FILES)
 
 ifeq (WINNT,$(OS_TARGET))
 CODESIGHS_PACKAGE = $(INSTALLER_PACKAGE)

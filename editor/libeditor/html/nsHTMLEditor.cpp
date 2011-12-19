@@ -381,28 +381,29 @@ nsHTMLEditor::GetRootElement(nsIDOMElement **aRootElement)
   // Use the HTML documents body element as the editor root if we didn't
   // get a root element during initialization.
 
+  nsCOMPtr<nsIDOMElement> rootElement; 
   nsCOMPtr<nsIDOMHTMLElement> bodyElement; 
   nsresult rv = GetBodyElement(getter_AddRefs(bodyElement));
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (bodyElement) {
-    mRootElement = bodyElement;
+    rootElement = bodyElement;
   } else {
     // If there is no HTML body element,
     // we should use the document root element instead.
     nsCOMPtr<nsIDOMDocument> doc = do_QueryReferent(mDocWeak);
     NS_ENSURE_TRUE(doc, NS_ERROR_NOT_INITIALIZED);
 
-    rv = doc->GetDocumentElement(getter_AddRefs(mRootElement));
+    rv = doc->GetDocumentElement(getter_AddRefs(rootElement));
     NS_ENSURE_SUCCESS(rv, rv);
     // Document can have no elements
-    if (!mRootElement) {
+    if (!rootElement) {
       return NS_ERROR_NOT_AVAILABLE;
     }
   }
 
-  *aRootElement = mRootElement;
-  NS_ADDREF(*aRootElement);
+  mRootElement = do_QueryInterface(rootElement);
+  rootElement.forget(aRootElement);
 
   return NS_OK;
 }
@@ -544,7 +545,7 @@ nsHTMLEditor::BeginningOfDocument()
   NS_ENSURE_TRUE(selection, NS_ERROR_NOT_INITIALIZED);
 
   // Get the root element.
-  nsIDOMElement *rootElement = GetRoot();
+  nsCOMPtr<nsIDOMElement> rootElement = do_QueryInterface(GetRoot());
   if (!rootElement) {
     NS_WARNING("GetRoot() returned a null pointer (mRootElement is null)");
     return NS_OK;
@@ -913,6 +914,15 @@ nsHTMLEditor::IsBlockNode(nsIDOMNode *aNode)
   return isBlock;
 }
 
+bool
+nsHTMLEditor::IsBlockNode(nsINode *aNode)
+{
+  bool isBlock;
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(aNode);
+  NodeIsBlockStatic(node, &isBlock);
+  return isBlock;
+}
+
 // Non-static version for the nsIEditor interface and JavaScript
 NS_IMETHODIMP 
 nsHTMLEditor::SetDocumentTitle(const nsAString &aTitle)
@@ -958,155 +968,6 @@ nsHTMLEditor::GetBlockNodeParent(nsIDOMNode *aNode)
   }
   return p.forget();
 }
-
-///////////////////////////////////////////////////////////////////////////
-// GetBlockSection: return leftmost/rightmost nodes in aChild's block
-//               
-nsresult
-nsHTMLEditor::GetBlockSection(nsIDOMNode *aChild,
-                              nsIDOMNode **aLeftNode, 
-                              nsIDOMNode **aRightNode) 
-{
-  nsresult result = NS_OK;
-  if (!aChild || !aLeftNode || !aRightNode) {return NS_ERROR_NULL_POINTER;}
-  *aLeftNode = aChild;
-  *aRightNode = aChild;
-
-  nsCOMPtr<nsIDOMNode>sibling;
-  result = aChild->GetPreviousSibling(getter_AddRefs(sibling));
-  while ((NS_SUCCEEDED(result)) && sibling)
-  {
-    bool isBlock;
-    NodeIsBlockStatic(sibling, &isBlock);
-    if (isBlock)
-    {
-      nsCOMPtr<nsIDOMCharacterData>nodeAsText = do_QueryInterface(sibling);
-      if (!nodeAsText) {
-        break;
-      }
-      // XXX: needs some logic to work for other leaf nodes besides text!
-    }
-    *aLeftNode = sibling;
-    result = (*aLeftNode)->GetPreviousSibling(getter_AddRefs(sibling)); 
-  }
-  NS_ADDREF((*aLeftNode));
-  // now do the right side
-  result = aChild->GetNextSibling(getter_AddRefs(sibling));
-  while ((NS_SUCCEEDED(result)) && sibling)
-  {
-    bool isBlock;
-    NodeIsBlockStatic(sibling, &isBlock);
-    if (isBlock) 
-    {
-      nsCOMPtr<nsIDOMCharacterData>nodeAsText = do_QueryInterface(sibling);
-      if (!nodeAsText) {
-        break;
-      }
-    }
-    *aRightNode = sibling;
-    result = (*aRightNode)->GetNextSibling(getter_AddRefs(sibling)); 
-  }
-  NS_ADDREF((*aRightNode));
-
-  return result;
-}
-
-
-///////////////////////////////////////////////////////////////////////////
-// GetBlockSectionsForRange: return list of block sections that intersect 
-//                           this range
-nsresult
-nsHTMLEditor::GetBlockSectionsForRange(nsIDOMRange *aRange,
-                                       nsCOMArray<nsIDOMRange>& aSections) 
-{
-  if (!aRange) {return NS_ERROR_NULL_POINTER;}
-
-  nsresult result;
-  nsCOMPtr<nsIContentIterator>iter =
-    do_CreateInstance("@mozilla.org/content/post-content-iterator;1", &result);
-  if (NS_FAILED(result) || !iter) {
-    return result;
-  }
-  nsCOMPtr<nsIDOMRange> lastRange;
-  iter->Init(aRange);
-  while (iter->IsDone())
-  {
-    nsCOMPtr<nsIContent> currentContent =
-      do_QueryInterface(iter->GetCurrentNode());
-
-    nsCOMPtr<nsIDOMNode> currentNode = do_QueryInterface(currentContent);
-    if (currentNode)
-    {
-      // <BR> divides block content ranges.  We can achieve this by nulling out lastRange
-      if (currentContent->Tag() == nsEditProperty::br)
-      {
-        lastRange = nsnull;
-      }
-      else
-      {
-        bool isNotInlineOrText;
-        result = NodeIsBlockStatic(currentNode, &isNotInlineOrText);
-        if (isNotInlineOrText)
-        {
-          PRUint16 nodeType;
-          currentNode->GetNodeType(&nodeType);
-          if (nsIDOMNode::TEXT_NODE == nodeType) {
-            isNotInlineOrText = true;
-          }
-        }
-        if (!isNotInlineOrText) {
-          nsCOMPtr<nsIDOMNode> leftNode;
-          nsCOMPtr<nsIDOMNode> rightNode;
-          result = GetBlockSection(currentNode,
-                                   getter_AddRefs(leftNode),
-                                   getter_AddRefs(rightNode));
-          if ((NS_SUCCEEDED(result)) && leftNode && rightNode) {
-            // Add range to the list if it doesn't overlap with the previous
-            // range.
-            bool addRange = true;
-            if (lastRange)
-            {
-              nsCOMPtr<nsIDOMNode> lastStartNode;
-              lastRange->GetStartContainer(getter_AddRefs(lastStartNode));
-              nsCOMPtr<nsIDOMNode> blockParentNodeOfLastStartNode =
-                GetBlockNodeParent(lastStartNode);
-              nsCOMPtr<nsIDOMElement> blockParentOfLastStartNode =
-                do_QueryInterface(blockParentNodeOfLastStartNode);
-              if (blockParentOfLastStartNode)
-              {
-                nsCOMPtr<nsIDOMNode> blockParentNodeOfLeftNode =
-                  GetBlockNodeParent(leftNode);
-                nsCOMPtr<nsIDOMElement> blockParentOfLeftNode =
-                  do_QueryInterface(blockParentNodeOfLeftNode);
-                if (blockParentOfLeftNode &&
-                    blockParentOfLastStartNode == blockParentOfLeftNode) {
-                  addRange = false;
-                }
-              }
-            }
-            if (addRange) {
-              nsCOMPtr<nsIDOMRange> range =
-                   do_CreateInstance("@mozilla.org/content/range;1", &result);
-              if ((NS_SUCCEEDED(result)) && range) {
-                // Initialize the range.
-                range->SetStart(leftNode, 0);
-                range->SetEnd(rightNode, 0);
-                aSections.AppendObject(range);
-                lastRange = do_QueryInterface(range);
-              }
-            }        
-          }
-        }
-      }
-    }
-    /* do not check result here, and especially do not return the result code.
-     * we rely on iter->IsDone to tell us when the iteration is complete
-     */
-    iter->Next();
-  }
-  return result;
-}
-
 
 ///////////////////////////////////////////////////////////////////////////
 // NextNodeInBlock: gets the next/prev node in the block, if any.  Next node
@@ -1800,8 +1661,7 @@ nsHTMLEditor::RebuildDocumentFromSource(const nsAString& aSourceString)
   nsresult res = GetSelection(getter_AddRefs(selection));
   NS_ENSURE_SUCCESS(res, res);
 
-  nsIDOMElement *bodyElement = GetRoot();
-  NS_ENSURE_SUCCESS(res, res);
+  nsCOMPtr<nsIDOMElement> bodyElement = do_QueryInterface(GetRoot());
   NS_ENSURE_TRUE(bodyElement, NS_ERROR_NULL_POINTER);
 
   // Find where the <body> tag starts.
@@ -2443,10 +2303,10 @@ nsHTMLEditor::GetHTMLBackgroundColorState(bool *aMixed, nsAString &aOutColor)
   }
 
   // If no table or cell found, get page body
-  element = GetRoot();
-  NS_ENSURE_TRUE(element, NS_ERROR_NULL_POINTER);
+  mozilla::dom::Element *bodyElement = GetRoot();
+  NS_ENSURE_TRUE(bodyElement, NS_ERROR_NULL_POINTER);
 
-  return element->GetAttribute(styleName, aOutColor);
+  return bodyElement->GetAttr(kNameSpaceID_None, nsGkAtoms::bgcolor, aOutColor);
 }
 
 NS_IMETHODIMP 
@@ -2935,8 +2795,6 @@ NODE_FOUND:
     parent->GetNodeName(parentTagName);
     // Note: Originally used IsRoot to stop at table cells,
     //  but that's too messy when you are trying to find the parent table
-    //bool isRoot;
-    //if (NS_FAILED(IsRootTag(parentTagName, isRoot)) || isRoot)
     if(parentTagName.LowerCaseEqualsLiteral("body"))
       break;
 
@@ -3383,7 +3241,7 @@ nsHTMLEditor::SetHTMLBackgroundColor(const nsAString& aColor)
     // If we failed to find a cell, fall through to use originally-found element
   } else {
     // No table element -- set the background color on the body tag
-    element = GetRoot();
+    element = do_QueryInterface(GetRoot());
     NS_ENSURE_TRUE(element, NS_ERROR_NULL_POINTER);
   }
   // Use the editor method that goes through the transaction system
@@ -3402,8 +3260,7 @@ NS_IMETHODIMP nsHTMLEditor::SetBodyAttribute(const nsAString& aAttribute, const 
   NS_ASSERTION(mDocWeak, "Missing Editor DOM Document");
   
   // Set the background color attribute on the body tag
-  nsIDOMElement *bodyElement = GetRoot();
-
+  nsCOMPtr<nsIDOMElement> bodyElement = do_QueryInterface(GetRoot());
   NS_ENSURE_TRUE(bodyElement, NS_ERROR_NULL_POINTER);
 
   // Use the editor method that goes through the transaction system
@@ -3871,7 +3728,7 @@ already_AddRefed<nsIDOMNode>
 nsHTMLEditor::FindUserSelectAllNode(nsIDOMNode* aNode)
 {
   nsCOMPtr<nsIDOMNode> node = aNode;
-  nsIDOMElement *root = GetRoot();
+  nsCOMPtr<nsIDOMElement> root = do_QueryInterface(GetRoot());
   if (!nsEditorUtils::IsDescendantOf(aNode, root))
     return nsnull;
 
@@ -3903,9 +3760,14 @@ nsHTMLEditor::FindUserSelectAllNode(nsIDOMNode* aNode)
 NS_IMETHODIMP_(bool)
 nsHTMLEditor::IsModifiableNode(nsIDOMNode *aNode)
 {
-  nsCOMPtr<nsIContent> content = do_QueryInterface(aNode);
+  nsCOMPtr<nsINode> node = do_QueryInterface(aNode);
+  return IsModifiableNode(node);
+}
 
-  return !content || content->IsEditable();
+bool
+nsHTMLEditor::IsModifiableNode(nsINode *aNode)
+{
+  return !aNode || aNode->IsEditable();
 }
 
 static nsresult SetSelectionAroundHeadChildren(nsCOMPtr<nsISelection> aSelection, nsWeakPtr aDocWeak)
@@ -4131,7 +3993,7 @@ nsHTMLEditor::SelectEntireDocument(nsISelection *aSelection)
   nsCOMPtr<nsIEditRules> kungFuDeathGrip(mRules);
 
   // get editor root node
-  nsIDOMElement *rootElement = GetRoot();
+  nsCOMPtr<nsIDOMElement> rootElement = do_QueryInterface(GetRoot());
   
   // is doc empty?
   bool bDocIsEmpty;
@@ -4176,7 +4038,9 @@ nsHTMLEditor::SelectAll()
     NS_ENSURE_TRUE(selPriv, NS_ERROR_UNEXPECTED);
     rv = selPriv->SetAncestorLimiter(nsnull);
     NS_ENSURE_SUCCESS(rv, rv);
-    return selection->SelectAllChildren(mRootElement);
+    nsCOMPtr<nsIDOMNode> rootElement = do_QueryInterface(mRootElement, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    return selection->SelectAllChildren(rootElement);
   }
 
   nsCOMPtr<nsIPresShell> ps = GetPresShell();
@@ -4330,28 +4194,6 @@ nsHTMLEditor::SetCaretInTableCell(nsIDOMElement* aElement)
   return caretIsSet;
 }            
 
-
-
-NS_IMETHODIMP
-nsHTMLEditor::IsRootTag(nsString &aTag, bool &aIsTag)
-{
-  static char bodyTag[] = "body";
-  static char tdTag[] = "td";
-  static char thTag[] = "th";
-  static char captionTag[] = "caption";
-  if (aTag.EqualsIgnoreCase(bodyTag) ||
-      aTag.EqualsIgnoreCase(tdTag) ||
-      aTag.EqualsIgnoreCase(thTag) ||
-      aTag.EqualsIgnoreCase(captionTag) )
-  {
-    aIsTag = true;
-  }
-  else {
-    aIsTag = false;
-  }
-  return NS_OK;
-}
-
 ///////////////////////////////////////////////////////////////////////////
 // GetEnclosingTable: find ancestor who is a table, if any
 //                  
@@ -4467,7 +4309,7 @@ nsHTMLEditor::CollapseAdjacentTextNodes(nsIDOMRange *aInRange)
 NS_IMETHODIMP 
 nsHTMLEditor::SetSelectionAtDocumentStart(nsISelection *aSelection)
 {
-  nsIDOMElement *rootElement = GetRoot();  
+  nsCOMPtr<nsIDOMElement> rootElement = do_QueryInterface(GetRoot());
   NS_ENSURE_TRUE(rootElement, NS_ERROR_NULL_POINTER);
 
   return aSelection->Collapse(rootElement,0);
@@ -4692,13 +4534,18 @@ nsresult
 nsHTMLEditor::GetPriorHTMLNode(nsIDOMNode *inNode, nsCOMPtr<nsIDOMNode> *outNode, bool bNoBlockCrossing)
 {
   NS_ENSURE_TRUE(outNode, NS_ERROR_NULL_POINTER);
-  nsresult res = GetPriorNode(inNode, true, address_of(*outNode), bNoBlockCrossing);
+
+  nsIContent* activeEditingHost = GetActiveEditingHost();
+  if (!activeEditingHost) {
+    *outNode = nsnull;
+    return NS_OK;
+  }
+
+  nsresult res = GetPriorNode(inNode, true, address_of(*outNode), bNoBlockCrossing, activeEditingHost);
   NS_ENSURE_SUCCESS(res, res);
   
-  // if it's not in the body, then zero it out
-  if (*outNode && !IsNodeInActiveEditor(*outNode)) {
-    *outNode = nsnull;
-  }
+  NS_ASSERTION(!*outNode || IsNodeInActiveEditor(*outNode),
+               "GetPriorNode screwed up");
   return res;
 }
 
@@ -4710,13 +4557,18 @@ nsresult
 nsHTMLEditor::GetPriorHTMLNode(nsIDOMNode *inParent, PRInt32 inOffset, nsCOMPtr<nsIDOMNode> *outNode, bool bNoBlockCrossing)
 {
   NS_ENSURE_TRUE(outNode, NS_ERROR_NULL_POINTER);
-  nsresult res = GetPriorNode(inParent, inOffset, true, address_of(*outNode), bNoBlockCrossing);
+
+  nsIContent* activeEditingHost = GetActiveEditingHost();
+  if (!activeEditingHost) {
+    *outNode = nsnull;
+    return NS_OK;
+  }
+
+  nsresult res = GetPriorNode(inParent, inOffset, true, address_of(*outNode), bNoBlockCrossing, activeEditingHost);
   NS_ENSURE_SUCCESS(res, res);
   
-  // if it's not in the body, then zero it out
-  if (*outNode && !IsNodeInActiveEditor(*outNode)) {
-    *outNode = nsnull;
-  }
+  NS_ASSERTION(!*outNode || IsNodeInActiveEditor(*outNode),
+               "GetPriorNode screwed up");
   return res;
 }
 
@@ -4924,10 +4776,11 @@ nsHTMLEditor::GetLastEditableLeaf(nsIDOMNode *aNode, nsCOMPtr<nsIDOMNode> *aOutL
 }
 
 bool
-nsHTMLEditor::IsTextInDirtyFrameVisible(nsIDOMNode *aNode)
+nsHTMLEditor::IsTextInDirtyFrameVisible(nsIContent *aNode)
 {
   bool isEmptyTextNode;
-  nsresult res = IsVisTextNode(aNode, &isEmptyTextNode, false);
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(aNode);
+  nsresult res = IsVisTextNode(node, &isEmptyTextNode, false);
   if (NS_FAILED(res))
   {
     // We are following the historical decision:
@@ -4944,7 +4797,7 @@ nsHTMLEditor::IsTextInDirtyFrameVisible(nsIDOMNode *aNode)
 // IsVisTextNode: figure out if textnode aTextNode has any visible content.
 //                  
 nsresult
-nsHTMLEditor::IsVisTextNode( nsIDOMNode *aNode, 
+nsHTMLEditor::IsVisTextNode( nsIDOMNode* aNode, 
                              bool *outIsEmptyNode, 
                              bool aSafeToAskFrames)
 {
@@ -5923,7 +5776,6 @@ nsHTMLEditor::GetBodyElement(nsIDOMHTMLElement** aBody)
   if (!htmlDoc) {
     return NS_ERROR_NOT_INITIALIZED;
   }
-  nsCOMPtr<nsIDOMHTMLElement> bodyElement; 
   return htmlDoc->GetBody(aBody);
 }
 

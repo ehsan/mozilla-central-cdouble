@@ -156,7 +156,6 @@ static jsdouble gTimeoutInterval = -1.0;
 static volatile bool gCanceled = false;
 
 static bool enableMethodJit = false;
-static bool enableProfiling = false;
 static bool enableTypeInference = false;
 static bool enableDisassemblyDumps = false;
 
@@ -246,9 +245,9 @@ ReportException(JSContext *cx)
     }
 }
 
-class ToString {
+class ToStringHelper {
   public:
-    ToString(JSContext *aCx, jsval v, JSBool aThrow = JS_FALSE)
+    ToStringHelper(JSContext *aCx, jsval v, JSBool aThrow = JS_FALSE)
       : cx(aCx), mThrow(aThrow)
     {
         mStr = JS_ValueToString(cx, v);
@@ -256,7 +255,7 @@ class ToString {
             ReportException(cx);
         JS_AddNamedStringRoot(cx, &mStr, "Value ToString helper");
     }
-    ~ToString() {
+    ~ToStringHelper() {
         JS_RemoveStringRoot(cx, &mStr);
     }
     JSBool threw() { return !mStr; }
@@ -273,10 +272,10 @@ class ToString {
     JSAutoByteString mBytes;
 };
 
-class IdStringifier : public ToString {
+class IdStringifier : public ToStringHelper {
 public:
     IdStringifier(JSContext *cx, jsid id, JSBool aThrow = JS_FALSE)
-    : ToString(cx, IdToJsval(id), aThrow)
+    : ToStringHelper(cx, IdToJsval(id), aThrow)
     { }
 };
 
@@ -613,8 +612,6 @@ static const struct JSOption {
     uint32      flag;
 } js_options[] = {
     {"atline",          JSOPTION_ATLINE},
-    {"jitprofiling",    JSOPTION_PROFILING},
-    {"tracejit",        JSOPTION_JIT},
     {"methodjit",       JSOPTION_METHODJIT},
     {"methodjit_always",JSOPTION_METHODJIT_ALWAYS},
     {"relimit",         JSOPTION_RELIMIT},
@@ -1071,7 +1068,7 @@ Now(JSContext *cx, uintN argc, jsval *vp)
 }
 
 static JSBool
-Print(JSContext *cx, uintN argc, jsval *vp)
+PrintInternal(JSContext *cx, uintN argc, jsval *vp, FILE *file)
 {
     jsval *argv;
     uintN i;
@@ -1086,15 +1083,27 @@ Print(JSContext *cx, uintN argc, jsval *vp)
         bytes = JS_EncodeString(cx, str);
         if (!bytes)
             return JS_FALSE;
-        fprintf(gOutFile, "%s%s", i ? " " : "", bytes);
+        fprintf(file, "%s%s", i ? " " : "", bytes);
         JS_free(cx, bytes);
     }
 
-    fputc('\n', gOutFile);
-    fflush(gOutFile);
+    fputc('\n', file);
+    fflush(file);
 
     JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
+}
+
+static JSBool
+Print(JSContext *cx, uintN argc, jsval *vp)
+{
+    return PrintInternal(cx, argc, vp, gOutFile);
+}
+
+static JSBool
+PrintErr(JSContext *cx, uintN argc, jsval *vp)
+{
+    return PrintInternal(cx, argc, vp, gErrFile);
 }
 
 static JSBool
@@ -1196,10 +1205,15 @@ GC(JSContext *cx, uintN argc, jsval *vp)
             comp = UnwrapObject(&arg.toObject())->compartment();
     }
 
+#ifndef JS_MORE_DETERMINISTIC
     size_t preBytes = cx->runtime->gcBytes;
+#endif
     JS_CompartmentGC(cx, comp);
 
     char buf[256];
+#ifdef JS_MORE_DETERMINISTIC
+    buf[0] = '\0';
+#else
     JS_snprintf(buf, sizeof(buf), "before %lu, after %lu, break %08lx\n",
                 (unsigned long)preBytes, (unsigned long)cx->runtime->gcBytes,
 #ifdef HAVE_SBRK
@@ -1208,6 +1222,7 @@ GC(JSContext *cx, uintN argc, jsval *vp)
                 0
 #endif
                 );
+#endif
     *vp = STRING_TO_JSVAL(JS_NewStringCopyZ(cx, buf));
     return true;
 }
@@ -1294,8 +1309,8 @@ InternalConst(JSContext *cx, uintN argc, jsval *vp)
     if (!flat)
         return false;
 
-    if (JS_FlatStringEqualsAscii(flat, "OBJECT_MARK_STACK_LENGTH")) {
-        vp[0] = UINT_TO_JSVAL(js::OBJECT_MARK_STACK_SIZE / sizeof(JSObject *));
+    if (JS_FlatStringEqualsAscii(flat, "MARK_STACK_LENGTH")) {
+        vp[0] = UINT_TO_JSVAL(js::MARK_STACK_LENGTH);
     } else {
         JS_ReportError(cx, "unknown const name");
         return false;
@@ -1797,7 +1812,7 @@ UpdateSwitchTableBounds(JSContext *cx, JSScript *script, uintN offset,
     jsint low, high, n;
 
     pc = script->code + offset;
-    op = js_GetOpcode(cx, script, pc);
+    op = JSOp(*pc);
     switch (op) {
       case JSOP_TABLESWITCHX:
         jmplen = JUMPX_OFFSET_LEN;
@@ -1856,7 +1871,7 @@ SrcNotes(JSContext *cx, JSScript *script, Sprinter *sp)
             if (switchTableStart <= offset && offset < switchTableEnd) {
                 name = "case";
             } else {
-                JSOp op = js_GetOpcode(cx, script, script->code + offset);
+                JSOp op = JSOp(script->code[offset]);
                 JS_ASSERT(op == JSOP_LABEL || op == JSOP_LABELX);
             }
         }
@@ -1906,7 +1921,7 @@ SrcNotes(JSContext *cx, JSScript *script, Sprinter *sp)
           case SRC_FUNCDEF: {
             uint32 index = js_GetSrcNoteOffset(sn, 0);
             JSObject *obj = script->getObject(index);
-            JSFunction *fun = (JSFunction *) JS_GetPrivate(cx, obj);
+            JSFunction *fun = obj->toFunction();
             JSString *str = JS_DecompileFunction(cx, fun, JS_DONT_PRETTY_PRINT);
             JSAutoByteString bytes;
             if (!str || !bytes.encode(cx, str))
@@ -1915,7 +1930,7 @@ SrcNotes(JSContext *cx, JSScript *script, Sprinter *sp)
             break;
           }
           case SRC_SWITCH: {
-            JSOp op = js_GetOpcode(cx, script, script->code + offset);
+            JSOp op = JSOp(script->code[offset]);
             if (op == JSOP_GOTO || op == JSOP_GOTOX)
                 break;
             Sprint(sp, " length %u", uintN(js_GetSrcNoteOffset(sn, 0)));
@@ -2048,7 +2063,7 @@ DisassembleScript(JSContext *cx, JSScript *script, JSFunction *fun, bool lines, 
             JSObject *obj = objects->vector[i];
             if (obj->isFunction()) {
                 Sprint(sp, "\n");
-                JSFunction *fun = obj->getFunctionPrivate();
+                JSFunction *fun = obj->toFunction();
                 JSScript *nested = fun->maybeScript();
                 if (!DisassembleScript(cx, nested, fun, lines, recursive, sp))
                     return false;
@@ -2498,7 +2513,7 @@ DumpStack(JSContext *cx, uintN argc, Value *vp)
         return false;
 
     StackIter iter(cx);
-    JS_ASSERT(iter.nativeArgs().callee().getFunctionPrivate()->native() == DumpStack);
+    JS_ASSERT(iter.nativeArgs().callee().toFunction()->native() == DumpStack);
     ++iter;
 
     uint32 index = 0;
@@ -2628,8 +2643,8 @@ ConvertArgs(JSContext *cx, uintN argc, jsval *vp)
     fprintf(gOutFile,
             "b %u, c %x (%c), i %ld, u %lu, j %ld\n",
             b, c, (char)c, i, u, j);
-    ToString obj2string(cx, obj2);
-    ToString valueString(cx, v);
+    ToStringHelper obj2string(cx, obj2);
+    ToStringHelper valueString(cx, v);
     JSAutoByteString strBytes;
     if (str)
         strBytes.encode(cx, str);
@@ -2727,7 +2742,7 @@ Clone(JSContext *cx, uintN argc, jsval *vp)
         }
     }
     if (funobj->compartment() != cx->compartment) {
-        JSFunction *fun = funobj->getFunctionPrivate();
+        JSFunction *fun = funobj->toFunction();
         if (fun->isInterpreted() && fun->script()->compileAndGo) {
             JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_UNEXPECTED_TYPE,
                                  "function", "compile-and-go");
@@ -3094,11 +3109,7 @@ ShapeOf(JSContext *cx, uintN argc, jsval *vp)
         *vp = JSVAL_ZERO;
         return JS_TRUE;
     }
-    if (!obj->isNative()) {
-        *vp = INT_TO_JSVAL(-1);
-        return JS_TRUE;
-    }
-    return JS_NewNumberValue(cx, obj->shape(), vp);
+    return JS_NewNumberValue(cx, (double) ((jsuword)obj->lastProperty() >> 3), vp);
 }
 
 /*
@@ -3128,7 +3139,7 @@ CopyProperty(JSContext *cx, JSObject *obj, JSObject *referent, jsid id,
             if (!shape)
                 return false;
         } else if (shape->hasSlot()) {
-            desc.value = referent->nativeGetSlot(shape->slot);
+            desc.value = referent->nativeGetSlot(shape->slot());
         } else {
             desc.value.setUndefined();
         }
@@ -3140,7 +3151,7 @@ CopyProperty(JSContext *cx, JSObject *obj, JSObject *referent, jsid id,
         desc.setter = shape->setter();
         if (!desc.setter && !(desc.attrs & JSPROP_SETTER))
             desc.setter = JS_StrictPropertyStub;
-        desc.shortid = shape->shortid;
+        desc.shortid = shape->shortid();
         propFlags = shape->getFlags();
    } else if (IsProxy(referent)) {
         PropertyDescriptor desc;
@@ -3816,7 +3827,7 @@ MJitCodeStats(JSContext *cx, uintN argc, jsval *vp)
     size_t n = 0, method, regexp, unused;
     for (JSCompartment **c = rt->compartments.begin(); c != rt->compartments.end(); ++c)
     {
-        (*c)->getMjitCodeStats(method, regexp, unused);
+        (*c)->sizeOfCode(&method, &regexp, &unused);
         n += method + regexp + unused;
     }
     JS_SET_RVAL(cx, vp, INT_TO_JSVAL(n));
@@ -3956,6 +3967,7 @@ static JSFunctionSpec shell_functions[] = {
     JS_FN("run",            Run,            1,0),
     JS_FN("readline",       ReadLine,       0,0),
     JS_FN("print",          Print,          0,0),
+    JS_FN("printErr",       PrintErr,       0,0),
     JS_FN("putstr",         PutStr,         0,0),
     JS_FN("dateNow",        Now,            0,0),
     JS_FN("help",           Help,           0,0),
@@ -4008,10 +4020,6 @@ static JSFunctionSpec shell_functions[] = {
     JS_FN("evalInFrame",    EvalInFrame,    2,0),
     JS_FN("shapeOf",        ShapeOf,        1,0),
     JS_FN("resolver",       Resolver,       1,0),
-#ifdef MOZ_TRACEVIS
-    JS_FN("startTraceVis",  StartTraceVisNative, 1,0),
-    JS_FN("stopTraceVis",   StopTraceVisNative,  0,0),
-#endif
 #ifdef DEBUG
     JS_FN("arrayInfo",      js_ArrayInfo,   1,0),
 #endif
@@ -4054,7 +4062,8 @@ static const char *const shell_help_messages[] = {
 "  Run the file named by the first argument, returning the number of\n"
 "  of milliseconds spent compiling and executing it",
 "readline()               Read a single line from stdin",
-"print([exp ...])         Evaluate and print expressions",
+"print([exp ...])         Evaluate and print expressions to stdout",
+"printErr([exp ...])      Evaluate and print expressions to stderr",
 "putstr([exp])            Evaluate and print expression without newline",
 "dateNow()                    Return the current time with sub-ms precision",
 "help([name ...])         Display usage and help messages",
@@ -4112,7 +4121,28 @@ static const char *const shell_help_messages[] = {
 "notes([fun])             Show source notes for functions",
 "stats([string ...])      Dump 'arena', 'atom', 'global' stats",
 "findReferences(target)\n"
-"  Walk the heap and return an object describing all references to target",
+"  Walk the entire heap, looking for references to |target|, and return a\n"
+"  \"references object\" describing what we found.\n"
+"\n"
+"  Each property of the references object describes one kind of reference. The\n"
+"  property's name is the label supplied to MarkObject, JS_CALL_TRACER, or what\n"
+"  have you, prefixed with \"edge: \" to avoid collisions with system properties\n"
+"  (like \"toString\" and \"__proto__\"). The property's value is an array of things\n"
+"  that refer to |thing| via that kind of reference. Ordinary references from\n"
+"  one object to another are named after the property name (with the \"edge: \"\n"
+"  prefix).\n"
+"\n"
+"  Garbage collection roots appear as references from 'null'. We use the name\n"
+"  given to the root (with the \"edge: \" prefix) as the name of the reference.\n"
+"\n"
+"  Note that the references object does record references from objects that are\n"
+"  only reachable via |thing| itself, not just the references reachable\n"
+"  themselves from roots that keep |thing| from being collected. (We could make\n"
+"  this distinction if it is useful.)\n"
+"\n"
+"  If any references are found by the conservative scanner, the references\n"
+"  object will have a property named \"edge: machine stack\"; the referrers will\n"
+"  be 'null', because they are roots.",
 #endif
 "dumpStack()              Dump the stack as an array of callees (youngest first)",
 #ifdef TEST_CVTARGS
@@ -4134,10 +4164,6 @@ static const char *const shell_help_messages[] = {
 "shapeOf(obj)             Get the shape of obj (an implementation detail)",
 "resolver(src[, proto])   Create object with resolve hook that copies properties\n"
 "                         from src. If proto is omitted, use Object.prototype.",
-#ifdef MOZ_TRACEVIS
-"startTraceVis(filename)  Start TraceVis recording (stops any current recording)",
-"stopTraceVis()           Stop TraceVis recording",
-#endif
 #ifdef DEBUG
 "arrayInfo(a1, a2, ...)   Report statistics about arrays",
 #endif
@@ -4352,7 +4378,7 @@ its_addProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
 
     IdStringifier idString(cx, id);
     fprintf(gOutFile, "adding its property %s,", idString.getBytes());
-    ToString valueString(cx, *vp);
+    ToStringHelper valueString(cx, *vp);
     fprintf(gOutFile, " initial value %s\n", valueString.getBytes());
     return JS_TRUE;
 }
@@ -4365,7 +4391,7 @@ its_delProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
 
     IdStringifier idString(cx, id);
     fprintf(gOutFile, "deleting its property %s,", idString.getBytes());
-    ToString valueString(cx, *vp);
+    ToStringHelper valueString(cx, *vp);
     fprintf(gOutFile, " initial value %s\n", valueString.getBytes());
     return JS_TRUE;
 }
@@ -4378,7 +4404,7 @@ its_getProperty(JSContext *cx, JSObject *obj, jsid id, jsval *vp)
 
     IdStringifier idString(cx, id);
     fprintf(gOutFile, "getting its property %s,", idString.getBytes());
-    ToString valueString(cx, *vp);
+    ToStringHelper valueString(cx, *vp);
     fprintf(gOutFile, " initial value %s\n", valueString.getBytes());
     return JS_TRUE;
 }
@@ -4389,7 +4415,7 @@ its_setProperty(JSContext *cx, JSObject *obj, jsid id, JSBool strict, jsval *vp)
     IdStringifier idString(cx, id);
     if (its_noisy) {
         fprintf(gOutFile, "setting its property %s,", idString.getBytes());
-        ToString valueString(cx, *vp);
+        ToStringHelper valueString(cx, *vp);
         fprintf(gOutFile, " new value %s\n", valueString.getBytes());
     }
 
@@ -4804,7 +4830,7 @@ env_setProperty(JSContext *cx, JSObject *obj, jsid id, JSBool strict, jsval *vp)
     IdStringifier idstr(cx, id, JS_TRUE);
     if (idstr.threw())
         return JS_FALSE;
-    ToString valstr(cx, *vp, JS_TRUE);
+    ToStringHelper valstr(cx, *vp, JS_TRUE);
     if (valstr.threw())
         return JS_FALSE;
 #if defined XP_WIN || defined HPUX || defined OSF1
@@ -5062,11 +5088,6 @@ ProcessArgs(JSContext *cx, JSObject *obj, OptionParser *op)
         ParseZealArg(cx, zeal);
 #endif
 
-    if (op->getBoolOption('p')) {
-        enableProfiling = true;
-        JS_ToggleOptions(cx, JSOPTION_PROFILING);
-    }
-
     if (op->getBoolOption('d')) {
         JS_SetRuntimeDebugMode(JS_GetRuntime(cx), true);
         JS_SetDebugMode(cx, true);
@@ -5322,14 +5343,10 @@ main(int argc, char **argv, char **envp)
         || !op.addMultiStringOption('e', "execute", "CODE", "Inline code to run")
         || !op.addBoolOption('i', "shell", "Enter prompt after running code")
         || !op.addBoolOption('m', "methodjit", "Enable the JaegerMonkey method JIT")
-        || !op.addBoolOption('j', "tracejit", "Deprecated; does nothing")
-        || !op.addBoolOption('p', "profiling", "Enable runtime profiling select JIT mode")
         || !op.addBoolOption('n', "typeinfer", "Enable type inference")
         || !op.addBoolOption('d', "debugjit", "Enable runtime debug mode for method JIT code")
         || !op.addBoolOption('a', "always-mjit",
-                             "Do not try to run in the interpreter before "
-                             "method jitting. Note that this has no particular effect on the "
-                             "tracer; it still kicks in if enabled.")
+                             "Do not try to run in the interpreter before method jitting.")
         || !op.addBoolOption('D', "dump-bytecode", "Dump bytecode with exec count for all scripts")
         || !op.addBoolOption('b', "print-timing", "Print sub-ms runtime for each file that's run")
 #ifdef DEBUG

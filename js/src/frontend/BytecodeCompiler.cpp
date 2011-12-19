@@ -93,7 +93,7 @@ DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
                                  JSPROP_ENUMERATE | JSPROP_PERMANENT, 0, 0, DNP_SKIP_TYPE);
         if (!shape)
             return false;
-        def.knownSlot = shape->slot;
+        def.knownSlot = shape->slot();
     }
 
     Vector<JSScript *, 16> worklist(cx);
@@ -123,10 +123,10 @@ DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
                 JSObject *obj = arr->vector[i];
                 if (!obj->isFunction())
                     continue;
-                JSFunction *fun = obj->getFunctionPrivate();
+                JSFunction *fun = obj->toFunction();
                 JS_ASSERT(fun->isInterpreted());
                 JSScript *inner = fun->script();
-                if (outer->isHeavyweightFunction) {
+                if (outer->function() && outer->function()->isHeavyweight()) {
                     outer->isOuterFunction = true;
                     inner->isInnerFunction = true;
                 }
@@ -429,14 +429,11 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun, JSPrincipals *prin
     }
 
     /*
-     * Farble the body so that it looks like a block statement to EmitTree,
-     * which is called from EmitFunctionBody (see BytecodeEmitter.cpp).
      * After we're done parsing, we must fold constants, analyze any nested
      * functions, and generate code for this function, including a stop opcode
      * at the end.
      */
-    tokenStream.mungeCurrentToken(TOK_LC);
-    ParseNode *pn = fn ? parser.functionBody() : NULL;
+    ParseNode *pn = fn ? parser.functionBody(Parser::StatementListBody) : NULL;
     if (pn) {
         if (!CheckStrictParameters(cx, &funbce)) {
             pn = NULL;

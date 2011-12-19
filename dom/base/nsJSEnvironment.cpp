@@ -108,6 +108,8 @@
 #include "mozilla/FunctionTimer.h"
 #include "mozilla/Preferences.h"
 
+#include "sampler.h"
+
 using namespace mozilla;
 
 const size_t gStackSize = 8192;
@@ -194,7 +196,7 @@ nsMemoryPressureObserver::Observe(nsISupports* aSubject, const char* aTopic,
                                   const PRUnichar* aData)
 {
   if (sGCOnMemoryPressure) {
-    nsJSContext::GarbageCollectNow();
+    nsJSContext::GarbageCollectNow(true);
     nsJSContext::CycleCollectNow();
   }
   return NS_OK;
@@ -929,8 +931,6 @@ static const char js_zeal_compartment_str[]   = JS_OPTIONS_DOT_STR "gczeal.compa
 #endif
 static const char js_methodjit_content_str[]  = JS_OPTIONS_DOT_STR "methodjit.content";
 static const char js_methodjit_chrome_str[]   = JS_OPTIONS_DOT_STR "methodjit.chrome";
-static const char js_profiling_content_str[]  = JS_OPTIONS_DOT_STR "jitprofiling.content";
-static const char js_profiling_chrome_str[]   = JS_OPTIONS_DOT_STR "jitprofiling.chrome";
 static const char js_methodjit_always_str[]   = JS_OPTIONS_DOT_STR "methodjit_always";
 static const char js_typeinfer_str[]          = JS_OPTIONS_DOT_STR "typeinference";
 static const char js_pccounts_content_str[]   = JS_OPTIONS_DOT_STR "pccounts.content";
@@ -961,9 +961,6 @@ nsJSContext::JSOptionChangedCallback(const char *pref, void *data)
   bool useMethodJIT = Preferences::GetBool(chromeWindow ?
                                                js_methodjit_chrome_str :
                                                js_methodjit_content_str);
-  bool useProfiling = Preferences::GetBool(chromeWindow ?
-                                               js_profiling_chrome_str :
-                                               js_profiling_content_str);
   bool usePCCounts = Preferences::GetBool(chromeWindow ?
                                             js_pccounts_chrome_str :
                                             js_pccounts_content_str);
@@ -976,7 +973,6 @@ nsJSContext::JSOptionChangedCallback(const char *pref, void *data)
     xr->GetInSafeMode(&safeMode);
     if (safeMode) {
       useMethodJIT = false;
-      useProfiling = false;
       usePCCounts = false;
       useTypeInference = false;
       useMethodJITAlways = true;
@@ -988,11 +984,6 @@ nsJSContext::JSOptionChangedCallback(const char *pref, void *data)
     newDefaultJSOptions |= JSOPTION_METHODJIT;
   else
     newDefaultJSOptions &= ~JSOPTION_METHODJIT;
-
-  if (useProfiling)
-    newDefaultJSOptions |= JSOPTION_PROFILING;
-  else
-    newDefaultJSOptions &= ~JSOPTION_PROFILING;
 
   if (usePCCounts)
     newDefaultJSOptions |= JSOPTION_PCCOUNT;
@@ -1196,6 +1187,7 @@ nsJSContext::EvaluateStringWithValue(const nsAString& aScript,
   NS_TIME_FUNCTION_MIN_FMT(1.0, "%s (line %d) (url: %s, line: %d)", MOZ_FUNCTION_NAME,
                            __LINE__, aURL, aLineNo);
 
+  SAMPLE_LABEL("JS", "EvaluateStringWithValue");
   NS_ABORT_IF_FALSE(aScopeObject,
     "Shouldn't call EvaluateStringWithValue with null scope object.");
 
@@ -1398,6 +1390,7 @@ nsJSContext::EvaluateString(const nsAString& aScript,
   NS_TIME_FUNCTION_MIN_FMT(1.0, "%s (line %d) (url: %s, line: %d)", MOZ_FUNCTION_NAME,
                            __LINE__, aURL, aLineNo);
 
+  SAMPLE_LABEL("JS", "EvaluateString");
   NS_ENSURE_TRUE(mIsInitialized, NS_ERROR_NOT_INITIALIZED);
 
   if (!mScriptsEnabled) {
@@ -1868,6 +1861,7 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, JSObject* aScope,
     NS_TIME_FUNCTION_FMT(1.0, "%s (line %d) (function: %s)", MOZ_FUNCTION_NAME, __LINE__, name);
   }
 #endif
+  SAMPLE_LABEL("JS", "CallEventHandler");
 
   JSAutoRequest ar(mContext);
   JSObject* target = nsnull;
@@ -2950,13 +2944,24 @@ static JSFunctionSpec JProfFunctions[] = {
 
 #endif /* defined(MOZ_JPROF) */
 
-#ifdef MOZ_TRACEVIS
-static JSFunctionSpec EthogramFunctions[] = {
-    {"initEthogram",               js_InitEthogram,            0, 0},
-    {"shutdownEthogram",           js_ShutdownEthogram,        0, 0},
+#ifdef MOZ_DMD
+
+// See https://wiki.mozilla.org/Performance/MemShrink/DMD for instructions on
+// how to use DMD.
+
+static JSBool
+DMDCheckJS(JSContext *cx, uintN argc, jsval *vp)
+{
+  mozilla::DMDCheckAndDump();
+  return JS_TRUE;
+}
+
+static JSFunctionSpec DMDFunctions[] = {
+    {"DMD",                        DMDCheckJS,                 0, 0},
     {nsnull,                       nsnull,                     0, 0}
 };
-#endif
+
+#endif /* defined(MOZ_DMD) */
 
 nsresult
 nsJSContext::InitClasses(JSObject* aGlobalObj)
@@ -2981,9 +2986,9 @@ nsJSContext::InitClasses(JSObject* aGlobalObj)
   ::JS_DefineFunctions(mContext, aGlobalObj, JProfFunctions);
 #endif
 
-#ifdef MOZ_TRACEVIS
-  // Attempt to initialize Ethogram functions
-  ::JS_DefineFunctions(mContext, aGlobalObj, EthogramFunctions);
+#ifdef MOZ_DMD
+  // Attempt to initialize DMD functions
+  ::JS_DefineFunctions(mContext, aGlobalObj, DMDFunctions);
 #endif
 
   JSOptionChangedCallback(js_options_dot_str, this);
@@ -3187,9 +3192,10 @@ nsJSContext::ScriptExecuted()
 
 //static
 void
-nsJSContext::GarbageCollectNow()
+nsJSContext::GarbageCollectNow(bool shrinkingGC)
 {
   NS_TIME_FUNCTION_MIN(1.0);
+  SAMPLE_LABEL("GC", "GarbageCollectNow");
 
   KillGCTimer();
 
@@ -3203,7 +3209,7 @@ nsJSContext::GarbageCollectNow()
   sLoadingInProgress = false;
 
   if (nsContentUtils::XPConnect()) {
-    nsContentUtils::XPConnect()->GarbageCollect();
+    nsContentUtils::XPConnect()->GarbageCollect(shrinkingGC);
   }
 }
 
@@ -3215,6 +3221,7 @@ nsJSContext::CycleCollectNow(nsICycleCollectorListener *aListener)
     return;
   }
 
+  SAMPLE_LABEL("GC", "CycleCollectNow");
   NS_TIME_FUNCTION_MIN(1.0);
 
   KillCCTimer();

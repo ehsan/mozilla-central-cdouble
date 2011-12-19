@@ -731,7 +731,6 @@ static const struct JSOption {
     uint32      flag;
 } js_options[] = {
     {"atline",          JSOPTION_ATLINE},
-    {"jit",             JSOPTION_JIT},
     {"relimit",         JSOPTION_RELIMIT},
     {"strict",          JSOPTION_STRICT},
     {"werror",          JSOPTION_WERROR},
@@ -1288,14 +1287,8 @@ ProcessArgs(JSContext *cx, JSObject *obj, char **argv, int argc)
             compileOnly = true;
             isInteractive = false;
             break;
-        case 'j':
-            JS_ToggleOptions(cx, JSOPTION_JIT);
-            break;
         case 'm':
             JS_ToggleOptions(cx, JSOPTION_METHODJIT);
-            break;
-        case 'p':
-            JS_ToggleOptions(cx, JSOPTION_PROFILING);
             break;
         case 'n':
             JS_ToggleOptions(cx, JSOPTION_TYPE_INFERENCE);
