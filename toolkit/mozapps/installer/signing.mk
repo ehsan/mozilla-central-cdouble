@@ -29,7 +29,7 @@
 # ***** END LICENSE BLOCK *****
 
 # We shouldn't sign the first pass of a PGO build
-ifndef MOZ_PROFILE_GENERATE
+ifneq (1,$(MOZ_PROFILE_GENERATE))
 
 # Signing support
 ifdef MOZ_SIGN_CMD
@@ -37,15 +37,15 @@ ifeq (WINNT,$(OS_ARCH))
 MOZ_INTERNAL_SIGNING_FORMAT := signcode
 MOZ_EXTERNAL_SIGNING_FORMAT := signcode gpg
 SIGN_INCLUDES := \
-  '*.dll' \
-  '*.exe' \
-  $(NULL)
+    '*.dll' \
+    '*.exe' \
+    $(NULL)
 
 SIGN_EXCLUDES := \
-  'D3DCompiler*.dll' \
-  'd3dx9*.dll' \
-  'msvc*.dll' \
-  $(NULL)
+    'D3DCompiler*.dll' \
+    'd3dx9*.dll' \
+    'msvc*.dll' \
+    $(NULL)
 endif # Windows
 
 ifeq (Darwin, $(OS_ARCH))

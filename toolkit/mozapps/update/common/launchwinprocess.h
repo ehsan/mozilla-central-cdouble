@@ -48,4 +48,3 @@
 void LaunchWinPostProcess(const WCHAR *appExe, 
                           const WCHAR *updateInfoDir, 
                           HANDLE userToken);
-BOOL StartServiceUpdate(int argc, LPWSTR *argv);

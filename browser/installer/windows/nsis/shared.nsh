@@ -119,23 +119,16 @@
     SetRegView 64
     ReadRegDWORD $5 HKLM "Software\Mozilla\MaintenanceService" "Attempted"
     SetRegView lastused
-
-    ; If the maintenance service is already installed, do nothing.
-    ; The maintenance service will launch:
-    ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
-    ; If the update was done from updater.exe without the service (i.e. service
-    ; is failing), updater.exe will do the update of the service.
-    ; The reasons we do not do it here is because we don't want to have to
-    ; prompt for limited user accounts when the service isn't used and
-    ; we currently call the PostUpdate twice, once for the user and once
-    ; for the SYSTEM account.  Also, this would stop the maintenance service
-    ; and we need a return result back to the service when run that way.
     ${If} $5 == ""
       ; An install of maintenance service was never attempted.
       ; We call ExecShell (which is ShellExecute) with the verb "runas"
       ; to ask for elevation if the user isn't already elevated.  If the user 
       ; is already elevated it will just launch the program.
       ExecShell "runas" "$INSTDIR\maintenanceservice_installer.exe"
+    ${Else}
+      ; The maintenance service is already installed.
+      ; Do nothing, the maintenance service will launch the 
+      ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
     ${EndIf}
   ${EndIf}
 !endif
@@ -616,6 +609,9 @@ FunctionEnd
     SetRegView 64
     WriteRegStr HKLM "$R0\0" "name" "Mozilla Corporation"
     WriteRegStr HKLM "$R0\0" "issuer" "Thawte Code Signing CA - G2"
+    WriteRegStr HKLM "$R0\0" "programName" ""
+    WriteRegStr HKLM "$R0\0" "publisherLink" ""
+    WriteRegStr HKLM "$R0\0" "moreInfoLink" "http://www.mozilla.com"
     SetRegView lastused
     ClearErrors
   ${EndIf} 

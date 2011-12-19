@@ -109,11 +109,7 @@ DoesBinaryMatchAllowedCertificates(LPCWSTR basePathForUpdate, LPCWSTR filePath)
 
     // Open the subkey for the current certificate
     HKEY subKeyRaw;
-    retCode = RegOpenKeyExW(baseKey, 
-                            subkeyBuffer, 
-                            0, 
-                            KEY_READ | KEY_WOW64_64KEY, 
-                            &subKeyRaw);
+    retCode = RegOpenKeyExW(baseKey, subkeyBuffer, 0, KEY_READ, &subKeyRaw);
     nsAutoRegKey subKey(subKeyRaw);
     if (retCode != ERROR_SUCCESS) {
       LOG(("Could not open subkey: %d\n", retCode));
