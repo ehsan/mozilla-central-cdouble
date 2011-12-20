@@ -2063,17 +2063,12 @@ int NS_main(int argc, NS_tchar **argv)
     return 1;
   }
 
-  // ----------------------------------------------------------------------------
-  // XXX ehsan: this stuff needs to be tested with background updates!
-  // ----------------------------------------------------------------------------
-  // Change current directory to the directory where we need to apply the update.
-  if (NS_tchdir(argv[2]) != 0) {
-    return 1;
-  }
-
   // The directory containing the update information.
   gSourcePath = argv[1];
 
+  // ----------------------------------------------------------------------------
+  // XXX ehsan: this stuff needs to be tested with background updates!
+  // ----------------------------------------------------------------------------
 #ifdef XP_WIN
   // Disable every privilege we don't need. Processes started using
   // CreateProcess will use the same token as this process.
