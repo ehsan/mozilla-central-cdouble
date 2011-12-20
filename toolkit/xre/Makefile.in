@@ -137,7 +137,10 @@ CPPSRCS += nsAndroidStartup.cpp
 DEFINES += -DANDROID_PACKAGE_NAME='"$(ANDROID_PACKAGE_NAME)"'
 endif
 
-SHARED_LIBRARY_LIBS += ../profile/$(LIB_PREFIX)profile_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += \
+  ../profile/$(LIB_PREFIX)profile_s.$(LIB_SUFFIX) \
+  ../mozapps/update/common/$(LIB_PREFIX)updatecommon.$(LIB_SUFFIX) \
+  $(NULL)
 
 ifdef MOZ_ENABLE_XREMOTE
 SHARED_LIBRARY_LIBS += $(DEPTH)/widget/src/xremoteclient/$(LIB_PREFIX)xremote_client_s.$(LIB_SUFFIX)
