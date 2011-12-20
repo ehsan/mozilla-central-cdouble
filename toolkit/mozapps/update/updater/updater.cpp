@@ -2081,7 +2081,7 @@ int NS_main(int argc, NS_tchar **argv)
     }
   } else // continued after #ifdef
 #endif
-    gDestinationPath[MAXPATHLEN] = NS_T('\0');
+    gDestinationPath[MAXPATHLEN - 1] = NS_T('\0');
   NS_tchar *slash = NS_tstrrchr(gDestinationPath, NS_SLASH);
   if (slash && !slash[1]) {
     *slash = NS_T('\0');
