@@ -48,6 +48,7 @@
 
 #include "nsUTF8Utils.h"
 #include "nsWindowsHelpers.h"
+#include "updatehelper.h"
 
 #include <shellapi.h>
 #include <shlwapi.h>
