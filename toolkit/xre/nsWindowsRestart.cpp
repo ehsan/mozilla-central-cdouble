@@ -284,23 +284,6 @@ EnsureWindowsServiceRunning() {
 }
 
 /**
- * Joins a base directory path with a filename.
- *
- * @param  base  The base directory path of size MAX_PATH + 1
- * @param  extra The filename to append
- * @return TRUE if the file name was successful appended to base
- */
-BOOL
-PathAppendSafe(LPWSTR base, LPCWSTR extra)
-{
-  if (wcslen(base) + wcslen(extra) >= MAX_PATH) {
-    return FALSE;
-  }
-
-  return PathAppendW(base, extra);
-}
-
-/**
  * Obtains the directory path to store work item files.
  * 
  * @return TRUE if the path was obtained successfully.
@@ -455,21 +438,6 @@ WriteStatusFile(LPCWSTR updateDirPath, const char* contents,
 }
 
 /**
- * Sets update.status to pending so that the next startup will not use
- * the service and instead will attempt an update the with a UAC prompt.
- *
- * @param  updateDirPath The path of the update directory
- * @return TRUE if successful
- */
-BOOL
-WriteStatusPending(LPCWSTR updateDirPath)
-{
-  const char pending[] = "pending";
-  return WriteStatusFile(updateDirPath, pending,
-                         sizeof(pending) - 1);
-}
-
-/**
  * Sets update.status to applied so that the next startup will not use
  * the service and instead will attempt an update the with a UAC prompt.
  *
@@ -482,36 +450,6 @@ WriteStatusApplied(LPCWSTR updateDirPath)
   const char applied[] = "applied";
   return WriteStatusFile(updateDirPath, applied,
                          sizeof(applied) - 1);
-}
-
-/**
- * Sets update.status to a specific failure code
- *
- * @param  updateDirPath The path of the update directory
- * @return TRUE if successful
- */
-BOOL
-WriteStatusFailure(LPCWSTR updateDirPath, int errorCode) 
-{
-  PRUnichar updateStatusFilePath[MAX_PATH + 1];
-  wcscpy(updateStatusFilePath, updateDirPath);
-  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
-    return FALSE;
-  }
-
-  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
-                                      NULL, CREATE_ALWAYS, 0, NULL));
-  if (statusFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
-  char failure[32];
-  sprintf(failure, "failed: %d", errorCode);
-
-  DWORD toWrite = strlen(failure);
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, failure, 
-                      toWrite, &wrote, NULL); 
-  return ok && wrote == toWrite;
 }
 
 /**
