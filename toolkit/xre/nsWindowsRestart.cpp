@@ -47,6 +47,7 @@
 #endif
 
 #include "nsUTF8Utils.h"
+#include "nsWindowsHelpers.h"
 
 #include <shellapi.h>
 #include <shlwapi.h>

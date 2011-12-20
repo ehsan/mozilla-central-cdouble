@@ -38,6 +38,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include "shlobj.h"
+#include "updatehelper.h"
 
 // Needed for PathAppendW
 #include <shlwapi.h>
@@ -45,7 +46,6 @@
 
 WCHAR*
 MakeCommandLine(int argc, WCHAR **argv);
-BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);
 
 /**
  * Obtains the path of a file in the same directory as the specified file.
