@@ -1657,7 +1657,7 @@ WriteStatusFile(int status)
     if (sBackgroundUpdate) {
 #if defined(XP_WIN)
       bool launchedFromService =
-        GetEnvironmentVariableW(L"MOZ_UPDATE_USE_SERVICE", NULL, 0);
+        GetEnvironmentVariableW(L"MOZ_USING_SERVICE", NULL, 0);
       text = launchedFromService ?
         "applied-service\n" : "applied\n";
 #else
