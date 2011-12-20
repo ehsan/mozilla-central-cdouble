@@ -2094,11 +2094,6 @@ int NS_main(int argc, NS_tchar **argv)
 #endif
 #endif
 
-  if (!WriteStatusApplying()) {
-    LOG(("failed setting status to 'applying'\n"));
-    return 1;
-  }
-
 #ifdef XP_WIN
   // Remove everything except close window from the context menu
   {
@@ -2141,6 +2136,11 @@ int NS_main(int argc, NS_tchar **argv)
   NS_tchar *slash = NS_tstrrchr(gDestinationPath, NS_SLASH);
   if (slash && !slash[1]) {
     *slash = NS_T('\0');
+  }
+
+  if (!WriteStatusApplying()) {
+    LOG(("failed setting status to 'applying'\n"));
+    return 1;
   }
 
 #ifdef XP_WIN
