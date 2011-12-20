@@ -2063,9 +2063,6 @@ int NS_main(int argc, NS_tchar **argv)
     return 1;
   }
 
-  // The directory containing the update information.
-  gSourcePath = argv[1];
-
   // ----------------------------------------------------------------------------
   // XXX ehsan: this stuff needs to be tested with background updates!
   // ----------------------------------------------------------------------------
