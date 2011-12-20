@@ -622,16 +622,9 @@ SwitchToUpdatedApp(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile
 #if defined(USE_EXECV)
   execv(updaterPath.get(), argv);
 #elif defined(XP_WIN)
-  // Launch the update operation using the service if the status file said so.
-  // We also set the status to pending to ensure we never attempt to use the
-  // service more than once in a row for a single update.
-  if (!isAppliedService ||
-      !WriteStatusApplied(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
-      !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
-    // Launch the update using updater.exe
-    if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
-      return;
-    }
+  // Switch the application using updater.exe
+  if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
+    return;
   }
   _exit(0);
 #elif defined(XP_MACOSX)
