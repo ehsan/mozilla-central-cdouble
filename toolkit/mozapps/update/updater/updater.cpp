@@ -2092,9 +2092,7 @@ int NS_main(int argc, NS_tchar **argv)
   }
 
 #endif
-#endif
 
-#ifdef XP_WIN
   // Remove everything except close window from the context menu
   {
     HKEY hkApp;
