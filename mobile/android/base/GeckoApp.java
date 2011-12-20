@@ -121,6 +121,7 @@ abstract public class GeckoApp
 
     public static BrowserToolbar mBrowserToolbar;
     public static DoorHangerPopup mDoorHangerPopup;
+    public static AutoCompletePopup mAutoCompletePopup;
     public Favicons mFavicons;
 
     private Geocoder mGeocoder;
@@ -456,11 +457,13 @@ abstract public class GeckoApp
         MenuItem forward = aMenu.findItem(R.id.forward);
         MenuItem share = aMenu.findItem(R.id.share);
         MenuItem agentMode = aMenu.findItem(R.id.agent_mode);
+        MenuItem saveAsPDF = aMenu.findItem(R.id.save_as_pdf);
 
         if (tab == null) {
             bookmark.setEnabled(false);
             forward.setEnabled(false);
             share.setEnabled(false);
+            saveAsPDF.setEnabled(false);
             return true;
         }
         
@@ -481,7 +484,11 @@ abstract public class GeckoApp
 
         // Don't share about:, chrome: and file: URIs
         String scheme = Uri.parse(tab.getURL()).getScheme();
-        share.setEnabled(!scheme.equals("about") && !scheme.equals("chrome") && !scheme.equals("file"));
+        share.setEnabled(!(scheme.equals("about") || scheme.equals("chrome") || scheme.equals("file")));
+
+        // Disable save as PDF for about:home and xul pages
+        saveAsPDF.setEnabled(!(tab.getURL().equals("about:home") ||
+                               tab.getContentType().equals("application/vnd.mozilla.xul+xml")));
 
         return true;
     }
@@ -667,7 +674,8 @@ abstract public class GeckoApp
         tab.setFaviconLoadId(id);
     }
 
-    void handleLocationChange(final int tabId, final String uri) {
+    void handleLocationChange(final int tabId, final String uri,
+                              final String documentURI, final String contentType) {
         final Tab tab = Tabs.getInstance().getTab(tabId);
         if (tab == null)
             return;
@@ -681,6 +689,8 @@ abstract public class GeckoApp
         
         String oldBaseURI = tab.getURL();
         tab.updateURL(uri);
+        tab.setDocumentURI(documentURI);
+        tab.setContentType(contentType);
 
         String baseURI = uri;
         if (baseURI.indexOf('#') != -1)
@@ -848,8 +858,10 @@ abstract public class GeckoApp
             } else if (event.equals("Content:LocationChange")) {
                 final int tabId = message.getInt("tabID");
                 final String uri = message.getString("uri");
+                final String documentURI = message.getString("documentURI");
+                final String contentType = message.getString("contentType");
                 Log.i(LOGTAG, "URI - " + uri);
-                handleLocationChange(tabId, uri);
+                handleLocationChange(tabId, uri, documentURI, contentType);
             } else if (event.equals("Content:SecurityChange")) {
                 final int tabId = message.getInt("tabID");
                 final String mode = message.getString("mode");
@@ -902,7 +914,6 @@ abstract public class GeckoApp
                 setLaunchState(GeckoApp.LaunchState.GeckoRunning);
                 GeckoAppShell.sendPendingEventsToGecko();
                 connectGeckoLayerClient();
-                Looper.myQueue().addIdleHandler(new UpdateIdleHandler());
             } else if (event.equals("ToggleChrome:Hide")) {
                 mMainHandler.post(new Runnable() {
                     public void run() {
@@ -915,6 +926,23 @@ abstract public class GeckoApp
                         mBrowserToolbar.setVisibility(View.VISIBLE);
                     }
                 });
+            } else if (event.equals("FormAssist:AutoComplete")) {
+                final JSONArray suggestions = message.getJSONArray("suggestions");
+                if (suggestions.length() == 0) {
+                    mMainHandler.post(new Runnable() {
+                        public void run() {
+                            mAutoCompletePopup.hide();
+                        }
+                    });
+                } else {
+                    final JSONArray rect = message.getJSONArray("rect");
+                    final double zoom = message.getDouble("zoom");
+                    mMainHandler.post(new Runnable() {
+                        public void run() {
+                            mAutoCompletePopup.show(suggestions, rect, zoom);
+                        }
+                    });
+                }
             } else if (event.equals("AgentMode:Changed")) {
                 Tab.AgentMode agentMode = message.getString("agentMode").equals("mobile") ? Tab.AgentMode.MOBILE : Tab.AgentMode.DESKTOP;
                 int tabId = message.getInt("tabId");
@@ -948,6 +976,7 @@ abstract public class GeckoApp
         }
 
         public void run() {
+            mAutoCompletePopup.hide();
             if (mAboutHomeContent == null) {
                 mAboutHomeContent = (AboutHomeContent) findViewById(R.id.abouthome_content);
                 mAboutHomeContent.init(GeckoApp.mAppContext);
@@ -1049,6 +1078,7 @@ abstract public class GeckoApp
 
         mMainHandler.post(new Runnable() { 
             public void run() {
+                mAutoCompletePopup.hide();
                 if (Tabs.getInstance().isSelectedTab(tab)) {
                     mBrowserToolbar.setTitle(tab.getDisplayTitle());
                     mBrowserToolbar.setFavicon(tab.getFavicon());
@@ -1314,6 +1344,7 @@ abstract public class GeckoApp
         mMainLayout = (LinearLayout) findViewById(R.id.main_layout);
 
         mDoorHangerPopup = new DoorHangerPopup(this);
+        mAutoCompletePopup = (AutoCompletePopup) findViewById(R.id.autocomplete_popup);
 
         Tabs tabs = Tabs.getInstance();
         Tab tab = tabs.getSelectedTab();
@@ -1405,6 +1436,7 @@ abstract public class GeckoApp
         GeckoAppShell.registerGeckoEventListener("ToggleChrome:Hide", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("ToggleChrome:Show", GeckoApp.mAppContext);
         GeckoAppShell.registerGeckoEventListener("AgentMode:Changed", GeckoApp.mAppContext);
+        GeckoAppShell.registerGeckoEventListener("FormAssist:AutoComplete", GeckoApp.mAppContext);
 
         mConnectivityFilter = new IntentFilter();
         mConnectivityFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
@@ -1420,7 +1452,32 @@ abstract public class GeckoApp
         mSmsReceiver = new GeckoSmsManager();
         registerReceiver(mSmsReceiver, smsFilter);
 
-        final GeckoApp self = this; 
+        final GeckoApp self = this;
+ 
+        mMainHandler.postDelayed(new Runnable() {
+            public void run() {
+                
+                Log.w(LOGTAG, "zerdatime " + new Date().getTime() + " - pre checkLaunchState");
+
+                /*
+                  XXXX see bug 635342
+                   We want to disable this code if possible.  It is about 145ms in runtime
+                SharedPreferences settings = getPreferences(Activity.MODE_PRIVATE);
+                String localeCode = settings.getString(getPackageName() + ".locale", "");
+                if (localeCode != null && localeCode.length() > 0)
+                    GeckoAppShell.setSelectedLocale(localeCode);
+                */
+
+                if (!checkLaunchState(LaunchState.Launched)) {
+                    return;
+                }
+
+                // it would be good only to do this if MOZ_UPDATER was defined 
+                long startTime = new Date().getTime();
+                checkAndLaunchUpdate();
+                Log.w(LOGTAG, "checking for an update took " + (new Date().getTime() - startTime) + "ms");
+            }
+        }, 50);
     }
 
     /**
@@ -1608,6 +1665,7 @@ abstract public class GeckoApp
         GeckoAppShell.unregisterGeckoEventListener("ToggleChrome:Hide", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("ToggleChrome:Show", GeckoApp.mAppContext);
         GeckoAppShell.unregisterGeckoEventListener("AgentMode:Changed", GeckoApp.mAppContext);
+        GeckoAppShell.unregisterGeckoEventListener("FormAssist:AutoComplete", GeckoApp.mAppContext);
 
         mFavicons.close();
 
@@ -1631,7 +1689,10 @@ abstract public class GeckoApp
     public void onConfigurationChanged(android.content.res.Configuration newConfig)
     {
         Log.i(LOGTAG, "configuration changed");
-        // nothing, just ignore
+
+        // hide the autocomplete list on rotation
+        mAutoCompletePopup.hide();
+
         super.onConfigurationChanged(newConfig);
     }
 
@@ -1683,21 +1744,6 @@ abstract public class GeckoApp
 
     public void handleNotification(String action, String alertName, String alertCookie) {
         GeckoAppShell.handleNotification(action, alertName, alertCookie);
-    }
-
-    // it would be good only to do this if MOZ_UPDATER was defined 
-    private class UpdateIdleHandler implements MessageQueue.IdleHandler {
-        public boolean queueIdle() {
-            mMainHandler.post(new Runnable() {
-                    public void run() {
-                        long startTime = new Date().getTime();
-                        checkAndLaunchUpdate();
-                        Log.w(LOGTAG, "checking for an update took " + (new Date().getTime() - startTime) + "ms");
-                    }
-                });
-            // only need to run this once.
-            return false;
-        }
     }
 
     private void checkAndLaunchUpdate() {
