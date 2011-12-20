@@ -557,6 +557,56 @@ let gServiceLaunchedCallbackLog = null;
 let gServiceLaunchedCallbackArgs = null;
 
 /**
+ * Helper function to check whether the maintenance service updater tests should
+ * run. See bug 711660 for more details.
+ *
+ * @return true if the test should run and false if it shouldn't.
+ */
+function shouldRunServiceTest() {
+  const REG_PATH = "SOFTWARE\\Mozilla\\MaintenanceService\\" +
+                   "3932ecacee736d366d6436db0f55bce4";
+
+  let key = AUS_Cc["@mozilla.org/windows-registry-key;1"].
+            createInstance(AUS_Ci.nsIWindowsRegKey);
+  try {
+    key.open(AUS_Ci.nsIWindowsRegKey.ROOT_KEY_LOCAL_MACHINE, REG_PATH,
+             AUS_Ci.nsIWindowsRegKey.ACCESS_READ | key.WOW64_64);
+  }
+  catch (e) {
+    logTestInfo("this test can only run on the buildbot build system at this " +
+                "time.");
+    return false;
+  }
+
+  let binDir = getGREDir();
+  let updaterBin = binDir.clone();
+  updaterBin.append(UPDATER_BIN_FILE);
+  if (!updaterBin.exists()) {
+    do_throw("Unable to find updater binary!");
+  }
+
+  let updaterBinPath = updaterBin.path;
+  if (/ /.test(updaterBinPath)) {
+    updaterBinPath = '"' + updaterBinPath + '"';
+  }
+
+  let helperBin = do_get_file(HELPER_BIN_FILE);
+  let args = ["check-signature", updaterBinPath];
+  let process = AUS_Cc["@mozilla.org/process/util;1"].
+                createInstance(AUS_Ci.nsIProcess);
+  process.init(helperBin);
+  process.run(true, args, args.length);
+
+  if (process.exitValue == 0) {
+    return true;
+  }
+
+  logTestInfo("this test can only run on builds with signed binaries. " +
+              HELPER_BIN_FILE + " returned " + process.exitValue)
+  return false;
+}
+
+/**
  * Helper function for updater tests for launching the updater using the
  * maintenance service to apply a mar file.
  *
@@ -597,14 +647,29 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
       let appBinCopy = getCurrentProcessDir();
       appBinCopy.append(FILE_WIN_TEST_EXE);
       if (appBinCopy.exists()) {
-        appBinCopy.remove(false);
+        try {
+          appBinCopy.remove(false);
+        }
+        catch (e) {
+          logTestInfo("unable to remove file during cleanup. Exception: " + e);
+        }
       }
 
       // This will delete the app console log file if it exists.
-      getAppConsoleLogPath();
+      try {
+        getAppConsoleLogPath();
+      }
+      catch (e) {
+        logTestInfo("unable to remove file during cleanup. Exception: " + e);
+      }
 
       // This will delete the app arguments log file if it exists.
-      getAppArgsLogPath();
+      try {
+        getAppArgsLogPath();
+      }
+      catch (e) {
+        logTestInfo("unable to remove file during cleanup. Exception: " + e);
+      }
     });
   }
 
@@ -649,6 +714,21 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
 
   setEnvironment();
 
+  // There is a security check done by the service to make sure the updater 
+  // we are executing is the same as the one in the apply-to dir. 
+  // To make sure they match from tests we copy updater.exe to the apply-to dir.
+  let binDir = getGREDir();
+  let updater = binDir.clone();
+  updater.append(UPDATER_BIN_FILE);
+  if (!updater.exists()) {
+    do_throw("Unable to find updater binary!");
+  }
+  let applyToUpdater = getApplyDirFile(null, true);
+  if (applyToUpdater.path != binDir.path) {
+    do_print("copying " + updater.path + " to: " + applyToUpdater.path);
+    updater.copyTo(applyToUpdater, UPDATER_BIN_FILE);
+  }
+
   // We can't get sync behavior here since Firefox does not wait for the
   // process launched through the service to finish.  Since the service
   // launches the updater in the background, providing an observer argument
@@ -665,7 +745,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     if (aExpectedStatus == STATE_FAILED) {
       status = status.split(": ")[0];
     }
-    if (status == STATE_PENDING) {
+    // status will probably always be equal to STATE_APPLYING but there is a
+    // race condition where it would be possible on slower machines where status
+    // could be equal to STATE_PENDING_SVC.
+    if (status == STATE_APPLYING || 
+        status == STATE_PENDING_SVC) {
       logTestInfo("Still waiting to see the " + aExpectedStatus +
                   " status, got " + status + " for now...");
       return;
@@ -1784,6 +1868,9 @@ function setEnvironment() {
                 gEnvAppDirOverride + "\n");
     env.set("MOZ_UPDATE_APPDIR_OVERRIDE", gEnvAppDirOverride);
   }
+
+  logTestInfo("setting MOZ_NO_SERVICE_FALLBACK environment variable to 1");
+  env.set("MOZ_NO_SERVICE_FALLBACK", "1");
 }
 
 /**
@@ -1858,4 +1945,7 @@ function resetEnvironment() {
     env.set("MOZ_UPDATE_APPDIR_OVERRIDE", "");
     gEnvAppDirOverride = null;
   }
+
+  logTestInfo("removing MOZ_NO_SERVICE_FALLBACK environment variable");
+  env.set("MOZ_NO_SERVICE_FALLBACK", "");
 }

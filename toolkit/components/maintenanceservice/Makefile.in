@@ -49,13 +49,10 @@ CPPSRCS = \
   certificatecheck.cpp \
   servicebase.cpp \
   registrycertificates.cpp \
-  pathhash.cpp \
   $(NULL)
 
 # For debugging purposes only
-DEFINES += -DDISABLE_CALLBACK_AUTHENTICODE_CHECK \
-#  -DDISABLE_SERVICE_AUTHENTICODE_CHECK \
-  $(NULL)
+#DEFINES += -DDISABLE_UPDATER_AUTHENTICODE_CHECK
 
 PROGRAM = maintenanceservice$(BIN_SUFFIX)
 DIST_PROGRAM = maintenanceservice$(BIN_SUFFIX)

@@ -2,9 +2,9 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-/* File in use inside removed dir complete MAR file patch apply success test */
+/* Application in use complete MAR file patch apply failure test */
 
-const TEST_ID = "0182_svc";
+const TEST_ID = "0160_svc";
 
 // The files are listed in the same order as they are applied from the mar's
 // update.manifest. Complete updates have remove file and rmdir directory
@@ -119,7 +119,7 @@ const TEST_FILES = [
   relPathDir       : "a/b/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : HELPER_BIN_FILE,
+  originalFile     : "data/partial_in_use_win_before.exe",
   compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
@@ -135,7 +135,7 @@ const TEST_FILES = [
   relPathDir       : "a/b/0/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : HELPER_BIN_FILE,
+  originalFile     : "data/partial_in_use_win_after.exe",
   compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
@@ -181,39 +181,32 @@ const TEST_FILES = [
 
 ADDITIONAL_TEST_DIRS = [
 {
-  description  : "Removed by precomplete (rmdir)",
+  description  : "Removed for complete update (rmdir)",
   relPathDir   : "a/b/2/20/",
   dirRemoved   : true
 }, {
-  description  : "Removed by precomplete (rmdir)",
+  description  : "Removed for complete update (rmdir)",
   relPathDir   : "a/b/2/",
   dirRemoved   : true
 }];
 
 function run_test() {
+  if (!shouldRunServiceTest()) {
+    return;
+  }
+
   do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
   setupUpdaterTest(MAR_COMPLETE_FILE);
 
-  let fileInUseBin = getApplyDirFile(TEST_DIRS[4].relPathDir +
-                                     TEST_DIRS[4].subDirs[0] +
-                                     TEST_DIRS[4].subDirFiles[0]);
-  // Remove the empty file created for the test so the helper application can
-  // replace it.
-  fileInUseBin.remove(false);
-
-  let helperBin = do_get_file(HELPER_BIN_FILE);
-  let fileInUseDir = getApplyDirFile(TEST_DIRS[4].relPathDir +
-                                    TEST_DIRS[4].subDirs[0]);
-  helperBin.copyTo(fileInUseDir, TEST_DIRS[4].subDirFiles[0]);
-
-  // Launch an existing file so it is in use during the update
+  // Launch the callback helper application so it is in use during the update
+  let callbackApp = getApplyDirFile("a/b/" + gCallbackBinFile);
   let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "20"];
-  let fileInUseProcess = AUS_Cc["@mozilla.org/process/util;1"].
-                         createInstance(AUS_Ci.nsIProcess);
-  fileInUseProcess.init(fileInUseBin);
-  fileInUseProcess.run(false, args, args.length);
+  let callbackAppProcess = AUS_Cc["@mozilla.org/process/util;1"].
+                           createInstance(AUS_Ci.nsIProcess);
+  callbackAppProcess.init(callbackApp);
+  callbackAppProcess.run(false, args, args.length);
 
   do_timeout(TEST_HELPER_TIMEOUT, waitForHelperSleep);
 }
@@ -230,14 +223,16 @@ function checkUpdateApplied() {
 function checkUpdate() {
   logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
+  // The update status format for a failure is failed: # where # is the error
+  // code for the failure.
+  do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_SUCCEEDED);
 
   checkFilesAfterUpdateSuccess();
-  checkUpdateLogContains(ERR_BACKUP_DISCARD);
+  checkUpdateLogContents(LOG_COMPLETE_SUCCESS);
 
-  logTestInfo("testing tobedeleted directory exists");
+  logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
-  do_check_true(toBeDeletedDir.exists());
+  do_check_false(toBeDeletedDir.exists());
 
   checkCallbackServiceLog();
 }

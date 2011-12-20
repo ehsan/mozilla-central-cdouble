@@ -49,5 +49,16 @@
 #define WRITE_ERROR 7
 #define UNEXPECTED_ERROR 8
 #define ELEVATION_CANCELED 9
+#define CERT_LOAD_ERROR 10
+#define CERT_HANDLING_ERROR 11
+#define CERT_VERIFY_ERROR 12
+
+// The following error codes are only used by updater.exe
+// when a fallback key exists and XPCShell tests are being run.
+#define FALLBACKKEY_UNKNOWN_ERROR 100
+#define FALLBACKKEY_REGPATH_ERROR 101
+#define FALLBACKKEY_NOKEY_ERROR 102
+#define FALLBACKKEY_EVENT_ERROR 103
+#define FALLBACKKEY_LAUNCH_ERROR 104
 
 #endif  // Errors_h__

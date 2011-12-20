@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is common code between maintenanceservice and updater
+ * The Original Code is for Maintenance service path hashing 
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -28,23 +28,34 @@
  * of those above. If you wish to allow use of your version of this file only
  * under the terms of either the GPL or the LGPL, and not to allow others to
  * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
+ * decision by deleting the provisions /PGM and replace them with the notice
  * and other provisions required by the GPL or the LGPL. If you do not delete
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifndef _PATHHASH_H_
+#define _PATHHASH_H_
+
 /**
- * Launch the post update application as the specified user (helper.exe).
- * It takes in the path of the callback application to calculate the path
- * of helper.exe
+ * Converts a file path into a unique registry location for cert storage
  *
- * @param  appExe       The path to the callback application binary.
- * @param  userToken    The user token to run as, if NULL the current user
- *         will be used.
- * @param updateInfoDir The directory where update info is stored.
- */
-void LaunchWinPostProcess(const WCHAR *appExe, 
-                          const WCHAR *updateInfoDir, 
-                          HANDLE userToken);
+ * @param  filePath     The input file path to get a registry path from
+ * @param  registryPath A buffer to write the registry path to, must 
+ *                      be of size in WCHARs MAX_PATH + 1
+ * @return TRUE if successful
+*/
+BOOL CalculateRegistryPathFromFilePath(const LPCWSTR filePath, 
+                                       LPWSTR registryPath);
+
+// The test only fallback key, as its name implies, is only present on machines
+// that will use automated tests.  Since automated tests always run from a 
+// different directory for each test, the presence of this key bypasses the
+// "This is a valid installation directory" check.  This key also stores
+// the allowed name and issuer for cert checks so that the cert check
+// code can still be run unchanged.
+#define TEST_ONLY_FALLBACK_KEY_PATH \
+  L"SOFTWARE\\Mozilla\\MaintenanceService\\3932ecacee736d366d6436db0f55bce4"
+
+#endif

@@ -56,7 +56,6 @@ PARALLEL_DIRS = \
   mozapps/shared \
   mozapps/update \
   mozapps/webapps \
-  components \
   obsolete \
   profile \
   themes \

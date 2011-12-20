@@ -2,26 +2,23 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-/* Channel change complete MAR file patch apply test */
+/* File in use complete MAR file patch apply success test */
 
-const TEST_ID = "0120_svc";
-// All we care about is that the last modified time has changed so that Mac OS
-// X Launch Services invalidates its cache so the test allows up to one minute
-// difference in the last modified time.
-const MAX_TIME_DIFFERENCE = 60000;
+const TEST_ID = "0180_svc";
 
-// The files are in the same order as they are applied from the mar
+// The files are listed in the same order as they are applied from the mar's
+// update.manifest. Complete updates have remove file and rmdir directory
+// operations located in the precomplete file performed first.
 const TEST_FILES = [
 {
-  description      : "Added by update.manifest (add-cc)",
+  description      : "Only added by update.manifest for complete updates " +
+                     "when there is a channel change (add-cc)",
   fileName         : "channel-prefs.js",
   relPathDir       : "a/b/defaults/pref/",
-  originalContents : "ToBeReplacedWithFromComplete\n",
-  compareContents  : "FromComplete\n",
+  originalContents : "ShouldNotBeReplaced\n",
+  compareContents  : "ShouldNotBeReplaced\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : 0767,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "precomplete",
@@ -29,9 +26,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_precomplete",
-  compareFile      : "data/complete_precomplete",
-  originalPerms    : 0755,
-  comparePerms     : 0644
+  compareFile      : "data/complete_precomplete"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "searchpluginstext0",
@@ -39,9 +34,7 @@ const TEST_FILES = [
   originalContents : "ToBeReplacedWithFromComplete\n",
   compareContents  : "FromComplete\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : 0775,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "searchpluginspng1.png",
@@ -49,9 +42,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png",
-  originalPerms    : null,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "searchpluginspng0.png",
@@ -59,9 +50,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial.png",
-  compareFile      : "data/complete.png",
-  originalPerms    : 0666,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "removed-files",
@@ -69,9 +58,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_removed-files",
-  compareFile      : "data/complete_removed-files",
-  originalPerms    : 0666,
-  comparePerms     : 0644
+  compareFile      : "data/complete_removed-files"
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -80,9 +67,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : "FromComplete\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : null,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -91,9 +76,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial.png",
-  compareFile      : "data/complete.png",
-  originalPerms    : 0666,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -102,9 +85,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png",
-  originalPerms    : null,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -113,9 +94,7 @@ const TEST_FILES = [
   originalContents : "ToBeReplacedWithFromComplete\n",
   compareContents  : "FromComplete\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : null,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -124,9 +103,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png",
-  originalPerms    : null,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest if the parent directory " +
                      "exists (add-if)",
@@ -135,19 +112,15 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png",
-  originalPerms    : null,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "exe0.exe",
   relPathDir       : "a/b/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial.png",
-  compareFile      : "data/complete.png",
-  originalPerms    : 0777,
-  comparePerms     : 0755
+  originalFile     : HELPER_BIN_FILE,
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "10text0",
@@ -155,19 +128,15 @@ const TEST_FILES = [
   originalContents : "ToBeReplacedWithFromComplete\n",
   compareContents  : "FromComplete\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : 0767,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
-  description      : "Added by update.manifest (add)",
+  description      : "Added by update.manifest (add) file in use",
   fileName         : "0exe0.exe",
   relPathDir       : "a/b/0/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial.png",
-  compareFile      : "data/complete.png",
-  originalPerms    : 0777,
-  comparePerms     : 0755
+  originalFile     : HELPER_BIN_FILE,
+  compareFile      : "data/complete.png"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "00text1",
@@ -175,9 +144,7 @@ const TEST_FILES = [
   originalContents : "ToBeReplacedWithFromComplete\n",
   compareContents  : "FromComplete\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : 0677,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "00text0",
@@ -185,9 +152,7 @@ const TEST_FILES = [
   originalContents : "ToBeReplacedWithFromComplete\n",
   compareContents  : "FromComplete\n",
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : 0775,
-  comparePerms     : 0644
+  compareFile      : null
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "00png0.png",
@@ -195,9 +160,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : null,
-  compareFile      : "data/complete.png",
-  originalPerms    : 0776,
-  comparePerms     : 0644
+  compareFile      : "data/complete.png"
 }, {
   description      : "Removed by precomplete (remove)",
   fileName         : "20text0",
@@ -205,9 +168,7 @@ const TEST_FILES = [
   originalContents : "ToBeDeleted\n",
   compareContents  : null,
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : null,
-  comparePerms     : null
+  compareFile      : null
 }, {
   description      : "Removed by precomplete (remove)",
   fileName         : "20png0.png",
@@ -215,9 +176,7 @@ const TEST_FILES = [
   originalContents : "ToBeDeleted\n",
   compareContents  : null,
   originalFile     : null,
-  compareFile      : null,
-  originalPerms    : null,
-  comparePerms     : null
+  compareFile      : null
 }];
 
 ADDITIONAL_TEST_DIRS = [
@@ -232,33 +191,47 @@ ADDITIONAL_TEST_DIRS = [
 }];
 
 function run_test() {
+  if (!shouldRunServiceTest()) {
+    return;
+  }
+
   do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
   setupUpdaterTest(MAR_COMPLETE_FILE);
 
-  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
+  // Launch an existing file so it is in use during the update
+  let fileInUseBin = getApplyDirFile(TEST_FILES[14].relPathDir +
+                                     TEST_FILES[14].fileName);
+  let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "20"];
+  let fileInUseProcess = AUS_Cc["@mozilla.org/process/util;1"].
+                         createInstance(AUS_Ci.nsIProcess);
+  fileInUseProcess.init(fileInUseBin);
+  fileInUseProcess.run(false, args, args.length);
 
-  // Check that trying to change channels for a complete update changes the
-  // update channel (the channel-prefs.js file should be updated).
-  let channelchange = updatesDir.clone();
-  channelchange.append(CHANNEL_CHANGE_FILE);
-  channelchange.create(AUS_Ci.nsIFile.FILE_TYPE, PERMS_FILE);
+  do_timeout(TEST_HELPER_TIMEOUT, waitForHelperSleep);
+}
 
+function doUpdate() {
+  // apply the complete mar
   runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
 }
 
 function checkUpdateApplied() {
+  setupHelperFinish();
+}
+
+function checkUpdate() {
   logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
 
   checkFilesAfterUpdateSuccess();
-  checkUpdateLogContents(LOG_COMPLETE_CC_SUCCESS);
+  checkUpdateLogContains(ERR_BACKUP_DISCARD);
 
-  logTestInfo("testing tobedeleted directory doesn't exist");
+  logTestInfo("testing tobedeleted directory exists");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
-  do_check_false(toBeDeletedDir.exists());
+  do_check_true(toBeDeletedDir.exists());
 
   checkCallbackServiceLog();
 }

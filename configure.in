@@ -6355,7 +6355,7 @@ dnl ========================================================
 MOZ_ARG_ENABLE_BOOL(maintenance-service,
 [  --enable-maintenance-service       Enable building of maintenanceservice],
     MOZ_MAINTENANCE_SERVICE=1,
-    MOZ_MAINTENANCE_SERVICER= )
+    MOZ_MAINTENANCE_SERVICE= )
 
 if test -n "$MOZ_MAINTENANCE_SERVICE"; then
   if test "$OS_ARCH" = "WINNT"; then

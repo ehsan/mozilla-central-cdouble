@@ -749,12 +749,6 @@ else
 endif # DMG
 endif # MOZ_PKG_MANIFEST
 endif # UNIVERSAL_BINARY
-ifdef MOCO_SIGNED_UPDATER_EXE
-	@echo "Replacing in-tree updater.exe with external signed binary from $(MOCO_SIGNED_UPDATER_EXE)"
-	(cd $(DIST)/$(MOZ_PKG_DIR) && $(WGET) -nv -N  "$(MOCO_SIGNED_UPDATER_EXE)")
-# Verify that the updater is signed.
-	signtool verify -pa -v $(DIST)/$(MOZ_PKG_DIR)/updater.exe
-endif
 	$(OPTIMIZE_JARS_CMD) --optimize $(JARLOG_DIR_AB_CD) $(DIST)/bin/chrome $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/chrome
 ifndef PKG_SKIP_STRIP
   ifeq ($(OS_ARCH),OS2)

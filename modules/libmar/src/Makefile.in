@@ -53,12 +53,16 @@ endif
 
 # This makefile just builds support for reading archives.
 
-CSRCS		= \
+
+HOST_CSRCS	= \
 		mar_create.c \
 		mar_extract.c \
 		mar_read.c \
 		$(NULL)
-HOST_CSRCS	= $(CSRCS)
+
+CSRCS		= \
+		$(HOST_CSRCS) \
+		$(NULL)
 
 EXPORTS		= \
 		mar.h \

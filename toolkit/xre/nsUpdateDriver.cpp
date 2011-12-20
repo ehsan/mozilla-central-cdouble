@@ -249,24 +249,6 @@ GetUpdateStatus(nsIFile* dir, nsCOMPtr<nsILocalFile> &statusFile)
 }
 
 static bool
-SetStatusApplying(nsILocalFile *statusFile)
-{
-  PRFileDesc *fd = nsnull;
-  nsresult rv = statusFile->OpenNSPRFileDesc(PR_WRONLY | 
-                                             PR_TRUNCATE | 
-                                             PR_CREATE_FILE, 
-                                             0660, &fd);
-  if (NS_FAILED(rv))
-    return false;
-
-  static const char kApplying[] = "applying\n";
-  PR_Write(fd, kApplying, sizeof(kApplying) - 1);
-  PR_Close(fd);
-
-  return true;
-}
-
-static bool
 GetVersionFile(nsIFile *dir, nsCOMPtr<nsILocalFile> &result)
 {
   return GetFile(dir, NS_LITERAL_CSTRING("update.version"), result);
@@ -797,10 +779,11 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   if (NS_FAILED(rv))
     return;
 
-  if (!SetStatusApplying(statusFile)) {
-    LOG(("failed setting status to 'applying'\n"));
-    return;
-  }
+  // We used to write out "Applying" to the update.status file here.
+  // Instead we do this from within the updater application now.
+  // This is so that we don't overwrite the status of pending-service
+  // in the Windows case.  This change was made for all platforms so
+  // that it stays consistent across all OS.
 
   // Construct the PID argument for this process.  If we are using execv, then
   // we pass "0" which is then ignored by the updater.
@@ -852,11 +835,10 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   }
 #elif defined(XP_WIN)
 
-#ifndef MOZ_MAINTENANCE_SERVICE
-  // We never want the service to be used unless we have Firefox
-  isPendingService = false;
-#endif
-
+  // ----------------------------------------------------------------------------
+  // XXX ehsan this needs to be inspected.
+  // ----------------------------------------------------------------------------
+#if 0
   // Launch the update operation using the service if the status file said so.
   // We also set the status to pending to ensure we never attempt to use the 
   // service more than once in a row for a single update.
@@ -897,6 +879,12 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
       return;
     }
+  }
+#endif
+
+  // Launch the update using updater.exe
+  if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
+    return;
   }
 
   if (outpid) {
@@ -957,7 +945,7 @@ ProcessUpdates(nsIFile *greDir, nsIFile *appDir, nsIFile *updRootDir,
   rv = updatesDir->AppendNative(NS_LITERAL_CSTRING("0"));
   if (NS_FAILED(rv))
     return rv;
-
+ 
   const char *processingUpdates = PR_GetEnv("MOZ_PROCESS_UPDATES");
   if (processingUpdates && *processingUpdates) {
     // Enable the tests to request us to use a different update root directory

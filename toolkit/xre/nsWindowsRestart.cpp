@@ -47,7 +47,6 @@
 #endif
 
 #include "nsUTF8Utils.h"
-#include "nsWindowsHelpers.h"
 
 #include <shellapi.h>
 #include <shlwapi.h>
@@ -58,25 +57,9 @@
 #include <userenv.h>
 #include <aclapi.h>
 
-#pragma comment(lib, "shlwapi.lib")
-#pragma comment(lib, "rpcrt4.lib")
+// Needed for CreateEnvironmentBlock
+#include <userenv.h>
 #pragma comment(lib, "userenv.lib")
-
-#ifndef ERROR_ELEVATION_REQUIRED
-#define ERROR_ELEVATION_REQUIRED 740L
-#endif
-
-BOOL (WINAPI *pCreateProcessWithTokenW)(HANDLE,
-                                        DWORD,
-                                        LPCWSTR,
-                                        LPWSTR,
-                                        DWORD,
-                                        LPVOID,
-                                        LPCWSTR,
-                                        LPSTARTUPINFOW,
-                                        LPPROCESS_INFORMATION);
-
-BOOL (WINAPI *pIsUserAnAdmin)(VOID);
 
 /**
  * Get the length that the string will take and takes into account the
@@ -605,8 +588,9 @@ WinLaunchChild(const PRUnichar *exePath,
   BOOL ok;
 
   cl = MakeCommandLine(argc, argv);
-  if (!cl)
+  if (!cl) {
     return FALSE;
+  }
 
   STARTUPINFOW si = {0};
   si.cb = sizeof(STARTUPINFOW);
@@ -642,7 +626,7 @@ WinLaunchChild(const PRUnichar *exePath,
 #ifdef DEBUG
                               CREATE_NEW_CONSOLE |
 #endif
-                              CREATE_UNICODE_ENVIRONMENT,
+                              CREATE_UNICODE_ENVIRONMENT,                              
                               environmentBlock,
                               NULL,  // use my current directory
                               &si,

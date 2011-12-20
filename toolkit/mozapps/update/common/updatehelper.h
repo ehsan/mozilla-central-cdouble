@@ -11,7 +11,7 @@
  * for the specific language governing rights and limitations under the
  * License.
  *
- * The Original Code is for Maintenance service path hashing 
+ * The Original Code is common code between maintenanceservice and updater
  *
  * The Initial Developer of the Original Code is
  * Mozilla Foundation.
@@ -28,25 +28,20 @@
  * of those above. If you wish to allow use of your version of this file only
  * under the terms of either the GPL or the LGPL, and not to allow others to
  * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions /PGM and replace them with the notice
+ * decision by deleting the provisions above and replace them with the notice
  * and other provisions required by the GPL or the LGPL. If you do not delete
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _PATHHASH_H_
-#define _PATHHASH_H_
-
-/**
- * Converts a file path into a unique registry location for cert storage
- *
- * @param  filePath     The input file path to get a registry path from
- * @param  registryPath A buffer to write the registry path to, must 
- *         be of size in WCHARs MAX_PATH + 1
- * @return TRUE if successful
-*/
-BOOL CalculateRegistryPathFromFilePath(const LPCWSTR filePath, 
-                                       LPWSTR registryPath);
-
-#endif
+BOOL LaunchWinPostProcess(const WCHAR *installationDir,
+                          const WCHAR *updateInfoDir, 
+                          bool forceSync,
+                          HANDLE userToken);
+BOOL StartServiceUpdate(int argc, LPWSTR *argv);
+BOOL GetUpdateDirectoryPath(LPWSTR path);
+BOOL LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR *argv);
+BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
+BOOL WriteStatusPending(LPCWSTR updateDirPath);
+#define SERVICE_EVENT_NAME L"Global\\moz-5b780de9-065b-4341-a04f-ddd94b3723e5"

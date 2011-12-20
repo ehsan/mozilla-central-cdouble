@@ -2,9 +2,9 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-/* File in use partial MAR file patch apply success test */
+/* Patch app binary partial MAR file patch apply success test */
 
-const TEST_ID = "0181_svc";
+const TEST_ID = "0151_svc";
 const MAR_IN_USE_WIN_FILE = "data/partial_win.mar";
 
 // The files are listed in the same order as they are applied from the mar's
@@ -194,43 +194,31 @@ ADDITIONAL_TEST_DIRS = [
 }];
 
 function run_test() {
+  if (!shouldRunServiceTest()) {
+    return;
+  }
+
   do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
   setupUpdaterTest(MAR_IN_USE_WIN_FILE);
 
-  // Launch an existing file so it is in use during the update
-  let fileInUseBin = getApplyDirFile(TEST_FILES[12].relPathDir +
-                                     TEST_FILES[12].fileName);
-  let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "20"];
-  let fileInUseProcess = AUS_Cc["@mozilla.org/process/util;1"].
-                         createInstance(AUS_Ci.nsIProcess);
-  fileInUseProcess.init(fileInUseBin);
-  fileInUseProcess.run(false, args, args.length);
+  gCallbackBinFile = "exe0.exe";
 
-  do_timeout(TEST_HELPER_TIMEOUT, waitForHelperSleep);
-}
-
-function doUpdate() {
   // apply the complete mar
   runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
 }
 
 function checkUpdateApplied() {
-  setupHelperFinish();
-}
-
-function checkUpdate() {
   logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
   do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
 
   checkFilesAfterUpdateSuccess();
-  checkUpdateLogContains(ERR_BACKUP_DISCARD);
 
-  logTestInfo("testing tobedeleted directory exists");
+  logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
-  do_check_true(toBeDeletedDir.exists());
+  do_check_false(toBeDeletedDir.exists());
 
   checkCallbackServiceLog();
 }

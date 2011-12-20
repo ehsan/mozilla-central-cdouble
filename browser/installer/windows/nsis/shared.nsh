@@ -111,14 +111,31 @@
   Call IsUserAdmin
   Pop $R0
   ${If} $R0 == "true"
+  ; Only proceed if we have HKLM write access
+  ${AndIf} $TmpVal == "HKLM"
   ; On Windows 2000 we do not install the maintenance service.
   ${AndIf} ${AtLeastWinXP}
+    ; Add the registry keys for allowed certificates.
+    ${AddMaintCertKeys}
+
     ; We check to see if the maintenance service install was already attempted.
     ; Since the Maintenance service can be installed either x86 or x64,
     ; always use the 64-bit registry for checking if an attempt was made.
     SetRegView 64
     ReadRegDWORD $5 HKLM "Software\Mozilla\MaintenanceService" "Attempted"
+    ClearErrors
     SetRegView lastused
+
+    ; If the maintenance service is already installed, do nothing.
+    ; The maintenance service will launch:
+    ; maintenanceservice_installer.exe /Upgrade to upgrade the maintenance
+    ; service if necessary.   If the update was done from updater.exe without 
+    ; the service (i.e. service is failing), updater.exe will do the update of 
+    ; the service.  The reasons we do not do it here is because we don't want 
+    ; to have to prompt for limited user accounts when the service isn't used 
+    ; and we currently call the PostUpdate twice, once for the user and once
+    ; for the SYSTEM account.  Also, this would stop the maintenance service
+    ; and we need a return result back to the service when run that way.
     ${If} $5 == ""
       ; An install of maintenance service was never attempted.
       ; We call ExecShell (which is ShellExecute) with the verb "runas"
@@ -463,58 +480,56 @@
 ; Add uninstall registry entries. This macro tests for write access to determine
 ; if the uninstall keys should be added to HKLM or HKCU.
 !macro SetUninstallKeys
-  Call SetUninstallKeysFn
-!macroend
-!define SetUninstallKeys "!insertmacro SetUninstallKeys"
-
-Function SetUninstallKeysFn
   StrCpy $0 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})"
 
+  StrCpy $2 ""
   ClearErrors
   WriteRegStr HKLM "$0" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
     ; If the uninstall keys already exist in HKLM don't create them in HKCU
     ClearErrors
     ReadRegStr $2 "HKLM" $0 "DisplayName"
-    ${If} $2 != ""
-      ClearErrors
-      return
+    ${If} $2 == ""
+      ; Otherwise we don't have any keys for this product in HKLM so proceeed
+      ; to create them in HKCU.  Better handling for this will be done in:
+      ; Bug 711044 - Better handling for 2 uninstall icons
+      StrCpy $1 "HKCU"
+      SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
     ${EndIf}
-
-    ; Otherwise we don't have any keys for this product in HKLM so proceeed
-    ; to create them in HKCU.
-    StrCpy $1 "HKCU"
-    SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
+    ClearErrors
   ${Else}
     StrCpy $1 "HKLM"
     SetShellVarContext all     ; Set SHCTX to all users (e.g. HKLM)
     DeleteRegValue HKLM "$0" "${BrandShortName}InstallerTest"
   ${EndIf}
 
-  ${GetLongPath} "$INSTDIR" $8
+  ${If} $2 == ""
+    ${GetLongPath} "$INSTDIR" $8
 
-  ; Write the uninstall registry keys
-  ${WriteRegStr2} $1 "$0" "Comments" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
-  ${WriteRegStr2} $1 "$0" "DisplayIcon" "$8\${FileMainEXE},0" 0
-  ${WriteRegStr2} $1 "$0" "DisplayName" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
-  ${WriteRegStr2} $1 "$0" "DisplayVersion" "${AppVersion}" 0
-  ${WriteRegStr2} $1 "$0" "InstallLocation" "$8" 0
-  ${WriteRegStr2} $1 "$0" "Publisher" "Mozilla" 0
-  ${WriteRegStr2} $1 "$0" "UninstallString" "$8\uninstall\helper.exe" 0
-  ${WriteRegStr2} $1 "$0" "URLInfoAbout" "${URLInfoAbout}" 0
-  ${WriteRegStr2} $1 "$0" "URLUpdateInfo" "${URLUpdateInfo}" 0
-  ${WriteRegDWORD2} $1 "$0" "NoModify" 1 0
-  ${WriteRegDWORD2} $1 "$0" "NoRepair" 1 0
+    ; Write the uninstall registry keys
+    ${WriteRegStr2} $1 "$0" "Comments" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
+    ${WriteRegStr2} $1 "$0" "DisplayIcon" "$8\${FileMainEXE},0" 0
+    ${WriteRegStr2} $1 "$0" "DisplayName" "${BrandFullNameInternal} ${AppVersion} (${ARCH} ${AB_CD})" 0
+    ${WriteRegStr2} $1 "$0" "DisplayVersion" "${AppVersion}" 0
+    ${WriteRegStr2} $1 "$0" "InstallLocation" "$8" 0
+    ${WriteRegStr2} $1 "$0" "Publisher" "Mozilla" 0
+    ${WriteRegStr2} $1 "$0" "UninstallString" "$8\uninstall\helper.exe" 0
+    ${WriteRegStr2} $1 "$0" "URLInfoAbout" "${URLInfoAbout}" 0
+    ${WriteRegStr2} $1 "$0" "URLUpdateInfo" "${URLUpdateInfo}" 0
+    ${WriteRegDWORD2} $1 "$0" "NoModify" 1 0
+    ${WriteRegDWORD2} $1 "$0" "NoRepair" 1 0
 
-  ${GetSize} "$8" "/S=0K" $R2 $R3 $R4
-  ${WriteRegDWORD2} $1 "$0" "EstimatedSize" $R2 0
+    ${GetSize} "$8" "/S=0K" $R2 $R3 $R4
+    ${WriteRegDWORD2} $1 "$0" "EstimatedSize" $R2 0
 
-  ${If} "$TmpVal" == "HKLM"
-    SetShellVarContext all     ; Set SHCTX to all users (e.g. HKLM)
-  ${Else}
-    SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
+    ${If} "$TmpVal" == "HKLM"
+      SetShellVarContext all     ; Set SHCTX to all users (e.g. HKLM)
+    ${Else}
+      SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
+    ${EndIf}
   ${EndIf}
-FunctionEnd
+!macroend
+!define SetUninstallKeys "!insertmacro SetUninstallKeys"
 
 ; Add app specific handler registry entries under Software\Classes if they
 ; don't exist (does not use SHCTX).
@@ -600,18 +615,16 @@ FunctionEnd
   ServicesHelper::PathToUniqueRegistryPath "$INSTDIR"
   Pop $R0
   ${If} $R0 != ""
-    ; We always use the 64bit registry for certs.
-    ; This call is ignored on 32-bit systems.
     ; More than one certificate can be specified in a different subfolder
     ; for example: $R0\1, but each individual binary can be signed
     ; with at most one certificate.  A fallback certificate can only be used
     ; if the binary is replaced with a different certificate.
+    ; We always use the 64bit registry for certs.
+    ; This call is ignored on 32-bit systems.
     SetRegView 64
-    WriteRegStr HKLM "$R0\0" "name" "Mozilla Corporation"
-    WriteRegStr HKLM "$R0\0" "issuer" "Thawte Code Signing CA - G2"
-    WriteRegStr HKLM "$R0\0" "programName" ""
-    WriteRegStr HKLM "$R0\0" "publisherLink" ""
-    WriteRegStr HKLM "$R0\0" "moreInfoLink" "http://www.mozilla.com"
+    DeleteRegKey HKLM "$R0"
+    WriteRegStr HKLM "$R0\0" "name" "${CERTIFICATE_NAME}"
+    WriteRegStr HKLM "$R0\0" "issuer" "${CERTIFICATE_ISSUER}"
     SetRegView lastused
     ClearErrors
   ${EndIf} 
@@ -1095,10 +1108,6 @@ Function SetAsDefaultAppUserHKCU
   ${EndIf}
   ${RemoveDeprecatedKeys}
   ${PinToTaskBar}
-!ifdef MOZ_MAINTENANCE_SERVICE
-  ; Add the registry keys for allowed certificates.
-  ${AddMaintCertKeys}
-!endif
 FunctionEnd
 
 ; Helper for updating the shortcut application model IDs.

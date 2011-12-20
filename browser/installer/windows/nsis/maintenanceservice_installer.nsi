@@ -1,3 +1,4 @@
+# ***** BEGIN LICENSE BLOCK *****
 # Version: MPL 1.1/GPL 2.0/LGPL 2.1
 #
 # The contents of this file are subject to the Mozilla Public License Version
@@ -51,7 +52,6 @@ RequestExecutionLevel admin
 
 ; Variables
 Var TempMaintServiceName
-Var FallbackKey
 Var BrandFullNameDA
 Var BrandFullName
 
@@ -67,6 +67,12 @@ Var BrandFullName
 !insertmacro GetOptions
 !insertmacro GetParameters
 !insertmacro GetSize
+
+; The test slaves use this fallback key to run tests.
+; And anyone that wants to run tests themselves should already have 
+; this installed.
+!define FallbackKey \
+  "SOFTWARE\Mozilla\MaintenanceService\3932ecacee736d366d6436db0f55bce4"
 
 !define CompanyName "Mozilla Corporation"
 !define BrandFullNameInternal ""
@@ -224,19 +230,13 @@ Section "MaintenanceService"
   SetRegView 64
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
   WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Installed" 1
-  ; The test slaves use this fallback key to run tests.
-  ; And anyone that wants to run tests themselves should already have 
-  ; this installed.
-  StrCpy $FallbackKey \
-    "SOFTWARE\Mozilla\MaintenanceService\3932ecacee736d366d6436db0f55bce4"
-  WriteRegStr HKLM "$FallbackKey\0" "name" "Mozilla Corporation"
-  WriteRegStr HKLM "$FallbackKey\0" "issuer" "Thawte Code Signing CA - G2"
-  SetRegView lastused
 
-  # The Mozilla/updates directory will have an inherited permission
-  # which allows any user to write to it.  Work items are written there.
-  SetShellVarContext all
-  CreateDirectory "$APPDATA\Mozilla\updates"
+  ; Included here for debug purposes only.  
+  ; These keys are used to bypass the installation dir is a valid installation
+  ; check from the service so that tests can be run.
+  ; WriteRegStr HKLM "${FallbackKey}\0" "name" "Mozilla Corporation"
+  ; WriteRegStr HKLM "${FallbackKey}\0" "issuer" "Thawte Code Signing CA - G2"
+  SetRegView lastused
 SectionEnd
 
 ; By renaming before deleting we improve things slightly in case
@@ -273,6 +273,6 @@ Section "Uninstall"
 
   SetRegView 64
   DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
-  DeleteRegKey HKLM "$FallbackKey\"
+  DeleteRegKey HKLM "${FallbackKey}\"
   SetRegView lastused
 SectionEnd

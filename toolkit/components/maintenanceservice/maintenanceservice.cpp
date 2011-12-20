@@ -39,12 +39,13 @@
 #include <shlwapi.h>
 #include <stdio.h>
 #include <wchar.h>
+#include <shlobj.h>
 
 #include "serviceinstall.h"
 #include "maintenanceservice.h"
 #include "servicebase.h"
 #include "workmonitor.h"
-#include "shlobj.h"
+#include "uachelper.h"
 
 SERVICE_STATUS gSvcStatus = { 0 }; 
 SERVICE_STATUS_HANDLE gSvcStatusHandle = NULL; 
@@ -91,7 +92,9 @@ wmain(int argc, WCHAR **argv)
     LOG(("The service was installed successfully\n"));
     LogFinish();
     return 0;
-  } else if (!lstrcmpi(argv[1], L"upgrade")) {
+  } 
+
+  if (!lstrcmpi(argv[1], L"upgrade")) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-install.log");
@@ -106,7 +109,9 @@ wmain(int argc, WCHAR **argv)
     LOG(("The service was upgraded successfully\n"));
     LogFinish();
     return 0;
-  } else if (!lstrcmpi(argv[1], L"uninstall")) {
+  }
+
+  if (!lstrcmpi(argv[1], L"uninstall")) {
     WCHAR updatePath[MAX_PATH + 1];
     if (GetLogDirectoryPath(updatePath)) {
       LogInit(updatePath, L"maintenanceservice-uninstall.log");
@@ -142,16 +147,18 @@ wmain(int argc, WCHAR **argv)
  * @param param Unused thread callback parameter
  */
 DWORD
-WINAPI StartMonitoringThreadProc(LPVOID param) 
+WINAPI StartMaintenanceServiceThread(LPVOID param) 
 {
-  StartDirectoryChangeMonitor();
+  ThreadData *threadData = reinterpret_cast<ThreadData*>(param);
+  ExecuteServiceCommand(threadData->argc, threadData->argv);
+  delete threadData;
   return 0;
 }
 
 /**
  * Obtains the base path where logs should be stored
  *
- * @param  path      The out buffer for the backup log path of size MAX_PATH +1
+ * @param  path The out buffer for the backup log path of size MAX_PATH + 1
  * @return TRUE if successful.
  */
 BOOL
@@ -162,6 +169,7 @@ GetLogDirectoryPath(WCHAR *path)
   if (FAILED(hr)) {
     return FALSE;
   }
+
   if (!PathAppendSafe(path, L"Mozilla")) {
     return FALSE;
   }
@@ -214,12 +222,17 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
   WCHAR oldPath[MAX_PATH + 1];
   WCHAR newPath[MAX_PATH + 1];
   for (int i = numLogsToKeep; i >= 1; i--) {
-    if (!GetBackupLogPath(oldPath, basePath, i -1)) 
+    if (!GetBackupLogPath(oldPath, basePath, i -1)) {
       continue;
-    if (!GetBackupLogPath(newPath, basePath, i))
+    }
+
+    if (!GetBackupLogPath(newPath, basePath, i)) {
       continue;
-    if (!MoveFileEx(oldPath, newPath, MOVEFILE_REPLACE_EXISTING))
+    }
+
+    if (!MoveFileEx(oldPath, newPath, MOVEFILE_REPLACE_EXISTING)) {
       continue;
+    }
   }
 }
 
@@ -235,6 +248,10 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
     BackupOldLogs(updatePath, LOGS_TO_KEEP);
     LogInit(updatePath, L"maintenanceservice.log");
   }
+
+  // Disable every privilege we don't need. Processes started using
+  // CreateProcess will use the same token as this process.
+  UACHelper::DisablePrivileges(NULL);
 
   // Register the handler function for the service
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);
@@ -258,7 +275,7 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
  * Service initialization.
  */
 void
-SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
+SvcInit(DWORD argc, LPWSTR *argv)
 {
   // Create an event. The control handler function, SvcCtrlHandler,
   // signals this event when it receives the stop control code.
@@ -268,9 +285,13 @@ SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
     return;
   }
 
+  ThreadData *threadData = new ThreadData();
+  threadData->argc = argc;
+  threadData->argv = argv;
+
   DWORD threadID;
-  HANDLE thread = CreateThread(NULL, 0, StartMonitoringThreadProc, 0, 
-                               0, &threadID);
+  HANDLE thread = CreateThread(NULL, 0, StartMaintenanceServiceThread, 
+                               threadData, 0, &threadID);
 
   // Report running status when initialization is complete.
   ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
@@ -279,31 +300,6 @@ SvcInit(DWORD dwArgc, LPWSTR *lpszArgv)
   for(;;) {
     // Check whether to stop the service.
     WaitForSingleObject(ghSvcStopEvent, INFINITE);
-
-    WCHAR stopFilePath[MAX_PATH +1];
-    if (!GetUpdateDirectoryPath(stopFilePath)) {
-      LOG(("Could not obtain update directory path, terminating thread "
-           "forcefully.\n"));
-      TerminateThread(thread, 1);
-    }
-
-    // The stop file is to wake up the synchronous call for watching directory
-    // changes. Directory watching will only actually be stopped if 
-    // gServiceStopping is also set to TRUE.
-    gServiceStopping = TRUE;
-    if (!PathAppendSafe(stopFilePath, L"stop")) {
-      TerminateThread(thread, 2);
-    }
-    HANDLE stopFile = CreateFile(stopFilePath, GENERIC_READ, 0, 
-                                 NULL, CREATE_ALWAYS, 0, NULL);
-    if (stopFile == INVALID_HANDLE_VALUE) {
-      LOG(("Could not create stop file, terminating thread forcefully.\n"));
-      TerminateThread(thread, 3);
-    } else {
-      CloseHandle(stopFile);
-      DeleteFile(stopFilePath);
-    }
-
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
     return;
   }

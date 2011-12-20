@@ -73,7 +73,9 @@ IsServiceInstalled(LPCWSTR serviceName, BOOL &exists)
   if (!serviceHandle && GetLastError() != ERROR_SERVICE_DOES_NOT_EXIST) {
     CloseServiceHandle(serviceManager);
     return FALSE;
-  } else if (serviceHandle) {
+  }
+ 
+  if (serviceHandle) {
     CloseServiceHandle(serviceHandle);
     exists = TRUE;
   } 
@@ -89,7 +91,7 @@ IsServiceInstalled(LPCWSTR serviceName, BOOL &exists)
  * @param  variables A pointer to the NSIS variables
  * @return 0 if the service does not exist
  *         1 if the service does exist
- *         1 if there was an error.
+ *         -1 if there was an error.
  */
 extern "C" void __declspec(dllexport)
 IsInstalled(HWND hwndParent, int string_size, 
@@ -107,9 +109,9 @@ IsInstalled(HWND hwndParent, int string_size,
 
   BOOL serviceInstalled;
   if (!IsServiceInstalled(serviceName, serviceInstalled)) {
-    pushstring(stacktop, L"-1", 3);
+    pushstring(stacktop, TEXT("-1"), 3);
   } else {
-    pushstring(stacktop, serviceInstalled ? L"1" : L"0", 2);
+    pushstring(stacktop, serviceInstalled ? TEXT("1") : TEXT("0"), 2);
   }
 }
 
@@ -149,8 +151,8 @@ StopService(LPCWSTR serviceName)
       // + 10 milliseconds to make sure we always approach maxWaitTime
       totalWaitTime += (status.dwWaitHint + 10);
       if (status.dwCurrentState == SERVICE_STOPPED) {
-        break;
         stopped = true;
+        break;
       } else if (totalWaitTime > maxWaitTime) {
         break;
       }
@@ -185,9 +187,9 @@ Stop(HWND hwndParent, int string_size,
 #endif
 
   if (StopService(serviceName)) {
-    pushstring(stacktop, L"1", 2);
+    pushstring(stacktop, TEXT("1"), 2);
   } else {
-    pushstring(stacktop, L"0", 2);
+    pushstring(stacktop, TEXT("0"), 2);
   }
 }
 
@@ -217,7 +219,7 @@ PathToUniqueRegistryPath(HWND hwndParent, int string_size,
   if (CalculateRegistryPathFromFilePath(installBasePath, registryPath)) {
     pushstring(stacktop, registryPath, wcslen(registryPath) + 1);
   } else {
-    pushstring(stacktop, L"", 1);
+    pushstring(stacktop, TEXT(""), 1);
   }
 }
 

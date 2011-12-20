@@ -2,9 +2,10 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-/* Application in use complete MAR file patch apply failure test */
+/* Replace app binary complete MAR file patch apply success test */
 
-const TEST_ID = "0160_svc";
+const TEST_ID = "0150_svc";
+const MAR_COMPLETE_WIN_FILE = "data/complete_win.mar";
 
 // The files are listed in the same order as they are applied from the mar's
 // update.manifest. Complete updates have remove file and rmdir directory
@@ -119,8 +120,8 @@ const TEST_FILES = [
   relPathDir       : "a/b/",
   originalContents : null,
   compareContents  : null,
-  originalFile     : "data/partial_in_use_win_before.exe",
-  compareFile      : "data/complete.png"
+  originalFile     : "data/partial_in_use_win_after.exe",
+  compareFile      : "data/partial_in_use_win_before.exe"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "10text0",
@@ -136,7 +137,7 @@ const TEST_FILES = [
   originalContents : null,
   compareContents  : null,
   originalFile     : "data/partial_in_use_win_after.exe",
-  compareFile      : "data/complete.png"
+  compareFile      : "data/partial_in_use_win_before.exe"
 }, {
   description      : "Added by update.manifest (add)",
   fileName         : "00text1",
@@ -181,50 +182,37 @@ const TEST_FILES = [
 
 ADDITIONAL_TEST_DIRS = [
 {
-  description  : "Removed for complete update (rmdir)",
+  description  : "Removed by precomplete (rmdir)",
   relPathDir   : "a/b/2/20/",
   dirRemoved   : true
 }, {
-  description  : "Removed for complete update (rmdir)",
+  description  : "Removed by precomplete (rmdir)",
   relPathDir   : "a/b/2/",
   dirRemoved   : true
 }];
 
 function run_test() {
+  if (!shouldRunServiceTest()) {
+    return;
+  }
+
   do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
-  setupUpdaterTest(MAR_COMPLETE_FILE);
+  setupUpdaterTest(MAR_COMPLETE_WIN_FILE);
 
-  // Launch the callback helper application so it is in use during the update
-  let callbackApp = getApplyDirFile("a/b/" + gCallbackBinFile);
-  let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "20"];
-  let callbackAppProcess = AUS_Cc["@mozilla.org/process/util;1"].
-                           createInstance(AUS_Ci.nsIProcess);
-  callbackAppProcess.init(callbackApp);
-  callbackAppProcess.run(false, args, args.length);
+  gCallbackBinFile = "exe0.exe";
 
-  do_timeout(TEST_HELPER_TIMEOUT, waitForHelperSleep);
-}
-
-function doUpdate() {
   // apply the complete mar
   runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied);
 }
 
 function checkUpdateApplied() {
-  setupHelperFinish();
-}
-
-function checkUpdate() {
   logTestInfo("testing update.status should be " + STATE_SUCCEEDED);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  // The update status format for a failure is failed: # where # is the error
-  // code for the failure.
-  do_check_eq(readStatusFile(updatesDir).split(": ")[0], STATE_SUCCEEDED);
+  do_check_eq(readStatusFile(updatesDir), STATE_SUCCEEDED);
 
   checkFilesAfterUpdateSuccess();
-  checkUpdateLogContents(LOG_COMPLETE_SUCCESS);
 
   logTestInfo("testing tobedeleted directory doesn't exist");
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);

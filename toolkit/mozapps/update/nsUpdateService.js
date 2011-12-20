@@ -140,10 +140,14 @@ const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
 
 // From updater/errors.h:
-const WRITE_ERROR          = 7;
-const ELEVATION_CANCELED   = 9;
-const UNEXPECTED_ERROR     = 8;
-const SERVICE_UPDATE_ERROR = 16000;
+const WRITE_ERROR        = 7;
+const UNEXPECTED_ERROR   = 8;
+const ELEVATION_CANCELED = 9;
+const SERVICE_UPDATER_COULD_NOT_BE_STARTED = 16000;
+const SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS = 16001;
+const SERVICE_UPDATER_SIGN_ERROR           = 16002;
+const SERVICE_UPDATER_COMPARE_ERROR        = 16003;
+const SERVICE_UPDATER_IDENTITY_ERROR       = 16004;
 
 const CERT_ATTR_CHECK_FAILED_NO_UPDATE  = 100;
 const CERT_ATTR_CHECK_FAILED_HAS_UPDATE = 101;
@@ -155,7 +159,7 @@ const DOWNLOAD_FOREGROUND_INTERVAL  = 0;
 
 const UPDATE_WINDOW_NAME      = "Update:Wizard";
 
-//  The number of consecutive failures when updating using the service before
+// The number of consecutive failures when updating using the service before
 // setting the app.update.service.enabled preference to false.
 const DEFAULT_SERVICE_MAX_ERRORS = 10;
 
@@ -1452,11 +1456,17 @@ UpdateService.prototype = {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
+
         if (update.errorCode == ELEVATION_CANCELED) {
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;
         }
-        if (update.errorCode == SERVICE_UPDATE_ERROR) {
+
+        if (update.errorCode == SERVICE_UPDATER_COULD_NOT_BE_STARTED ||
+            update.errorCode == SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS ||
+            update.errorCode == SERVICE_UPDATER_SIGN_ERROR ||
+            update.errorCode == SERVICE_UPDATER_COMPARE_ERROR ||
+            update.errorCode == SERVICE_UPDATER_IDENTITY_ERROR) {
           var failCount = getPref("getIntPref", 
                                   PREF_APP_UPDATE_SERVICE_ERRORS, 0);
           var maxFail = getPref("getIntPref", 
@@ -1467,13 +1477,13 @@ UpdateService.prototype = {
           // disable itself and fallback to using the normal update mechanism
           // without the service.
           if (failCount >= maxFail) {
-            failCount = 0;
             Services.prefs.setBoolPref(PREF_APP_UPDATE_SERVICE_ENABLED, false);
+            Services.prefs.clearUserPref(PREF_APP_UPDATE_SERVICE_ERRORS);
           } else {
             failCount++;
+            Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
+                                      failCount);
           }
-          Services.prefs.setIntPref(PREF_APP_UPDATE_SERVICE_ERRORS, 
-                                    failCount);
 
           writeStatusFile(getUpdatesDir(), update.state = STATE_PENDING);
           return;

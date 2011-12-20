@@ -39,8 +39,9 @@
 #define nsWindowsHelpers_h
 
 #include "nsAutoRef.h"
+#include "nscore.h"
 
-NS_SPECIALIZE_TEMPLATE
+template<>
 class nsAutoRefTraits<HKEY>
 {
 public:
@@ -58,7 +59,7 @@ public:
   }
 };
 
-NS_SPECIALIZE_TEMPLATE
+template<>
 class nsAutoRefTraits<SC_HANDLE>
 {
 public:
@@ -76,7 +77,7 @@ public:
   }
 };
 
-NS_SPECIALIZE_TEMPLATE
+template<>
 class nsSimpleRef<HANDLE>
 {
 protected:
@@ -103,7 +104,7 @@ public:
 
   static void Release(RawRef aRawRef) 
   {
-    if(aRawRef != NULL && aRawRef != INVALID_HANDLE_VALUE) {
+    if (aRawRef != NULL && aRawRef != INVALID_HANDLE_VALUE) {
       CloseHandle(aRawRef);
     }
   }

@@ -2,9 +2,9 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-/* File in use complete MAR file patch apply success test */
+/* File in use inside removed dir complete MAR file patch apply success test */
 
-const TEST_ID = "0180_svc";
+const TEST_ID = "0182_svc";
 
 // The files are listed in the same order as they are applied from the mar's
 // update.manifest. Complete updates have remove file and rmdir directory
@@ -191,14 +191,28 @@ ADDITIONAL_TEST_DIRS = [
 }];
 
 function run_test() {
+  if (!shouldRunServiceTest()) {
+    return;
+  }
+
   do_test_pending();
   do_register_cleanup(cleanupUpdaterTest);
 
   setupUpdaterTest(MAR_COMPLETE_FILE);
 
+  let fileInUseBin = getApplyDirFile(TEST_DIRS[4].relPathDir +
+                                     TEST_DIRS[4].subDirs[0] +
+                                     TEST_DIRS[4].subDirFiles[0]);
+  // Remove the empty file created for the test so the helper application can
+  // replace it.
+  fileInUseBin.remove(false);
+
+  let helperBin = do_get_file(HELPER_BIN_FILE);
+  let fileInUseDir = getApplyDirFile(TEST_DIRS[4].relPathDir +
+                                    TEST_DIRS[4].subDirs[0]);
+  helperBin.copyTo(fileInUseDir, TEST_DIRS[4].subDirFiles[0]);
+
   // Launch an existing file so it is in use during the update
-  let fileInUseBin = getApplyDirFile(TEST_FILES[14].relPathDir +
-                                     TEST_FILES[14].fileName);
   let args = [getApplyDirPath() + "a/b/", "input", "output", "-s", "20"];
   let fileInUseProcess = AUS_Cc["@mozilla.org/process/util;1"].
                          createInstance(AUS_Ci.nsIProcess);

@@ -110,9 +110,9 @@ SvcInstall(SvcInstallAction action)
   }
 
   WCHAR newServiceBinaryPath[MAX_PATH + 1];
-  if(!GetModuleFileNameW(NULL, newServiceBinaryPath, 
-                         sizeof(newServiceBinaryPath) / 
-                         sizeof(newServiceBinaryPath[0]))) {
+  if (!GetModuleFileNameW(NULL, newServiceBinaryPath, 
+                          sizeof(newServiceBinaryPath) / 
+                          sizeof(newServiceBinaryPath[0]))) {
     LOG(("Could not obtain module filename when attempting to "
          "install service. (%d)\n",
          GetLastError()));
@@ -130,7 +130,7 @@ SvcInstall(SvcInstallAction action)
     return FALSE;
   }
   
-  if(schService) {
+  if (schService) {
     // The service exists and we opened it
     DWORD bytesNeeded;
     if (!QueryServiceConfigW(schService, NULL, 0, &bytesNeeded) && 
@@ -162,7 +162,7 @@ SvcInstall(SvcInstallAction action)
       GetVersionNumberFromPath(serviceConfig.lpBinaryPathName, 
                                existingA, existingB, 
                                existingC, existingD);
-    if(!GetVersionNumberFromPath(newServiceBinaryPath, newA, 
+    if (!GetVersionNumberFromPath(newServiceBinaryPath, newA, 
                                  newB, newC, newD)) {
       LOG(("Could not obtain version number from new path\n"));
       return FALSE;
@@ -315,7 +315,7 @@ SvcUninstall()
 
   // Delete the service or mark it for deletion
   BOOL deleted = DeleteService(schService);
-  if(!deleted) {
+  if (!deleted) {
     deleted = (GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE);
   }
 
