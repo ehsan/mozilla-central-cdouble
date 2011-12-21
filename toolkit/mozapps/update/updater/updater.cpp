@@ -1588,7 +1588,10 @@ PatchIfFile::Finish(int status)
 #endif
 
 static void
-LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
+LaunchCallbackApp(const NS_tchar *workingDir, 
+                  int argc, 
+                  NS_tchar **argv, 
+                  bool usingService)
 {
   putenv(const_cast<char*>("NO_EM_RESTART="));
   putenv(const_cast<char*>("MOZ_LAUNCHED_CHILD=1"));
@@ -1607,7 +1610,6 @@ LaunchCallbackApp(const NS_tchar *workingDir, int argc, NS_tchar **argv)
 #elif defined(XP_WIN)
   // Do not allow the callback to run when running an update through the
   // service as session 0.  The unelevated updater.exe will do the launching.
-  LPCWSTR usingService = _wgetenv(L"MOZ_USING_SERVICE");
   if (!usingService) {
     WinLaunchChild(argv[0], argc, argv, NULL);
   }
@@ -2075,7 +2077,8 @@ int NS_main(int argc, NS_tchar **argv)
 
   bool useService = false;
   bool testOnlyFallbackKeyExists = false;
-  LPCWSTR runningAsTest = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK");
+  bool noServiceFallback = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK") != NULL;
+  _wputenv(L"MOZ_NO_SERVICE_FALLBACK=");
 
   // We never want the service to be used unless we build with
   // the maintenance service.
@@ -2178,7 +2181,8 @@ int NS_main(int argc, NS_tchar **argv)
   const int callbackIndex = 5;
 
 #if defined(XP_WIN)
-  LPCWSTR usingService = _wgetenv(L"MOZ_USING_SERVICE");
+  bool usingService = _wgetenv(L"MOZ_USING_SERVICE") != NULL;
+  _wputenv(L"MOZ_USING_SERVICE=");
   // lastFallbackError keeps track of the last error for the service not being 
   // used, in case of an error when fallback is not enabled we write the 
   // error to the update.status file. 
@@ -2241,7 +2245,7 @@ int NS_main(int argc, NS_tchar **argv)
                  NS_T("%s/update_elevated.lock"), gSourcePath);
 
     if (updateLockFileHandle == INVALID_HANDLE_VALUE || 
-        (useService && testOnlyFallbackKeyExists && runningAsTest)) {
+        (useService && testOnlyFallbackKeyExists && noServiceFallback)) {
       if (!_waccess(elevatedLockFilePath, F_OK) &&
           NS_tremove(elevatedLockFilePath) != 0) {
         LOG(("Update already elevated! Exiting\n"));
@@ -2352,7 +2356,8 @@ int NS_main(int argc, NS_tchar **argv)
       // We don't launch the elevated updater in the case that we did have
       // write access all along because in that case the only reason we're
       // using the service is because we are testing. 
-      if (!useService && updateLockFileHandle == INVALID_HANDLE_VALUE) {
+      if (!useService && !noServiceFallback && 
+          updateLockFileHandle == INVALID_HANDLE_VALUE) {
         SHELLEXECUTEINFO sinfo;
         memset(&sinfo, 0, sizeof(SHELLEXECUTEINFO));
         sinfo.cbSize       = sizeof(SHELLEXECUTEINFO);
@@ -2377,12 +2382,14 @@ int NS_main(int argc, NS_tchar **argv)
       }
 
       if (argc > callbackIndex && !usingService) {
-        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+        LaunchCallbackApp(argv[4], argc - callbackIndex,
+                          argv + callbackIndex, false);
       }
 
       CloseHandle(elevatedFileHandle);
 
-      if (!useService && INVALID_HANDLE_VALUE == updateLockFileHandle) {
+      if (!useService && !noServiceFallback &&
+          INVALID_HANDLE_VALUE == updateLockFileHandle) {
         // We didn't use the service and we did run the elevated updater.exe.
         // The elevated updater.exe is responsible for writing out the
         // update.status file.
@@ -2504,7 +2511,8 @@ int NS_main(int argc, NS_tchar **argv)
       WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
       if (argc > callbackIndex) {
-        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+        LaunchCallbackApp(argv[4], argc - callbackIndex,
+                          argv + callbackIndex, usingService);
       }
       return 1;
     }
@@ -2572,7 +2580,8 @@ int NS_main(int argc, NS_tchar **argv)
         WriteStatusFile(WRITE_ERROR);
         NS_tremove(gCallbackBackupPath);
         EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
-        LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+        LaunchCallbackApp(argv[4], argc - callbackIndex,
+                          argv + callbackIndex, usingService);
         return 1;
       }
     }
@@ -2655,7 +2664,10 @@ int NS_main(int argc, NS_tchar **argv)
       LaunchMacPostProcess(argv[callbackIndex]);
     }
 #endif /* XP_MACOSX */
-    LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+    LaunchCallbackApp(argv[4], 
+                      argc - callbackIndex, 
+                      argv + callbackIndex, 
+                      usingService);
   }
 
   return gSucceeded ? 0 : 1;

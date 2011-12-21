@@ -30,9 +30,6 @@ function run_test() {
 
   setupUpdaterTest(MAR_COMPLETE_FILE);
 
-  let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  let applyToDir = getApplyDirFile();
-
   // apply the complete mar
   runUpdateUsingService(STATE_PENDING_SVC, STATE_SUCCEEDED, checkUpdateApplied, null, false);
 }
@@ -40,4 +37,9 @@ function run_test() {
 function checkUpdateApplied() {
   checkFilesAfterUpdateSuccess();
   do_test_finished();
+
+  // We need to check the service log even though this is a bootstrap
+  // because the app bin could be in use by this test by the time the next
+  // test runs.
+  checkCallbackServiceLog();
 }

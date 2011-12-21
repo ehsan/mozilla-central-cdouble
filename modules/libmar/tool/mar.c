@@ -61,8 +61,7 @@ static void print_usage() {
          "archive.mar out_signed_archive.mar\n");
 
 #if defined(XP_WIN) && !defined(MAR_NSS)
-  printf("  mar [-C workingDir] -d DERFilePath -n certname "
-         "-v signed_archive.mar\n");
+  printf("  mar [-C workingDir] -D DERFilePath -v signed_archive.mar\n");
 #else 
   printf("  mar [-C workingDir] -d NSSConfigDir -n certname "
     "-v signed_archive.mar\n");
@@ -94,11 +93,12 @@ static int mar_test(const char *path) {
 int main(int argc, char **argv) {
   char *NSSConfigDir = NULL;
   char *certName = NULL;
-#if defined(XP_WIN) && !defined(MAR_NSS)
+#if defined(XP_WIN) && !defined(MAR_NSS) && !defined(NO_SIGN_VERIFY)
   HANDLE certFile;
   DWORD fileSize;
   DWORD read;
   char *certBuffer;
+  char *DERFilePath = NULL;
 #endif
 
   if (argc < 3) {
@@ -112,17 +112,26 @@ int main(int argc, char **argv) {
         argv[1][1] == 'v' || argv[1][1] == 's')) {
       break;
     /* -C workingdirectory */
-    } else if(argv[1][0] == '-' && argv[1][1] == 'C') {
+    } else if (argv[1][0] == '-' && argv[1][1] == 'C') {
       chdir(argv[2]);
       argv += 2;
       argc -= 2;
+    } 
+#if defined(XP_WIN) && !defined(MAR_NSS) && !defined(NO_SIGN_VERIFY)
+    /* -D DERFilePath */
+    else if (argv[1][0] == '-' && argv[1][1] == 'D') {
+      DERFilePath = argv[2];
+      argv += 2;
+      argc -= 2;
+    }
+#endif
     /* -d NSSConfigdir */
-    } else if(argv[1][0] == '-' && argv[1][1] == 'd') {
+    else if (argv[1][0] == '-' && argv[1][1] == 'd') {
       NSSConfigDir = argv[2];
       argv += 2;
       argc -= 2;
-    /* -n certName */
-    } else if(argv[1][0] == '-' && argv[1][1] == 'n') {
+     /* -n certName */
+    } else if (argv[1][0] == '-' && argv[1][1] == 'n') {
       certName = argv[2];
       argv += 2;
       argc -= 2;
@@ -147,15 +156,15 @@ int main(int argc, char **argv) {
 
 #ifndef NO_SIGN_VERIFY
   case 'v':
-    if (!NSSConfigDir || !certName) {
+
+#if defined(XP_WIN) && !defined(MAR_NSS)
+    if (!DERFilePath) {
       print_usage();
       return -1;
     }
-
-#if defined(XP_WIN) && !defined(MAR_NSS)
     /* If the mar program was built using CryptoAPI, then read in the buffer
        containing the cert. */
-    certFile = CreateFileA(NSSConfigDir, GENERIC_READ, 
+    certFile = CreateFileA(DERFilePath, GENERIC_READ, 
                            FILE_SHARE_READ | 
                            FILE_SHARE_WRITE | 
                            FILE_SHARE_DELETE, 
@@ -176,22 +185,27 @@ int main(int argc, char **argv) {
     CloseHandle(certFile);
 
     /* If we compiled with CryptoAPI load the cert from disk.
-       The path to the cert was passed in the -d parameter */
+       The path to the cert was passed in the -D parameter */
     if (mar_verify_signature(argv[2], certBuffer, fileSize, 
-                              NULL, certName)) {
+                              NULL, NULL)) {
       free(certBuffer);
       return -1;
     } 
 
     free(certBuffer);
     return 0;
-#else    
+#else
+    if (!NSSConfigDir || !certName) {
+      print_usage();
+      return -1;
+    }
+
     return mar_verify_signature(argv[2], NULL, 0, 
                                 NSSConfigDir, certName);
 
 #endif /* defined(XP_WIN) && !defined(MAR_NSS) */
   case 's':
-    if (!NSSConfigDir  || !certName || argc < 4) {
+    if (!NSSConfigDir || !certName || argc < 4) {
       print_usage();
       return -1;
     }

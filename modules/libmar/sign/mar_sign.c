@@ -45,10 +45,7 @@
 #include "mar.h"
 #include "mar_private.h"
 #include "cryptox.h"
-#ifdef XP_WIN
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
+#ifndef XP_WIN
 #include <unistd.h>
 #endif
 
@@ -68,7 +65,7 @@ int NSSInitCryptoContext(const char *NSSConfigDir)
                                     "", "", SECMOD_DB, NSS_INIT_READONLY);
   if (SECSuccess != status) {
     fprintf(stderr, "ERROR: Could not initialize NSS\n");
-    return 1;
+    return -1;
   }
 
   PK11_SetPasswordFunc(SECU_GetModulePassword);
@@ -88,12 +85,10 @@ int NSSSignBegin(const char *certName,
                  PRUint32 *signatureLength) 
 {
   secuPWData pwdata = { PW_NONE, 0 };
-  if (!privKey || !cert || !signatureLength) {
+  if (!certName || !ctx || !privKey || !cert || !signatureLength) {
     fprintf(stderr, "ERROR: Invalid parameter passed to NSSSignBegin\n");
     return -1;
   }
-
-  *signatureLength = XP_SIGNATURE_LEN;
 
   /* Get the cert and embedded public key out of the database */
   *cert = PK11_FindCertFromNickname(certName, &pwdata);
@@ -109,9 +104,20 @@ int NSSSignBegin(const char *certName,
     return -1;
   }
 
-  /* Check that the key length is >= 2048 bits (256 bytes) */
-  if (PK11_SignatureLen(*privKey) < 256) {
-    fprintf(stderr, "ERROR: Signature length must be >= 2048 bits\n");
+  *signatureLength = PK11_SignatureLen(*privKey);
+
+  if (*signatureLength > BLOCKSIZE) {
+    fprintf(stderr, 
+            "ERROR: Program must be compiled with a larger block size"
+            " to support signing with signatures this large: %u.\n", 
+            *signatureLength);
+    return -1;
+  }
+
+  /* Check that the key length is large enough for our requirements */
+  if (PK11_SignatureLen(*privKey) < XP_MIN_SIGNATURE_LEN_IN_BYTES) {
+    fprintf(stderr, "ERROR: Key length must be >= %d bytes\n", 
+            XP_MIN_SIGNATURE_LEN_IN_BYTES);
     return -1;
   }
 
@@ -153,7 +159,7 @@ int WriteAndUpdateSignature(FILE *fpDest, void *buffer,
     fprintf(stderr, "ERROR: Could not write %s\n", err);
     return -2;
   }
-  if (SGN_Update(ctx, (char*)buffer, size) != SECSuccess) {
+  if (SGN_Update(ctx, (const unsigned char *)buffer, size) != SECSuccess) {
     fprintf(stderr, "ERROR: Could not update signature context for %s\n", err);
     return -3;
   }
@@ -161,7 +167,7 @@ int WriteAndUpdateSignature(FILE *fpDest, void *buffer,
 }
 
 /**
- * Writes the passed buffer to the file fp and updates the signature context.
+ * Reads from fpSrc, writes it to fpDest, and updates the signature context.
  *
  * @param  fpSrc  The file pointer to read from.
  * @param  fpDest The file pointer to write to.
@@ -193,8 +199,8 @@ int ReadWriteAndUpdateSignature(FILE *fpSrc, FILE *fpDest, void *buffer,
 
 /** 
  * Writes out a copy of the MAR at src but with an embedded signature.
- * If the MAR at src already contains signatures, they are stripped
- * and replaced with a newly calculated signature.
+ * The passed in MAR file must not already be signed or an error will 
+ * be returned.
  *
  * @param  NSSConfigDir The NSS directory containing the private key for signing
  * @param  certName     The nickname of the certificate to use for signing
@@ -209,11 +215,11 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
 {
   PRUint32 offsetToIndex, dstOffsetToIndex, indexLength, 
     numSignatures = 0, signatureLength,
-    signatureAlgorithmID, *offsetToContent, i, oldMar, oldPos,
+    signatureAlgorithmID, *offsetToContent, i, oldPos,
     signatureSectionLength, numChunks, leftOver, signaturePlaceholderOffset;
-  PRUint64 sizeOfEntireMARField = 0, realSizeOfSrcMAR;
+  PRUint64 sizeOfEntireMAR = 0, realSizeOfSrcMAR;
   FILE *fpSrc = NULL, *fpDest = NULL;
-  int rv = -1;
+  int rv = -1, oldMar;
   SGNContext *ctx = NULL;
   SECItem secItem;
   char buf[BLOCKSIZE];
@@ -225,6 +231,7 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
     fprintf(stderr, "ERROR: Could not init config dir: %s\n", NSSConfigDir);
     return -1;
   }
+
   if (NSSSignBegin(certName, &ctx, &privKey, &cert, &signatureLength)) {
     fprintf(stderr, "ERROR: NSSSignBegin failed\n");
     return -1;
@@ -260,6 +267,7 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
     fprintf(stderr, "ERROR: Could not read offset\n");
     goto failure;
   }
+  offsetToIndex = ntohl(offsetToIndex);
 
   /* Get the real size of the MAR */
   oldPos = ftell(fpSrc);
@@ -275,13 +283,13 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
 
   if (!oldMar) {
     /* Get the MAR length and adjust its size */
-    if (fread(&sizeOfEntireMARField, 
-              sizeof(sizeOfEntireMARField), 1, fpSrc) != 1) {
+    if (fread(&sizeOfEntireMAR, 
+              sizeof(sizeOfEntireMAR), 1, fpSrc) != 1) {
       fprintf(stderr, "ERROR: Could read mar size\n");
       goto failure;
     }
-    sizeOfEntireMARField = NETWORK_TO_HOST64(sizeOfEntireMARField);
-    if (sizeOfEntireMARField != realSizeOfSrcMAR) {
+    sizeOfEntireMAR = NETWORK_TO_HOST64(sizeOfEntireMAR);
+    if (sizeOfEntireMAR != realSizeOfSrcMAR) {
       fprintf(stderr, "ERROR: Source MAR is not of the right size\n");
       goto failure;
     }
@@ -299,7 +307,12 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
       goto failure;
     }
   } else {
-    sizeOfEntireMARField = sizeOfEntireMARField;
+    sizeOfEntireMAR = realSizeOfSrcMAR;
+  }
+
+  if (offsetToIndex > sizeOfEntireMAR) {
+    fprintf(stderr, "ERROR: Offset to index is larger than the file size.\n");
+    goto failure;
   }
 
   /* Write out the new offset to the index */
@@ -307,10 +320,9 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
                            sizeof(signatureLength) +
                            signatureLength;
   dstOffsetToIndex = offsetToIndex;
-  dstOffsetToIndex = ntohl(dstOffsetToIndex);
   dstOffsetToIndex += signatureSectionLength;
   if (oldMar) {
-    dstOffsetToIndex += sizeof(sizeOfEntireMARField) + sizeof(numSignatures);
+    dstOffsetToIndex += sizeof(sizeOfEntireMAR) + sizeof(numSignatures);
   }
 
   /* Write out the index offset */
@@ -322,17 +334,18 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
   dstOffsetToIndex = ntohl(dstOffsetToIndex);
 
   /* Write out the new MAR file size */
-  sizeOfEntireMARField += signatureSectionLength;
+  sizeOfEntireMAR += signatureSectionLength;
   if (oldMar) {
-    sizeOfEntireMARField += sizeof(sizeOfEntireMARField) + sizeof(numSignatures);
+    sizeOfEntireMAR += sizeof(sizeOfEntireMAR) + sizeof(numSignatures);
   }
-  sizeOfEntireMARField = HOST_TO_NETWORK64(sizeOfEntireMARField);
 
   /* Write out the MAR size */
-  if (WriteAndUpdateSignature(fpDest, &sizeOfEntireMARField, 
-                              sizeof(sizeOfEntireMARField), ctx, "size of MAR")) {
+  sizeOfEntireMAR = HOST_TO_NETWORK64(sizeOfEntireMAR);
+  if (WriteAndUpdateSignature(fpDest, &sizeOfEntireMAR, 
+                              sizeof(sizeOfEntireMAR), ctx, "size of MAR")) {
     goto failure;
   }
+  sizeOfEntireMAR = NETWORK_TO_HOST64(sizeOfEntireMAR);
 
   /* Write out the number of signatures, for now only 1 is supported */
   numSignatures = 1;
@@ -352,7 +365,7 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
   }
   signatureAlgorithmID = ntohl(signatureAlgorithmID);
 
-  /* Write out the signature, length */
+  /* Write out the signature length */
   signatureLength = htonl(signatureLength);
   if (WriteAndUpdateSignature(fpDest, &signatureLength, 
                               sizeof(signatureLength), 
@@ -361,11 +374,11 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
   }
   signatureLength = ntohl(signatureLength);
 
-
   /* Write out a placeholder for the signature, we'll come back to this later
      *** THIS IS NOT SIGNED because it is a placeholder that will be replaced
          below, plus it is going to be the signature itself. ***
   */
+  memset(buf, 0, sizeof(buf));
   signaturePlaceholderOffset = ftell(fpDest);
   if (fwrite(buf, signatureLength, 1, fpDest) != 1) {
     fprintf(stderr, "ERROR: Could not write signature length\n");
@@ -373,7 +386,7 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
   }
 
   /* Write out the rest of the MAR excluding the index header and index */
-  offsetToIndex = ntohl(offsetToIndex) - ftell(fpSrc);
+  offsetToIndex -= ftell(fpSrc);
   numChunks = offsetToIndex / BLOCKSIZE;
   leftOver = offsetToIndex % BLOCKSIZE;
 
@@ -409,10 +422,10 @@ int mar_repackage_and_sign(const char *NSSConfigDir,
     /* Adjust the offset */
     offsetToContent = (PRUint32 *)indexBufLoc; 
     *offsetToContent = ntohl(*offsetToContent);
-    *offsetToContent += signatureSectionLength;
     if (oldMar) {
-      *offsetToContent += sizeof(sizeOfEntireMARField) + sizeof(numSignatures);
+      *offsetToContent += sizeof(sizeOfEntireMAR) + sizeof(numSignatures);
     }
+    *offsetToContent += signatureSectionLength;
     *offsetToContent = htonl(*offsetToContent);
     /* Skip past the offset, length, and flags */
     indexBufLoc += 3 * sizeof(PRUint32);
@@ -452,24 +465,31 @@ failure:
   if (fpSrc) {
     fclose(fpSrc);
   }
+
   if (fpDest) {
     fclose(fpDest);
   }
+
   if (rv) {
     remove(dest);
   }
+
   if (indexBuf) { 
     free(indexBuf);
   }
+
   if (ctx) {
     SGN_DestroyContext(ctx, PR_TRUE);
   }
+
   if (cert) {
     CERT_DestroyCertificate(cert);
   }
+
   if (privKey) {
     SECKEY_DestroyPrivateKey(privKey);
   }
+
   if (rv) {
     remove(dest);
   }

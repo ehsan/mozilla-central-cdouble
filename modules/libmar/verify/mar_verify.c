@@ -71,7 +71,7 @@ int IsOldMAR(FILE *fp, int *oldMar);
  * @param  fp     The file pointer to read from.
  * @param  buffer The buffer to store the read results.
  * @param  size   The number of bytes to read, buffer must be 
- *         at least of this size.
+ *                at least of this size.
  * @param  ctx    The verify context.
  * @param  err    The name of what is being written to in case of error.
  * @return  0 on success
@@ -85,10 +85,12 @@ int ReadAndUpdateVerifyContext(FILE *fp, void *buffer,
   if (!size) { 
     return 0;
   }
+
   if (fread(buffer, size, 1, fp) != 1) {
     fprintf(stderr, "ERROR: Could not read %s\n", err);
     return -1;
   }
+
   if (CryptoX_Failed(CryptoX_VerifyUpdate(ctx, (char*)buffer, size))) {
     fprintf(stderr, "ERROR: Could not update verify context for %s\n", err);
     return -2;
@@ -101,7 +103,7 @@ int ReadAndUpdateVerifyContext(FILE *fp, void *buffer,
  * Verifies a MAR file's signature.
  * 
  * @param  pathToMARFile The path of the MAR file who's signature 
-           should be calculated
+                         should be calculated
  * @param  certData      The certificate data
  * @param sizeOfCertData The size of the data stored in certData
  * @param configDir      The NSS config DIR if using NSS
@@ -145,6 +147,7 @@ int mar_verify_signature(const char *pathToMARFile,
   if (key) {
     CryptoX_FreePublicKey(&key);
   }
+
   if (cert) {
     CryptoX_FreeCertificate(&cert);
   }
@@ -157,18 +160,14 @@ int mar_verify_signature(const char *pathToMARFile,
  * signature verifies.
  * 
  * @param  pathToMARFile The path of the MAR file who's signature 
- *         should be calculated
+ *                       should be calculated
  * @param  certData      The certificate data
  * @param sizeOfCertData The size of the data stored in certData
- * @param configDir      The NSS config DIR if using NSS
- * @param certName       The cert name in the NSS store if using NSS
  * @return 0 on success
 */
 int mar_verify_signatureW(const PRUnichar *pathToMARFile, 
                           const char *certData,
-                          size_t sizeOfCertData,
-                          const char *configDir,
-                          const char *certName) {
+                          size_t sizeOfCertData) {
   int rv;
   CryptoX_LibraryHandle provider;
   CryptoX_Certificate cert;
@@ -182,15 +181,14 @@ int mar_verify_signatureW(const PRUnichar *pathToMARFile,
     return -1;
   }
 
-  if (CryptoX_Failed(CryptoX_InitCryptoLibrary(&provider, 
-                                               configDir))) {
+  if (CryptoX_Failed(CryptoX_InitCryptoLibrary(&provider, NULL))) { 
     fclose(fp);
     fprintf(stderr, "ERROR: Could not init crytpo library.\n");
     return -1;
   }
 
   if (CryptoX_Failed(CryptoX_LoadPublicKey(provider, certData, sizeOfCertData,
-                                           &key, certName, &cert))) {
+                                           &key, "", &cert))) {
     fclose(fp);
     fprintf(stderr, "ERROR: Could not load public key.\n");
     return -1;
@@ -201,6 +199,7 @@ int mar_verify_signatureW(const PRUnichar *pathToMARFile,
   if (key) {
     CryptoX_FreePublicKey(&key);
   }
+
   if (cert) {
     CryptoX_FreeCertificate(&cert);
   }
@@ -301,7 +300,8 @@ int mar_verify_signature_fp(FILE *fp,
     }
   }
 
-  // If we reached here and we verified at least one signature, return success.
+  /* If we reached here and we verified at least one 
+     signature, return success. */
   if (numVerified > 0) {
     return 0;
   } else {
@@ -319,7 +319,7 @@ int mar_verify_signature_fp(FILE *fp,
  * @param extractedSignature    The signature that should be verified
  * @param extractedSignatureLen The signature length
  * @param signatureAlgorithmIDToVerify
- *        The signature algorithm ID to verify. 
+ *                              The signature algorithm ID to verify.
  *
  * @return 0 on success
 */
@@ -392,6 +392,7 @@ int mar_verify_signature_for_id_fp(FILE *fp,
       fprintf(stderr, "ERROR: Error reading data block.\n");
       return -1;
     }
+
     if (CryptoX_Failed(CryptoX_VerifyUpdate(&signatureHandle, 
                                             buf, numRead))) {
       fprintf(stderr, "ERROR: Error updating verify context with"
@@ -408,7 +409,8 @@ int mar_verify_signature_for_id_fp(FILE *fp,
     return -1;
   }
 
-  // If we reached here and we verified at least one signature, we have success
+  /* If we reached here and we verified at least one 
+     signature, we have success */
   if (signatureCount > 0) {
     return 0;
   } else {
