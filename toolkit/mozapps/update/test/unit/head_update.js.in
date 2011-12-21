@@ -632,7 +632,9 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
   // launches the updater in the background, providing an observer argument
   // doesn't solve anything either, so we will rely on watching the
   // update.status file instead.
-  process.runAsync(args, args.length);
+  // We launch the process sync though to avoid intemittent failures with
+  // the log file not being written out yet.
+  process.run(true, args, args.length);
 
   resetEnvironment();
 
