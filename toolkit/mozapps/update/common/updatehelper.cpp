@@ -332,7 +332,7 @@ LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR* argv)
   // it has 2 extra args: 1) The Path to udpater.exe, and 2) the command 
   // being executed which is "software-update"
   LPCWSTR *updaterServiceArgv = new LPCWSTR[argc + 2];
-  updaterServiceArgv[0] = L"MozillaMaintenance";
+  updaterServiceArgv[0] = L"maintenanceservice.exe";
   updaterServiceArgv[1] = L"software-update";
 
   for (int i = 0; i < argc; ++i) {
