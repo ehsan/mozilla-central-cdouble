@@ -645,13 +645,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     updater.copyTo(applyToUpdater, UPDATER_BIN_FILE);
   }
 
-  // We can't get sync behavior here since Firefox does not wait for the
-  // process launched through the service to finish.  Since the service
-  // launches the updater in the background, providing an observer argument
-  // doesn't solve anything either, so we will rely on watching the
-  // update.status file instead.
-  // We launch the process sync though to avoid intemittent failures with
+  // Firefox does not wait for the service command to finish, but
+  // we still launch the process sync to avoid intemittent failures with
   // the log file not being written out yet.
+  // We will rely on watching the update.status file and waiting for the service
+  // to stop to know the service command is done.
   process.run(true, args, args.length);
 
   resetEnvironment();
