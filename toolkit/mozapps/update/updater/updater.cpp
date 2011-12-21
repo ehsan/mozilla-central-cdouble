@@ -2216,8 +2216,8 @@ int NS_main(int argc, NS_tchar **argv)
   // when write access is denied to the installation directory.
   HANDLE updateLockFileHandle = INVALID_HANDLE_VALUE;
   NS_tchar elevatedLockFilePath[MAXPATHLEN] = {NS_T('\0')};
-  if (!usingService &&
-      (argc > callbackIndex || sBackgroundUpdate || sReplaceRequest)) {
+  if ((argc > callbackIndex && !usingService) ||
+      sBackgroundUpdate || sReplaceRequest) {
     NS_tchar updateLockFilePath[MAXPATHLEN];
     if (sBackgroundUpdate) {
       // When updating in the background, the lock file is:
@@ -2402,7 +2402,7 @@ int NS_main(int argc, NS_tchar **argv)
         }
       }
 
-      if (argc > callbackIndex) {
+      if (argc > callbackIndex && !usingService) {
         LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
       }
 
