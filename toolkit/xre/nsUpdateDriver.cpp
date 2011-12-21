@@ -70,7 +70,6 @@
 # include <process.h>
 # include <windows.h>
 # include <shlwapi.h>
-# include "nsWindowsHelpers.h"
 # define getcwd(path, size) _getcwd(path, size)
 # define getpid() GetCurrentProcessId()
 #elif defined(XP_OS2)
@@ -747,13 +746,6 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
     return;
 
 #if defined(XP_WIN)
-  nsAutoHandle watchEvent;
-  if (outpid) {
-    watchEvent.own(OpenUpdaterSignalEvent(PromiseFlatString(applyToDirW).get(), true));
-  }
-#endif
-
-#if defined(XP_WIN)
   nsAutoString updateDirPathW;
   rv = updateDir->GetPath(updateDirPathW);
 
@@ -868,20 +860,25 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
       }
     }
 
+  bool attemptToUseServicePreValue = 
+    mozilla::Preferences::GetBool(kPrefAppUpdateService, false);
+  // Launch the update operation using the service if enabled.
+  // We also set the status to pending-no-service to ensure we never
+  // attempt to use the service more than once in a row for a single update.
+  if (isPendingNoService || 
+      !attemptToUseServicePreValue || 
+      !WriteStatusPendingNoService(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
+      !WinLaunchServiceCommand(updaterPathW.get(), argc, argv, outpid)) {
     // Launch the update using updater.exe
-    if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
+    if (!WinLaunchChild(updaterPathW.get(), argc, argv, NULL, outpid)) {
       return;
     }
   }
 #endif
 
   // Launch the update using updater.exe
-  if (!WinLaunchChild(updaterPathW.get(), argc, argv)) {
+  if (!WinLaunchChild(updaterPathW.get(), argc, argv, NULL, outpid)) {
     return;
-  }
-
-  if (outpid) {
-    *outpid = watchEvent.disown();
   }
 
   if (restart) {

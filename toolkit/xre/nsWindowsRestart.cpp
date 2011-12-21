@@ -56,8 +56,6 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <rpc.h>
-#include <userenv.h>
-#include <aclapi.h>
 
 // Needed for CreateEnvironmentBlock
 #include <userenv.h>
@@ -297,12 +295,14 @@ WriteStatusApplied(LPCWSTR updateDirPath)
 BOOL
 WinLaunchChild(const PRUnichar *exePath, 
                int argc, PRUnichar **argv, 
-               HANDLE userToken = NULL);
+               HANDLE userToken = NULL,
+               HANDLE *hProcess = NULL);
 
 BOOL
 WinLaunchChild(const PRUnichar *exePath, 
                int argc, char **argv, 
-               HANDLE userToken)
+               HANDLE userToken,
+               HANDLE *hProcess)
 {
   PRUnichar** argvConverted = new PRUnichar*[argc];
   if (!argvConverted)
@@ -316,7 +316,7 @@ WinLaunchChild(const PRUnichar *exePath,
     }
   }
 
-  BOOL ok = WinLaunchChild(exePath, argc, argvConverted, userToken);
+  BOOL ok = WinLaunchChild(exePath, argc, argvConverted, userToken, hProcess);
   FreeAllocStrings(argc, argvConverted);
   return ok;
 }
@@ -325,7 +325,8 @@ BOOL
 WinLaunchChild(const PRUnichar *exePath, 
                int argc, 
                PRUnichar **argv, 
-               HANDLE userToken)
+               HANDLE userToken,
+               HANDLE *hProcess)
 {
   PRUnichar *cl;
   BOOL ok;
@@ -381,7 +382,11 @@ WinLaunchChild(const PRUnichar *exePath,
   }
 
   if (ok) {
-    CloseHandle(pi.hProcess);
+    if (hProcess) {
+      *hProcess = pi.hProcess; // the caller now owns the HANDLE
+    } else {
+      CloseHandle(pi.hProcess);
+    }
     CloseHandle(pi.hThread);
   } else {
     LPVOID lpMsgBuf = NULL;
@@ -402,66 +407,4 @@ WinLaunchChild(const PRUnichar *exePath,
   free(cl);
 
   return ok;
-}
-
-HANDLE
-OpenUpdaterSignalEvent(const wchar_t *destinationPath, bool create)
-{
-  wchar_t sanitizedPath[MAX_PATH];
-  wchar_t eventName[MAX_PATH];
-  wcsncpy(sanitizedPath, destinationPath, MAX_PATH);
-  // Replace \ with /
-  for (wchar_t *p = sanitizedPath; p;) {
-    wchar_t *backSlash = wcschr(p, L'\\');
-    if (backSlash)
-      *backSlash = L'/';
-    p = backSlash;
-  }
-  // Convert to lower case
-  _wcslwr(sanitizedPath);
-  // Note that the path name might be trimmed to MAX_PATH, but it's OK.
-  _snwprintf(eventName, MAX_PATH,
-             L"Global\\{8cffe800-cf4c-48b6-a6ba-40ba46d06149}%s",
-             sanitizedPath);
-
-  HANDLE result;
-  if (create) {
-    // Set a DACL on the event so that its handle can be opened by everyone.
-    PSID pSidEveryone;
-    SID_IDENTIFIER_AUTHORITY SIDAuthWorld =
-      SECURITY_WORLD_SID_AUTHORITY;
-    if (!AllocateAndInitializeSid(&SIDAuthWorld, 1, SECURITY_WORLD_RID,
-                                  0, 0, 0, 0, 0, 0, 0, &pSidEveryone))
-      return NULL;
-    EXPLICIT_ACCESS ea = {
-      EVENT_MODIFY_STATE,            // grfAccessPermissions
-      SET_ACCESS,                    // grfAccessMode
-      NO_INHERITANCE,                // grfInheritance
-      {                              // Trustee
-        NULL,                        // pMultipleTrustee
-        NO_MULTIPLE_TRUSTEE,         // MultipleTrusteeOperation
-        TRUSTEE_IS_SID,              // TrusteeForm
-        TRUSTEE_IS_WELL_KNOWN_GROUP, // TrusteeType
-        (LPTSTR) pSidEveryone        // ptstrName
-      }
-    };
-    PACL pAcl;
-    if (ERROR_SUCCESS != SetEntriesInAcl(1, &ea, NULL, &pAcl))
-      return NULL;
-    SECURITY_DESCRIPTOR sd;
-    if (!InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION))
-      return NULL;
-    if (!SetSecurityDescriptorDacl(&sd, true, pAcl, false))
-      return NULL;
-    SECURITY_ATTRIBUTES sa = {
-      sizeof(SECURITY_ATTRIBUTES), // nLength
-      &sd,                         // lpSecurityDescriptor
-      false                        // bInheritHandle
-    };
-    result = CreateEventW(&sa, false, false, eventName);
-  } else {
-    result = OpenEventW(EVENT_MODIFY_STATE, false, eventName);
-  }
-
-  return result;
 }

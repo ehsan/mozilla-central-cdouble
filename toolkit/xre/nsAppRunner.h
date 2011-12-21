@@ -130,13 +130,12 @@ WriteConsoleLog();
 #ifdef XP_WIN
 BOOL
 WinLaunchChild(const PRUnichar *exePath, int argc, 
-               char **argv, HANDLE userToken = NULL);
+               char **argv, HANDLE userToken = NULL,
+               HANDLE *hProcess = nsnull);
 BOOL
 WriteStatusPending(LPCWSTR updateDirPath);
 BOOL
 WriteStatusApplied(LPCWSTR updateDirPath);
-HANDLE
-OpenUpdaterSignalEvent(const wchar_t *destinationPath, bool create);
 #endif
 
 #define NS_NATIVEAPPSUPPORT_CONTRACTID "@mozilla.org/toolkit/native-app-support;1"
