@@ -398,7 +398,7 @@ ExecuteServiceCommand(int argc, LPWSTR *argv)
     LOG(("Service command %ls complete.\n", argv[2]));
   } else {
     LOG(("Service command not recognized: %ls.\n", argv[2]));
-    //result is already set to FALSE
+    // result is already set to FALSE
   }
 
   LOG(("service command %ls complete with result: %ls.\n", 
