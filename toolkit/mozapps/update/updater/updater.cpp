@@ -1609,6 +1609,7 @@ int NS_main(int argc, NS_tchar **argv)
   bool useService = false;
   bool testOnlyFallbackKeyExists = false;
   LPCWSTR runningAsTest = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK");
+  _wputenv(L"MOZ_NO_SERVICE_FALLBACK=");
 
   // We never want the service to be used unless we build with
   // the maintenance service.
