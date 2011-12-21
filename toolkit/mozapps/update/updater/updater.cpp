@@ -2473,7 +2473,8 @@ int NS_main(int argc, NS_tchar **argv)
     WriteStatusFile(WRITE_ERROR);
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
     if (argc > callbackIndex) {
-      LaunchCallbackApp(argv[4], argc - callbackIndex, argv + callbackIndex);
+      LaunchCallbackApp(argv[4], argc - callbackIndex,
+                        argv + callbackIndex, usingService);
     }
     return 1;
   }
