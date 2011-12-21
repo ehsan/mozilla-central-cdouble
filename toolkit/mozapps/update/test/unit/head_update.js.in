@@ -1612,7 +1612,17 @@ XPCOMUtils.defineLazyGetter(this, "gAppBinPath", function test_gAppBinPath() {
       let appBinCopy = processDir.clone();
       appBinCopy.append(FILE_WIN_TEST_EXE);
       if (appBinCopy.exists()) {
-        appBinCopy.remove(false);
+        function removeCopiedAppBinary() {
+          try {
+            appBinCopy.remove(false);
+          } 
+          catch (e) {
+            logTestInfo("Could not remove app bin, waiting longer. " +
+                        "Exception:" + e);
+            do_timeout(TEST_HELPER_TIMEOUT, removeCopiedAppBinary);
+          }
+        }
+        removeCopiedAppBinary();
       }
       appBin.copyTo(processDir, FILE_WIN_TEST_EXE);
       appBin = processDir.clone();
