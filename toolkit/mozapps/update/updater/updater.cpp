@@ -1608,7 +1608,7 @@ int NS_main(int argc, NS_tchar **argv)
 
   bool useService = false;
   bool testOnlyFallbackKeyExists = false;
-  LPCWSTR runningAsTest = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK");
+  bool noServiceFallback = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK") != NULL;
   _wputenv(L"MOZ_NO_SERVICE_FALLBACK=");
 
   // We never want the service to be used unless we build with
@@ -1725,7 +1725,7 @@ int NS_main(int argc, NS_tchar **argv)
                  NS_T("%s/update_elevated.lock"), argv[1]);
 
     if (updateLockFileHandle == INVALID_HANDLE_VALUE || 
-        (useService && testOnlyFallbackKeyExists && runningAsTest)) {
+        (useService && testOnlyFallbackKeyExists && noServiceFallback)) {
       if (!_waccess(elevatedLockFilePath, F_OK) &&
           NS_tremove(elevatedLockFilePath) != 0) {
         fprintf(stderr, "Update already elevated! Exiting\n");
@@ -1836,7 +1836,8 @@ int NS_main(int argc, NS_tchar **argv)
       // We don't launch the elevated updater in the case that we did have
       // write access all along because in that case the only reason we're
       // using the service is because we are testing. 
-      if (!useService && updateLockFileHandle == INVALID_HANDLE_VALUE) {
+      if (!useService && !noServiceFallback && 
+          updateLockFileHandle == INVALID_HANDLE_VALUE) {
         SHELLEXECUTEINFO sinfo;
         memset(&sinfo, 0, sizeof(SHELLEXECUTEINFO));
         sinfo.cbSize       = sizeof(SHELLEXECUTEINFO);
