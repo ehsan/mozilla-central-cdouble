@@ -1158,6 +1158,16 @@ function checkCallbackServiceLog() {
   let logFile = AUS_Cc["@mozilla.org/file/local;1"].createInstance(AUS_Ci.nsILocalFile);
   logFile.initWithPath(gServiceLaunchedCallbackLog);
   let logContents = readFile(logFile);
+ 
+  // It is possible for the log file contents check to occur before the log file
+  // contents are completely written so wait until the contents are the expected
+  // value. If the contents are never the expected value then the test will
+  // fail by timing out.
+  if (logContents != expectedLogContents) {
+    logTestInfo("callback service log not expected value, waiting longer");
+    do_timeout(TEST_HELPER_TIMEOUT, checkCallbackServiceLog);
+    return;
+  }
 
   logTestInfo("testing that the callback application successfully launched " +
               "and the expected command line arguments passed to it");
