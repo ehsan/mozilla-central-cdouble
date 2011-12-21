@@ -50,10 +50,6 @@ CryptoX_Result NSS_Init(const char *configDir)
   status = NSS_Initialize(configDir, 
                           "", "", 
                           SECMOD_DB, NSS_INIT_READONLY);
-  if (SECSuccess != status) {
-    return status;
-  }
-
   return SECSuccess == status ? CryptoX_Success : CryptoX_Error;
 }
 
@@ -62,7 +58,7 @@ CryptoX_Result NSS_LoadPublicKey(const char *certNickname,
                                  CERTCertificate **cert)
 {
   secuPWData pwdata = { PW_NONE, 0 };
-  if (!cert || !publicKey) {
+  if (!cert || !publicKey || !cert) {
     return CryptoX_Error;
   }
 
@@ -81,8 +77,18 @@ CryptoX_Result NSS_LoadPublicKey(const char *certNickname,
 CryptoX_Result NSS_VerifyBegin(VFYContext **ctx, SECKEYPublicKey **publicKey)
 {
   SECStatus status;
+
+  /* Check that the key length is large enough for our requirements */
+  if ((SECKEY_PublicKeyStrengthInBits(*publicKey) * 8) < 
+      XP_MIN_SIGNATURE_LEN_IN_BYTES) {
+    fprintf(stderr, "ERROR: Key length must be >= %d bytes\n", 
+            XP_MIN_SIGNATURE_LEN_IN_BYTES);
+    return CryptoX_Error;
+  }
+
   *ctx = VFY_CreateContext(*publicKey, NULL, 
                            SEC_OID_ISO_SHA1_WITH_RSA_SIGNATURE, NULL);
+
   status = VFY_Begin(*ctx);
   return SECSuccess == status ? CryptoX_Success : CryptoX_Error;
 }
@@ -94,7 +100,7 @@ CryptoX_Result NSS_VerifySignature(VFYContext **ctx,
   SECItem signedItem;
   SECStatus status;
   signedItem.len = signatureLen;
-  signedItem.data = signature;
+  signedItem.data = (const unsigned char*)signature;
   status = VFY_EndWithSignature(*ctx, &signedItem);
   return SECSuccess == status ? CryptoX_Success : CryptoX_Error;
 }
@@ -155,7 +161,7 @@ CryptoX_Result CryptoAPI_InitCryptoContext(HCRYPTPROV *provider)
 {
   BOOL result = TRUE;
   *provider = (HCRYPTPROV)NULL;
-  if(!CryptAcquireContext(provider, NULL, NULL, PROV_RSA_FULL, 0)) {
+  if (!CryptAcquireContext(provider, NULL, NULL, PROV_RSA_FULL, 0)) {
     if (NTE_BAD_KEYSET == GetLastError()) {
       /* Maybe it doesn't exist, try to create it. */
       result = CryptAcquireContext(provider, NULL, NULL, PROV_RSA_FULL,

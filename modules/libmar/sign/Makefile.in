@@ -57,16 +57,7 @@ CSRCS		= \
 
 LOCAL_INCLUDES += -I$(srcdir)/../src \
   -I$(srcdir)/../verify \
-  -I$(topsrcdir)/security/nss/lib/nss \
-  -I$(topsrcdir)/security/nss/lib/util \
-  -I$(topsrcdir)/security/nss/lib/pk11wrap \
-  -I$(topsrcdir)/security/nss/lib/cryptohi \
-  -I$(topsrcdir)/security/nss/lib/softoken \
-  -I$(topsrcdir)/security/nss/lib/certdb \
-  -I$(topsrcdir)/security/nss/lib/pkcs7 \
-  -I$(topsrcdir)/security/nss/lib/smime \
-  -I$(topsrcdir)/security/nss/lib/freebl \
-  -I$(topsrcdir)/security/nss/lib/freebl/ecl \
+  -I$(topsrcdir)/dist/include \
   $(NULL)
 
 CFLAGS += -DMAR_NSS

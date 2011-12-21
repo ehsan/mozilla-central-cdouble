@@ -128,7 +128,7 @@ static int mar_concat_file(FILE *fp, const char *path) {
 int mar_create(const char *dest, int num_files, char **files) {
   struct MarItemStack stack;
   PRUint32 offset_to_index = 0, size_of_index, num_signatures;
-  PRUint64 sizeOfEntireMAR = 0;
+  PRUint64 size_of_entire_MAR = 0;
   struct stat st;
   FILE *fp;
   int i, rv = -1;
@@ -146,12 +146,13 @@ int mar_create(const char *dest, int num_files, char **files) {
   if (fwrite(&offset_to_index, sizeof(PRUint32), 1, fp) != 1)
     goto failure;
 
-  stack.last_offset = MAR_ID_SIZE + sizeof(PRUint32);
+  stack.last_offset = MAR_ID_SIZE + 
+                      sizeof(num_signatures) + 
+                      sizeof(size_of_entire_MAR);
 
   /* We will circle back on this at the end of the MAR creation to fill it */
-  if (fwrite(&sizeOfEntireMAR, sizeof(sizeOfEntireMAR), 1, fp) != 1)
+  if (fwrite(&size_of_entire_MAR, sizeof(size_of_entire_MAR), 1, fp) != 1)
     goto failure;
-  stack.last_offset += sizeof(sizeOfEntireMAR);
 
   /* Write out the number of signatures, for now only at most 1 is supported */
   num_signatures = 0;
@@ -187,11 +188,11 @@ int mar_create(const char *dest, int num_files, char **files) {
   if (fwrite(&offset_to_index, sizeof(offset_to_index), 1, fp) != 1)
     goto failure;
   
-  sizeOfEntireMAR = stack.last_offset +
-                    stack.size_used +
-                    sizeof(size_of_index);
-  sizeOfEntireMAR = HOST_TO_NETWORK64(sizeOfEntireMAR);
-  if (fwrite(&sizeOfEntireMAR, sizeof(sizeOfEntireMAR), 1, fp) != 1)
+  size_of_entire_MAR = ((PRUint64)stack.last_offset) +
+                       stack.size_used +
+                       sizeof(size_of_index);
+  size_of_entire_MAR = HOST_TO_NETWORK64(size_of_entire_MAR);
+  if (fwrite(&size_of_entire_MAR, sizeof(size_of_entire_MAR), 1, fp) != 1)
     goto failure;
 
   rv = 0;

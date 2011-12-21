@@ -65,9 +65,6 @@ HOST_LIBS = $(DIST)/host/lib/$(LIB_PREFIX)hostmar.$(LIB_SUFFIX)
 LIBS = $(DEPTH)/modules/libmar/src/$(LIB_PREFIX)mar.$(LIB_SUFFIX) \
   $(DEPTH)/modules/libmar/sign/$(LIB_PREFIX)signmar.$(LIB_SUFFIX) \
   $(DEPTH)/modules/libmar/verify/$(LIB_PREFIX)verifymar.$(LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)crmf.$(LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)smime3.$(LIB_SUFFIX) \
-  $(DIST)/lib/$(LIB_PREFIX)ssl3.$(LIB_SUFFIX) \
   $(DIST)/lib/$(LIB_PREFIX)nss3.$(LIB_SUFFIX) \
   $(DIST)/lib/$(LIB_PREFIX)nssutil3.$(LIB_SUFFIX) \
   $(DIST)/lib/$(LIB_PREFIX)cryptohi.$(LIB_SUFFIX) \

@@ -114,7 +114,7 @@ VerifyLoadedCert(const NS_tchar *pathToMAR, int name, int type)
     return CERT_LOAD_ERROR;
   }
 
-  if (mar_verify_signatureW(pathToMAR, data, size, NULL, NULL)) {
+  if (mar_verify_signatureW(pathToMAR, data, size)) {
     return CERT_VERIFY_ERROR;
   }
 

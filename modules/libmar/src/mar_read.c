@@ -310,7 +310,7 @@ int IsOldMAR(FILE *fp, int *oldMar)
 
   oldPos = ftell(fp);
 
-  /* Skip to the start of the signature block */
+  /* Skip to the start of the offset index */
   if (fseek(fp, MAR_ID_SIZE, SEEK_SET)) {
     return -1;
   }
@@ -320,8 +320,14 @@ int IsOldMAR(FILE *fp, int *oldMar)
     return -1;
   offsetToIndex = ntohl(offsetToIndex);
 
-  /* Skip to the first index entry past the index size field */
-  if (fseek(fp, offsetToIndex + sizeof(PRUint32), SEEK_SET)) {
+  /* Skip to the first index entry past the index size field 
+     We do it in 2 calls because offsetToIndex + sizeof(PRUint32) 
+     could oerflow in theory. */
+  if (fseek(fp, offsetToIndex, SEEK_SET)) {
+    return -1;
+  }
+
+  if (fseek(fp, sizeof(PRUint32), SEEK_CUR)) {
     return -1;
   }
 

@@ -38,7 +38,7 @@
 #ifndef CRYPTOX_H
 #define CRYPTOX_H
 
-#define XP_SIGNATURE_LEN 256
+#define XP_MIN_SIGNATURE_LEN_IN_BYTES 256
 
 #define CryptoX_Result int
 #define CryptoX_Success 0
@@ -72,7 +72,7 @@ CryptoX_Result NSS_VerifySignature(VFYContext **ctx ,
 #define CryptoX_VerifyBegin(CryptoHandle, SignatureHandle, PublicKey) \
   NSS_VerifyBegin(SignatureHandle, PublicKey)
 #define CryptoX_VerifyUpdate(SignatureHandle, buf, len) \
-  VFY_Update(*SignatureHandle, buf, len)
+  VFY_Update(*SignatureHandle, (const unsigned char*)buf, len)
 #define CryptoX_LoadPublicKey(CryptoHandle, certData, dataSize, \
                               publicKey, certName, cert) \
   NSS_LoadPublicKey(certName, publicKey, cert)
