@@ -200,11 +200,11 @@ Section "MaintenanceService"
   ${GetParameters} $0
   ${GetOptions} "$0" "/Upgrade" $0
   ${If} ${Errors}
-    nsExec::Exec '"$INSTDIR\$TempMaintServiceName" install'
+    nsExec::Exec '"$INSTDIR\$TempMaintServiceName" forceinstall'
   ${Else}
     ; The upgrade cmdline is the same as install except
     ; It will fail if the service isn't already installed.
-    nsExec::Exec '"$INSTDIR\$TempMaintServiceName" upgrade'
+    nsExec::Exec '"$INSTDIR\$TempMaintServiceName" forceinstall'
   ${EndIf}
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
