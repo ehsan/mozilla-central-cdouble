@@ -671,7 +671,9 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
       logTestInfo("maintenance service could not stop, may cause failures.");
     }
 
-    checkServiceLogs(svcOriginalLog);
+    if (aCheckSvcLog) {
+      checkServiceLogs(svcOriginalLog);
+    } 
     aCallback();
   }
 

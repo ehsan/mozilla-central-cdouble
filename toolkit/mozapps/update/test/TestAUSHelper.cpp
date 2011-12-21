@@ -153,7 +153,7 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
 }
 
 /**
- * Waits for a service to stop state.
+ * Waits for a service to enter a stopped state.
  * This function does not stop the service, it just blocks until the service
  * is stopped.
  *
