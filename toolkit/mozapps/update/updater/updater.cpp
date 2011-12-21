@@ -1701,10 +1701,8 @@ WriteStatusApplying()
  *         or pending-service.
 */
 static bool
-IsUpdateStatusPending(bool &isPendingService)
+IsUpdateStatusPendingService()
 {
-  bool isPending = false;
-  isPendingService = false;
   NS_tchar filename[MAXPATHLEN];
   NS_tsnprintf(filename, sizeof(filename)/sizeof(filename[0]),
                NS_T("%s/update.status"), gSourcePath);
@@ -1716,14 +1714,13 @@ IsUpdateStatusPending(bool &isPendingService)
   char buf[32] = { 0 };
   fread(buf, sizeof(buf), 1, file);
 
-  const char kPending[] = "pending";
   const char kPendingService[] = "pending-service";
-  isPending = strncmp(buf, kPending, 
-                      sizeof(kPending) - 1) == 0;
+  const char kAppliedService[] = "applied-service";
 
-  isPendingService = strncmp(buf, kPendingService, 
-                             sizeof(kPendingService) - 1) == 0;
-  return isPending;
+  return (strncmp(buf, kPendingService, 
+                  sizeof(kPendingService) - 1) == 0) ||
+         (strncmp(buf, kAppliedService,
+                  sizeof(kAppliedService) - 1) == 0);
 }
 
 /* 
@@ -2104,7 +2101,7 @@ int NS_main(int argc, NS_tchar **argv)
   // We never want the service to be used unless we build with
   // the maintenance service.
 #ifdef MOZ_MAINTENANCE_SERVICE
-  IsUpdateStatusPending(useService);
+  useService = IsUpdateStatusPendingService();
   // Our tests run with a different apply directory for each test.
   // We use this registry key on our test slaves to store the 
   // allowed name/issuers.
