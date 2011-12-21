@@ -38,6 +38,7 @@ function run_test() {
 }
 
 function checkUpdateApplied() {
+  logTestInfo("checkUpdateApplied called");
   checkFilesAfterUpdateSuccess();
   do_test_finished();
 }
