@@ -157,12 +157,12 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
  * This function does not stop the service, it just blocks until the service
  * is stopped.
  *
- * @param  serviceName The service to wait for.
- * @param  maxWaitMS   The maximum number of MS to wait
- * @return true if the service was stopped after waiting at most maxWaitMS
+ * @param  serviceName    The service to wait for.
+ * @param  maxWaitSeconds The maximum number of seconds to wait
+ * @return true if the service was stopped after waiting at most maxWaitSeconds
  *         false on an error or when the service was not stopped
  */
-bool WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitMS) 
+bool WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
 {
   // Get a handle to the SCM database.
   SC_HANDLE serviceManager = OpenSCManager(NULL, NULL, 
@@ -183,7 +183,7 @@ bool WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitMS)
 
   bool gotStop = false;
   DWORD currentWaitMS = 0;
-  while (currentWaitMS < maxWaitMS) {
+  while (currentWaitMS < maxWaitSeconds * 1000) {
     // Make sure the service is not stopped.
     SERVICE_STATUS_PROCESS ssp;
     DWORD bytesNeeded;
@@ -256,9 +256,9 @@ int NS_main(int argc, NS_tchar **argv)
 
   if (!NS_tstrcmp(argv[1], NS_T("wait-for-service-stop"))) {
 #ifdef XP_WIN
-    const int maxWaitMS = NS_ttoi(argv[3]);
+    const int maxWaitSeconds = NS_ttoi(argv[3]);
     LPCWSTR serviceName = argv[2];
-    if (WaitForServiceStop(serviceName, maxWaitMS)) {
+    if (WaitForServiceStop(serviceName, maxWaitSeconds)) {
       return 0;
     } else {
       return 1;

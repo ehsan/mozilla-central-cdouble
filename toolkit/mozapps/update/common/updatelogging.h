@@ -46,8 +46,8 @@ class UpdateLog
 public:
   static UpdateLog & GetPrimaryLog() 
   {
-    static UpdateLog primvaryLog;
-    return primvaryLog;
+    static UpdateLog primaryLog;
+    return primaryLog;
   }
 
   void Init(NS_tchar* sourcePath, NS_tchar* fileName);
