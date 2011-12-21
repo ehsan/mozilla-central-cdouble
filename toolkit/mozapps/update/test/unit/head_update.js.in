@@ -514,9 +514,6 @@ function shouldRunServiceTest() {
  * @param aUpdatesDir     the updates root directory to use (optional)
  * @param aCheckSvcLog    whether the service log should be checked (optional)
  */
-var gExpectedStatus;
-var svcOriginalLog;
-var gCallback;
 function runUpdateUsingService(aInitialStatus, aExpectedStatus,
                                aCallback, aUpdatesDir, aCheckSvcLog) {
   // Check the service logs for a successful update
@@ -553,9 +550,6 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
 
   // Make sure the service from the previous test is already stopped.
   waitForServiceStop();
-
-  gExpectedStatus = aExpectedStatus;
-  gCallback = aCallback;
 
   // Prevent the cleanup function from begin run more than once
   if (typeof(gRegisteredServiceCleanup) === "undefined") {
@@ -599,6 +593,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     aCheckSvcLog = true; // default to true
   }
 
+  let svcOriginalLog;
   if (aCheckSvcLog) {
     svcOriginalLog = readServiceLogFile();
   }
@@ -663,7 +658,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     // Wait for the expected status
     let status = readStatusFile(updatesDir);
     // For failed status, we don't care what the failure code is
-    if (gExpectedStatus == STATE_FAILED) {
+    if (aExpectedStatus == STATE_FAILED) {
       status = status.split(": ")[0];
     }
     // status will probably always be equal to STATE_APPLYING but there is a
@@ -671,11 +666,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     // could be equal to STATE_PENDING_SVC.
     if (status == STATE_APPLYING || 
         status == STATE_PENDING_SVC) {
-      logTestInfo("Still waiting to see the " + gExpectedStatus +
+      logTestInfo("Still waiting to see the " + aExpectedStatus +
                   " status, got " + status + " for now...");
       return;
     }
-    do_check_eq(status, gExpectedStatus);
+    do_check_eq(status, aExpectedStatus);
 
     timer.cancel();
     timer = null;
