@@ -303,6 +303,7 @@ static NS_tchar* gDestPath;
 static NS_tchar gCallbackRelPath[MAXPATHLEN];
 static NS_tchar gCallbackBackupPath[MAXPATHLEN];
 static NS_tchar* gInstallPath = NULL;
+static bool gUsingService = false;
 #endif
 
 static const NS_tchar kWhitespace[] = NS_T(" \t");
@@ -1637,10 +1638,7 @@ WriteStatusFile(int status)
   if (status == OK) {
     if (sBackgroundUpdate) {
 #if defined(XP_WIN)
-      bool launchedFromService =
-        GetEnvironmentVariableW(L"MOZ_USING_SERVICE", NULL, 0);
-      text = launchedFromService ?
-        "applied-service\n" : "applied\n";
+      text = gUsingService ? "applied-service\n" : "applied\n";
 #else
       text = "applied\n";
 #endif
@@ -2181,7 +2179,7 @@ int NS_main(int argc, NS_tchar **argv)
   const int callbackIndex = 5;
 
 #if defined(XP_WIN)
-  bool usingService = _wgetenv(L"MOZ_USING_SERVICE") != NULL;
+  gUsingService = _wgetenv(L"MOZ_USING_SERVICE") != NULL;
   _wputenv(L"MOZ_USING_SERVICE=");
   // lastFallbackError keeps track of the last error for the service not being 
   // used, in case of an error when fallback is not enabled we write the 
@@ -2194,7 +2192,7 @@ int NS_main(int argc, NS_tchar **argv)
   // when write access is denied to the installation directory.
   HANDLE updateLockFileHandle = INVALID_HANDLE_VALUE;
   NS_tchar elevatedLockFilePath[MAXPATHLEN] = {NS_T('\0')};
-  if ((argc > callbackIndex && !usingService) ||
+  if ((argc > callbackIndex && !gUsingService) ||
       sBackgroundUpdate || sReplaceRequest) {
     NS_tchar updateLockFilePath[MAXPATHLEN];
     if (sBackgroundUpdate) {
@@ -2381,7 +2379,7 @@ int NS_main(int argc, NS_tchar **argv)
         }
       }
 
-      if (argc > callbackIndex && !usingService) {
+      if (argc > callbackIndex && !gUsingService) {
         LaunchCallbackApp(argv[4], argc - callbackIndex,
                           argv + callbackIndex, false);
       }
@@ -2474,7 +2472,7 @@ int NS_main(int argc, NS_tchar **argv)
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
     if (argc > callbackIndex) {
       LaunchCallbackApp(argv[4], argc - callbackIndex,
-                        argv + callbackIndex, usingService);
+                        argv + callbackIndex, gUsingService);
     }
     return 1;
   }
@@ -2513,7 +2511,7 @@ int NS_main(int argc, NS_tchar **argv)
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
       if (argc > callbackIndex) {
         LaunchCallbackApp(argv[4], argc - callbackIndex,
-                          argv + callbackIndex, usingService);
+                          argv + callbackIndex, gUsingService);
       }
       return 1;
     }
@@ -2582,7 +2580,7 @@ int NS_main(int argc, NS_tchar **argv)
         NS_tremove(gCallbackBackupPath);
         EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
         LaunchCallbackApp(argv[4], argc - callbackIndex,
-                          argv + callbackIndex, usingService);
+                          argv + callbackIndex, gUsingService);
         return 1;
       }
     }
@@ -2651,7 +2649,7 @@ int NS_main(int argc, NS_tchar **argv)
       // service if the service failed to apply the update. We want to update
       // the service to a newer version in that case. If we are not running
       // through the service, then MOZ_USING_SERVICE will not exist.
-      if (!usingService) {
+      if (!gUsingService) {
         if (!LaunchWinPostProcess(argv[callbackIndex], gSourcePath, false, NULL)) {
           LOG(("NS_main: The post update process could not be launched.\n"));
         }
@@ -2668,7 +2666,7 @@ int NS_main(int argc, NS_tchar **argv)
     LaunchCallbackApp(argv[4], 
                       argc - callbackIndex, 
                       argv + callbackIndex, 
-                      usingService);
+                      gUsingService);
   }
 
   return gSucceeded ? 0 : 1;
