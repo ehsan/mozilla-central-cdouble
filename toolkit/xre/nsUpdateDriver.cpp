@@ -820,61 +820,29 @@ ApplyUpdate(nsIFile *greDir, nsIFile *updateDir, nsILocalFile *statusFile,
   }
 #elif defined(XP_WIN)
 
-  // ----------------------------------------------------------------------------
-  // XXX ehsan this needs to be inspected.
-  // ----------------------------------------------------------------------------
-#if 0
-  // Launch the update operation using the service if the status file said so.
-  // We also set the status to pending to ensure we never attempt to use the 
-  // service more than once in a row for a single update.
-  if (!isPendingService || 
-      !WriteStatusPending(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
-      !WinLaunchServiceCommand(updaterPathW.get(), argc, argv)) {
-    // If we're about to try to apply the update in the background, first make
-    // sure that we have write access to the directories in question.  If we
-    // don't, we just fall back to applying the update at the next startup
-    // using a UAC prompt.
-    if (!restart && !CanWriteToDirectoryAndParent(appDir)) {
-      // Try to see if we can write in the appdir
-      nsCOMPtr<nsILocalFile> alternateUpdatedDir;
-      if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
-        return;
-      if (OnSameVolume(updatedDir, alternateUpdatedDir)) {
-        if (!ConstructCompoundApplyToString(alternateUpdatedDir, appDir, applyToDir))
-          return;
-        updatedDir = alternateUpdatedDir;
-        rv = updatedDir->GetPath(applyToDirW);
-        if (NS_FAILED(rv))
-          return;
-
-        // Readjust argv[2]
-        argv[2] = (char*) applyToDir.get();
-
-        // Readjust the event name if needed
-        if (outpid) {
-          watchEvent.own(OpenUpdaterSignalEvent(PromiseFlatString(applyToDirW).get(), true));
-        }
-      } else {
-        // Fall back to the startup update
-        return;
-      }
-    }
-
-  bool attemptToUseServicePreValue = 
-    mozilla::Preferences::GetBool(kPrefAppUpdateService, false);
-  // Launch the update operation using the service if enabled.
-  // We also set the status to pending-no-service to ensure we never
-  // attempt to use the service more than once in a row for a single update.
-  if (isPendingNoService || 
-      !attemptToUseServicePreValue || 
-      !WriteStatusPendingNoService(NS_ConvertUTF8toUTF16(updateDirPath).get()) ||
-      !WinLaunchServiceCommand(updaterPathW.get(), argc, argv, outpid)) {
-    // Launch the update using updater.exe
-    if (!WinLaunchChild(updaterPathW.get(), argc, argv, NULL, outpid)) {
+  // If we're about to try to apply the update in the background, first make
+  // sure that we have write access to the directories in question.  If we
+  // don't, just launch updater.exe in the background and hope that we can
+  // use the service to apply the update.
+  if (!restart && !CanWriteToDirectoryAndParent(appDir)) {
+    // Try to see if we can write in the appdir
+    nsCOMPtr<nsILocalFile> alternateUpdatedDir;
+    if (!GetFile(updateDir, NS_LITERAL_CSTRING("updated"), alternateUpdatedDir))
       return;
+    if (OnSameVolume(updatedDir, alternateUpdatedDir)) {
+      if (!ConstructCompoundApplyToString(alternateUpdatedDir, appDir, applyToDir))
+        return;
+      updatedDir = alternateUpdatedDir;
+      rv = updatedDir->GetPath(applyToDirW);
+      if (NS_FAILED(rv))
+        return;
+
+      // Readjust argv[2]
+      argv[2] = (char*) applyToDir.get();
+    } else {
+      // Fall back to launching updater.exe as normal
     }
   }
-#endif
 
   // Launch the update using updater.exe
   if (!WinLaunchChild(updaterPathW.get(), argc, argv, NULL, outpid)) {

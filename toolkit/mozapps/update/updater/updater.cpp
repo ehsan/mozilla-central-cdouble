@@ -2334,11 +2334,13 @@ int NS_main(int argc, NS_tchar **argv)
 
       // If we could not use the service in the background update case,
       // we need to make sure that we will never show a UAC prompt!
+      // In this case, we would just set the status to pending and will
+      // apply the update at the next startup.
       if (!useService && sBackgroundUpdate) {
         if (updateLockFileHandle != INVALID_HANDLE_VALUE) {
           CloseHandle(updateLockFileHandle);
         }
-        WriteStatusFile(lastFallbackError);
+        WriteStatusPending(gSourcePath);
         return 0;
       }
 
