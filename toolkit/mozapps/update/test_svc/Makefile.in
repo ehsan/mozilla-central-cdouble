@@ -58,6 +58,9 @@ DEFINES += \
   -DMOZ_DEBUG=$(MOZ_DEBUG) \
   $(NULL)
 
+# For debugging purposes only
+#DEFINES += -DDISABLE_UPDATER_AUTHENTICODE_CHECK
+
 include $(topsrcdir)/config/rules.mk
 
 libs:: ../test/unit/head_update.js.in

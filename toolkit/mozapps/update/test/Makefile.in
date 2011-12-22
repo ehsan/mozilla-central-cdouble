@@ -58,9 +58,6 @@ DEFINES += \
   -DMOZ_DEBUG=$(MOZ_DEBUG) \
   $(NULL)
 
-# For debugging purposes only
-#DEFINES += -DDISABLE_UPDATER_AUTHENTICODE_CHECK
-
 # Android doesn't build the updater binary, so it skips the things that test it.
 ifneq ($(OS_TARGET),Android)
 DIRS = \
