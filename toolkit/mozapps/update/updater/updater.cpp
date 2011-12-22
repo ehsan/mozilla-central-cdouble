@@ -2332,6 +2332,16 @@ int NS_main(int argc, NS_tchar **argv)
         CloseHandle(serviceInUseEvent);
       }
 
+      // If we could not use the service in the background update case,
+      // we need to make sure that we will never show a UAC prompt!
+      if (!useService && sBackgroundUpdate) {
+        if (updateLockFileHandle != INVALID_HANDLE_VALUE) {
+          CloseHandle(updateLockFileHandle);
+        }
+        WriteStatusFile(lastFallbackError);
+        return 0;
+      }
+
       // If we started the service command, and it finished, check the
       // update.status file to make sure it succeeded, and if it did
       // we need to manually start the PostUpdate process from the
