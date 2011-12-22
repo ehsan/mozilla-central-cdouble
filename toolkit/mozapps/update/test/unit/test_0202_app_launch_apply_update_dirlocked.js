@@ -18,6 +18,8 @@
  * manifest file (e.g. updatev2.manifest).
  */
 
+const TEST_ID = "0202";
+
 // Backup the updater.ini and use a custom one to prevent the updater from
 // launching a post update executable.
 const FILE_UPDATER_INI_BAK = "updater.ini.bak";
