@@ -2039,32 +2039,6 @@ int NS_main(int argc, NS_tchar **argv)
     return 1;
   }
 
-  // The directory containing the update information.
-  gSourcePath = argv[1];
-  // The directory we're going to update to.
-  // We copy this string because we need to remove trailing slashes.  The C++
-  // standard says that it's always safe to write to strings pointed to by argv
-  // elements, but I don't necessarily believe it.
-  NS_tstrncpy(gDestinationPath, argv[2], MAXPATHLEN);
-#if defined(XP_WIN)
-  NS_tchar* pathSeparator = NS_tstrchr(gDestinationPath, NS_T(';'));
-  if (pathSeparator) {
-    *pathSeparator = NS_T('\0');
-    gInstallPath = (pathSeparator + 1);
-    NS_tchar *slash = NS_tstrrchr(gInstallPath, NS_SLASH);
-    if (slash && !slash[1]) {
-      *slash = NS_T('\0');
-    }
-  } else // continued after #ifdef
-#endif
-    gDestinationPath[MAXPATHLEN - 1] = NS_T('\0');
-  NS_tchar *slash = NS_tstrrchr(gDestinationPath, NS_SLASH);
-  if (slash && !slash[1]) {
-    *slash = NS_T('\0');
-  }
-
-  LogInit(gSourcePath, NS_T("update.log"));
-
   // ----------------------------------------------------------------------------
   // XXX ehsan: this stuff needs to be tested with background updates!
   // ----------------------------------------------------------------------------
@@ -2114,6 +2088,32 @@ int NS_main(int argc, NS_tchar **argv)
     }
   }
 #endif
+
+  // The directory containing the update information.
+  gSourcePath = argv[1];
+  // The directory we're going to update to.
+  // We copy this string because we need to remove trailing slashes.  The C++
+  // standard says that it's always safe to write to strings pointed to by argv
+  // elements, but I don't necessarily believe it.
+  NS_tstrncpy(gDestinationPath, argv[2], MAXPATHLEN);
+#if defined(XP_WIN)
+  NS_tchar* pathSeparator = NS_tstrchr(gDestinationPath, NS_T(';'));
+  if (pathSeparator) {
+    *pathSeparator = NS_T('\0');
+    gInstallPath = (pathSeparator + 1);
+    NS_tchar *slash = NS_tstrrchr(gInstallPath, NS_SLASH);
+    if (slash && !slash[1]) {
+      *slash = NS_T('\0');
+    }
+  } else // continued after #ifdef
+#endif
+    gDestinationPath[MAXPATHLEN - 1] = NS_T('\0');
+  NS_tchar *slash = NS_tstrrchr(gDestinationPath, NS_SLASH);
+  if (slash && !slash[1]) {
+    *slash = NS_T('\0');
+  }
+
+  LogInit(gSourcePath, NS_T("update.log"));
 
   if (!WriteStatusApplying()) {
     LOG(("failed setting status to 'applying'\n"));
