@@ -578,6 +578,10 @@ function shouldRunServiceTest() {
     return false;
   }
 
+#ifdef DISABLE_UPDATER_AUTHENTICODE_CHECK
+  // We won't be performing signature checks.
+  return true;
+#else
   let binDir = getGREDir();
   let updaterBin = binDir.clone();
   updaterBin.append(UPDATER_BIN_FILE);
@@ -604,6 +608,7 @@ function shouldRunServiceTest() {
   logTestInfo("this test can only run on builds with signed binaries. " +
               HELPER_BIN_FILE + " returned " + process.exitValue)
   return false;
+#endif
 }
 
 /**
