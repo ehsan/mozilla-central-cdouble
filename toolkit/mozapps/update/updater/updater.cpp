@@ -1638,6 +1638,7 @@ WriteStatusFile(int status)
   if (status == OK) {
     if (sBackgroundUpdate) {
 #if defined(XP_WIN)
+      // XXX ehsan is this correct?
       text = gUsingService ? "applied-service\n" : "applied\n";
 #else
       text = "applied\n";
