@@ -119,7 +119,7 @@ const ERR_RENAME_FILE = "rename_file: failed to rename file";
 const ERR_UNABLE_OPEN_DEST = "unable to open destination file";
 const ERR_BACKUP_DISCARD = "backup_discard: unable to remove";
 
-const LOG_SVC_SUCCESSFUL_LAUNCH = "updater.exe was launched and run successfully!";
+const LOG_SVC_SUCCESSFUL_LAUNCH = "Process was started... waiting on result.";
 
 // variables are used instead of contants so tests can override these values
 var gCallbackBinFile = "callback_app" + BIN_SUFFIX;
