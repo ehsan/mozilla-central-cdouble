@@ -339,7 +339,7 @@ function getUpdateTestDir() {
  */
 function checkUpdateApplied() {
   // Don't proceed until the update has been applied.
-  if (gUpdateManager.activeUpdate.state != STATE_APPLIED) {
+  if (gUpdateManager.activeUpdate.state != STATE_APPLIED_PLATFORM) {
     do_timeout(CHECK_TIMEOUT_MILLI, checkUpdateApplied);
     return;
   }
@@ -351,7 +351,7 @@ function checkUpdateApplied() {
 
   // Don't proceed until the update status is no longer pending or applying.
   let status = readStatusFile();
-  do_check_eq(status, STATE_APPLIED);
+  do_check_eq(status, STATE_APPLIED_PLATFORM);
 
   // On Windows, make sure not to use the maintenance service for switching
   // the app.

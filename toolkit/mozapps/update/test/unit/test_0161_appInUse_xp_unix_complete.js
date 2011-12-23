@@ -271,9 +271,9 @@ function doUpdate() {
               "applying a complete mar");
   do_check_eq(exitValue, 0);
 
-  logTestInfo("testing update.status should be " + STATE_APPLIED);
+  logTestInfo("testing update.status should be " + STATE_APPLIED_PLATFORM);
   let updatesDir = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX);
-  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED);
+  do_check_eq(readStatusFile(updatesDir), STATE_APPLIED_PLATFORM);
 
   let applyToDir = getApplyDirFile();
 
