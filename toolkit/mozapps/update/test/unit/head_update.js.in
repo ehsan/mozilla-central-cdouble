@@ -314,6 +314,8 @@ var DEBUG_AUS_TEST = true;
 
 #include ../shared.js
 
+const STATE_APPLIED_PLATFORM = IS_WIN ? STATE_APPLIED_SVC : STATE_APPLIED;
+
 /**
  * Nulls out the most commonly used global vars used by tests as appropriate.
  */
