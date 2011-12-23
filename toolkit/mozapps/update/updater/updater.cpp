@@ -2062,9 +2062,6 @@ int NS_main(int argc, NS_tchar **argv)
     *slash = NS_T('\0');
   }
 
-  // ----------------------------------------------------------------------------
-  // XXX ehsan: this stuff needs to be tested with background updates!
-  // ----------------------------------------------------------------------------
 #ifdef XP_WIN
   // Disable every privilege we don't need. Processes started using
   // CreateProcess will use the same token as this process.
