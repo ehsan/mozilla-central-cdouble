@@ -1908,6 +1908,7 @@ int NS_main(int argc, NS_tchar **argv)
     // If the callback executable is specified it must exist for a successful
     // update.
     NS_tchar callbackLongPath[MAXPATHLEN];
+    ZeroMemory(callbackLongPath, sizeof(callbackLongPath));
     if (!GetLongPathNameW(argv[callbackIndex], callbackLongPath,
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
       LOG(("NS_main: unable to find callback file: " LOG_S "\n", argv[callbackIndex]));
