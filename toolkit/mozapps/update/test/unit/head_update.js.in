@@ -649,7 +649,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
   }
 
   // Firefox does not wait for the service command to finish, but
-  // we still launch the process sync to avoid intemittent failures with
+  // we still launch the process sync to avoid intermittent failures with
   // the log file not being written out yet.
   // We will rely on watching the update.status file and waiting for the service
   // to stop to know the service command is done.
