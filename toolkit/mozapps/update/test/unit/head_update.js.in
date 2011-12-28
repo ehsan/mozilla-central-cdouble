@@ -302,6 +302,7 @@ var DEBUG_AUS_TEST = true;
  * Nulls out the most commonly used global vars used by tests as appropriate.
  */
 function cleanUp() {
+  return;//test
   removeUpdateDirsAndFiles();
 
   // Force the update manager to reload the update data to prevent it from
