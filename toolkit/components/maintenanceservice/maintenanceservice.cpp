@@ -281,7 +281,7 @@ SvcInit(DWORD argc, LPWSTR *argv)
   // Create an event. The control handler function, SvcCtrlHandler,
   // signals this event when it receives the stop control code.
   ghSvcStopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-  if (NULL == ghSvcStopEvent) {
+  if (!ghSvcStopEvent) {
     ReportSvcStatus(SERVICE_STOPPED, 1, 0);
     return;
   }
@@ -300,7 +300,12 @@ SvcInit(DWORD argc, LPWSTR *argv)
   // Perform work until service stops.
   for(;;) {
     // Check whether to stop the service.
-    WaitForSingleObject(ghSvcStopEvent, INFINITE);
+    if (ghSvcStopEvent) {
+      WaitForSingleObject(ghSvcStopEvent, INFINITE);
+      CloseHandle(ghSvcStopEvent);
+      ghSvcStopEvent = NULL;
+    }
+    LogFinish();
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
     return;
   }
@@ -328,7 +333,8 @@ ReportSvcStatus(DWORD currentState,
   if (SERVICE_START_PENDING == currentState) {
     gSvcStatus.dwControlsAccepted = 0;
   } else {
-    gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+    gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP | 
+                                    SERVICE_ACCEPT_SHUTDOWN;
   }
 
   if ((SERVICE_RUNNING == currentState) ||
@@ -351,12 +357,11 @@ SvcCtrlHandler(DWORD dwCtrl)
 {
   // Handle the requested control code. 
   switch(dwCtrl) {
-  case SERVICE_CONTROL_STOP: 
+  case SERVICE_CONTROL_SHUTDOWN:
+  case SERVICE_CONTROL_STOP:
     ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
     // Signal the service to stop.
     SetEvent(ghSvcStopEvent);
-    ReportSvcStatus(gSvcStatus.dwCurrentState, NO_ERROR, 0);
-    LogFinish();
     break;
   case SERVICE_CONTROL_INTERROGATE: 
     break; 
