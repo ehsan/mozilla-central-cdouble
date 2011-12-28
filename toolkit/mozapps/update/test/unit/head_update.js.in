@@ -678,9 +678,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
   // to stop to know the service command is done.
   process.run(true, args, args.length);
 
-  resetEnvironment();
-
   function timerCallback(timer) {
+    // Make sure all of the logs are written out.
+    waitForServiceStop(false);
+    resetEnvironment();
+ 
     // Wait for the expected status
     let status = readStatusFile(updatesDir);
     // For failed status, we don't care what the failure code is
@@ -701,9 +703,6 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     timer.cancel();
     timer = null;
 
-    // Make sure all of the logs are written out.
-    waitForServiceStop(false);
-
     if (aCheckSvcLog) {
       checkServiceLogs(svcOriginalLog);
     } 
@@ -711,7 +710,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
   }
 
   let timer = AUS_Cc["@mozilla.org/timer;1"].createInstance(AUS_Ci.nsITimer);
-  timer.initWithCallback(timerCallback, 1000, timer.TYPE_REPEATING_SLACK);
+  timer.initWithCallback(timerCallback, 10000, timer.TYPE_REPEATING_SLACK);
 }
 
 /**
