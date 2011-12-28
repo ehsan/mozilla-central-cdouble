@@ -218,5 +218,5 @@ function checkUpdateApplied() {
   let toBeDeletedDir = getApplyDirFile("tobedeleted", true);
   do_check_false(toBeDeletedDir.exists());
 
-  do_timeout(15000, checkCallbackServiceLog);
+  checkCallbackServiceLog();
 }

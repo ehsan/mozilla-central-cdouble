@@ -40,5 +40,5 @@ function checkUpdateApplied() {
   // We need to check the service log even though this is a bootstrap
   // because the app bin could be in use by this test by the time the next
   // test runs.
-  do_timeout(15000, checkCallbackServiceLog);
+  checkCallbackServiceLog();
 }

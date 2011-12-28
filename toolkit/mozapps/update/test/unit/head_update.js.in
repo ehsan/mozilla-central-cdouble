@@ -1191,7 +1191,6 @@ function checkCallbackServiceLog() {
   logFile.initWithPath(gServiceLaunchedCallbackLog);
   let logContents = readFile(logFile);
  
-  /*
   // It is possible for the log file contents check to occur before the log file
   // contents are completely written so wait until the contents are the expected
   // value. If the contents are never the expected value then the test will
@@ -1201,7 +1200,6 @@ function checkCallbackServiceLog() {
     do_timeout(TEST_HELPER_TIMEOUT, checkCallbackServiceLog);
     return;
   }
-  */
 
   logTestInfo("testing that the callback application successfully launched " +
               "and the expected command line arguments passed to it");
