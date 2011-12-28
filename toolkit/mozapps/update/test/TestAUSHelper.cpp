@@ -157,13 +157,23 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
  * This function does not stop the service, it just blocks until the service
  * is stopped.
  *
- * @param  serviceName    The service to wait for.
- * @param  maxWaitSeconds The maximum number of seconds to wait
- * @return true if the service was stopped after waiting at most maxWaitSeconds
- *         false on an error or when the service was not stopped
+ * @param  serviceName     The service to wait for.
+ * @param  maxWaitSeconds  The maximum number of seconds to wait
+ * @return state of the service after a timeout or when stopped.
+ *         A value of 255 is returned for an error. Typical values are:
+ *         SERVICE_STOPPED 0x00000001
+ *         SERVICE_START_PENDING 0x00000002
+ *         SERVICE_STOP_PENDING 0x00000003
+ *         SERVICE_RUNNING 0x00000004
+ *         SERVICE_CONTINUE_PENDING 0x00000005
+ *         SERVICE_PAUSE_PENDING 0x00000006
+ *         SERVICE_PAUSED 0x00000007
  */
-bool WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
+DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
 {
+  // Stores the last service state checked.
+  // 255 is used as an invalid value which means there was an error
+  DWORD lastServiceState = 255;
   // Get a handle to the SCM database.
   SC_HANDLE serviceManager = OpenSCManager(NULL, NULL, 
                                            SC_MANAGER_CONNECT | 
@@ -181,11 +191,9 @@ bool WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
     return false;
   }
 
-  bool gotStop = false;
   DWORD currentWaitMS = 0;
+  SERVICE_STATUS_PROCESS ssp;
   while (currentWaitMS < maxWaitSeconds * 1000) {
-    // Make sure the service is not stopped.
-    SERVICE_STATUS_PROCESS ssp;
     DWORD bytesNeeded;
     if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
                               sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
@@ -194,16 +202,16 @@ bool WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
 
     // The service is already in use.
     if (ssp.dwCurrentState == SERVICE_STOPPED) {
-      gotStop = true;
       break;
     }
     currentWaitMS += 50;
     Sleep(50);
   }
 
+  lastServiceState = ssp.dwCurrentState;
   CloseServiceHandle(service);
   CloseServiceHandle(serviceManager);
-  return gotStop;
+  return lastServiceState;
 }
 
 
@@ -258,10 +266,11 @@ int NS_main(int argc, NS_tchar **argv)
 #ifdef XP_WIN
     const int maxWaitSeconds = NS_ttoi(argv[3]);
     LPCWSTR serviceName = argv[2];
-    if (WaitForServiceStop(serviceName, maxWaitSeconds)) {
+    DWORD serviceState = WaitForServiceStop(serviceName, maxWaitSeconds);
+    if (SERVICE_STOPPED == serviceState) {
       return 0;
     } else {
-      return 1;
+      return serviceState;
     }
 #else 
     // Not implemented on non-Windows platforms

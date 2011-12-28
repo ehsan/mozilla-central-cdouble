@@ -568,9 +568,11 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     helperBinProcess.run(true, helperBinArgs, helperBinArgs.length);
     if (helperBinProcess.exitValue != 0) {
       if (aFailTest) {
-        do_throw("maintenance service did not stop, forcing test failure.");
+        do_throw("maintenance service did not stop, last state: " +
+                 helperBinProcess.exitValue + ". Forcing test failure.");
       } else {
-        logTestInfo("maintenance service did not stop, may cause failures.");
+        logTestInfo("maintenance service did not stop, last state: " + 
+                    helperBinProcess.exitValue + ".  May cause failures.");
       }
     } else {
       logTestInfo("Service stopped.");
@@ -696,13 +698,14 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
                   " status, got " + status + " for now...");
       return;
     }
+    
+    // Make sure all of the logs are written out.
+    waitForServiceStop(false);
+
     do_check_eq(status, aExpectedStatus);
 
     timer.cancel();
     timer = null;
-
-    // Make sure all of the logs are written out.
-    waitForServiceStop(false);
 
     if (aCheckSvcLog) {
       checkServiceLogs(svcOriginalLog);
