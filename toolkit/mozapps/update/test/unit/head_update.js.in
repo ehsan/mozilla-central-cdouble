@@ -114,6 +114,7 @@ var gCallbackArgs = ["./", "callback.log", "Test Arg 2", "Test Arg 3"];
 
 // Time to wait for the test helper process before continuing the test
 const TEST_HELPER_TIMEOUT = 100;
+const TEST_SERVICE_HELPER_TIMEOUT = 3000;
 
 // Use a copy of the main application executable for the test to avoid main
 // executable in use errors.
@@ -1201,7 +1202,7 @@ function checkCallbackServiceLog() {
   // fail by timing out.
   if (logContents != expectedLogContents) {
     logTestInfo("callback service log not expected value, waiting longer");
-    do_timeout(TEST_HELPER_TIMEOUT, checkCallbackServiceLog);
+    do_timeout(TEST_SERVICE_HELPER_TIMEOUT, checkCallbackServiceLog);
     return;
   }
 
@@ -1210,7 +1211,7 @@ function checkCallbackServiceLog() {
   do_check_eq(logContents, expectedLogContents);
 
   // Use a timeout to give any files that were in use additional time to close.
-  do_timeout(TEST_HELPER_TIMEOUT, do_test_finished);
+  do_timeout(TEST_SERVICE_HELPER_TIMEOUT, do_test_finished);
 }
 
 /**
