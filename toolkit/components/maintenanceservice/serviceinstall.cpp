@@ -245,8 +245,6 @@ SvcInstall(SvcInstallAction action)
            "This error should never happen.  (%d)\n", 
            GetLastError()));
     }
-  } else {
-    LOG(("Service is already created."));
   }
 
   return TRUE;
@@ -279,8 +277,7 @@ StopService()
   // Stop logging before stopping the service.
   LogFinish();
 
-  WaitForServiceStop(SVC_NAME, 60); 
-  return FALSE;
+  return WaitForServiceStop(SVC_NAME, 60); 
 }
 
 /**
