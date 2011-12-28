@@ -276,8 +276,15 @@ StopService()
 
   // Stop logging before stopping the service.
   LogFinish();
+  schSCManager.reset();
+  schService.reset();
 
-  return WaitForServiceStop(SVC_NAME, 60); 
+  SERVICE_STATUS status;
+  BOOL result = ControlService(schService, SERVICE_CONTROL_STOP, &status);
+  if (result) {
+    result = WaitForServiceStop(SVC_NAME, 60);
+  }
+  return result;
 }
 
 /**

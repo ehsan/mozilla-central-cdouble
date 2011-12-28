@@ -359,8 +359,6 @@ SvcCtrlHandler(DWORD dwCtrl)
     // Signal the service to stop.
     SetEvent(ghSvcStopEvent);
     break;
-  case SERVICE_CONTROL_INTERROGATE: 
-    break; 
   default: 
     break;
   }

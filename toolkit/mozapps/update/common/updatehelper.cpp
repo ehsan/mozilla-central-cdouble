@@ -317,7 +317,10 @@ StartServiceCommand(int argc, LPCWSTR* argv)
     return FALSE;
   }
 
-  return StartServiceW(service, argc, argv);
+  BOOL result = StartServiceW(service, argc, argv);
+  CloseServiceHandle(service);
+  CloseServiceHandle(serviceManager);
+  return result;
 }
 
 /**
