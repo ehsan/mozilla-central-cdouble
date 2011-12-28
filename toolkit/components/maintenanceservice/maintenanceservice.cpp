@@ -51,7 +51,6 @@
 SERVICE_STATUS gSvcStatus = { 0 }; 
 SERVICE_STATUS_HANDLE gSvcStatusHandle = NULL; 
 HANDLE ghSvcStopEvent = NULL;
-BOOL gServiceStopping = FALSE;
 
 // logs are pretty small ~10 lines, so 5 seems reasonable.
 #define LOGS_TO_KEEP 5
@@ -261,7 +260,7 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
     return; 
   } 
 
-  // These SERVICE_STATUS members remain as set here
+  // These values will be re-used later in calls involving gSvcStatus
   gSvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
   gSvcStatus.dwServiceSpecificExitCode = 0;
 
@@ -300,11 +299,9 @@ SvcInit(DWORD argc, LPWSTR *argv)
   // Perform work until service stops.
   for(;;) {
     // Check whether to stop the service.
-    if (ghSvcStopEvent) {
-      WaitForSingleObject(ghSvcStopEvent, INFINITE);
-      CloseHandle(ghSvcStopEvent);
-      ghSvcStopEvent = NULL;
-    }
+    WaitForSingleObject(ghSvcStopEvent, INFINITE);
+    CloseHandle(ghSvcStopEvent);
+    ghSvcStopEvent = NULL;
     LogFinish();
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
     return;
@@ -325,7 +322,6 @@ ReportSvcStatus(DWORD currentState,
 {
   static DWORD dwCheckPoint = 1;
 
-  // Fill in the SERVICE_STATUS structure.
   gSvcStatus.dwCurrentState = currentState;
   gSvcStatus.dwWin32ExitCode = exitCode;
   gSvcStatus.dwWaitHint = waitHint;
