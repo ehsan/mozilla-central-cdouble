@@ -1608,8 +1608,8 @@ int NS_main(int argc, NS_tchar **argv)
 
   bool useService = false;
   bool testOnlyFallbackKeyExists = false;
-  bool noServiceFallback = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK") != NULL;
-  _wputenv(L"MOZ_NO_SERVICE_FALLBACK=");
+  bool noServiceFallback = getenv("MOZ_NO_SERVICE_FALLBACK") != NULL;
+  putenv(const_cast<char*>("MOZ_NO_SERVICE_FALLBACK="));
 
   // We never want the service to be used unless we build with
   // the maintenance service.
@@ -1684,8 +1684,8 @@ int NS_main(int argc, NS_tchar **argv)
   const int callbackIndex = 5;
 
 #if defined(XP_WIN)
-  bool usingService = _wgetenv(L"MOZ_USING_SERVICE") != NULL;
-  _wputenv(L"MOZ_USING_SERVICE=");
+  bool usingService = getenv("MOZ_USING_SERVICE") != NULL;
+  putenv(const_cast<char*>("MOZ_USING_SERVICE="));
   // lastFallbackError keeps track of the last error for the service not being 
   // used, in case of an error when fallback is not enabled we write the 
   // error to the update.status file. 

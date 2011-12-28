@@ -132,17 +132,15 @@ StartUpdateProcess(int argc,
   // do anything special that it needs to do for service updates.
   // Search in updater.cpp for more info on MOZ_USING_SERVICE
   // for more info.
-  WCHAR envVarString[32];
-  wsprintf(envVarString, L"MOZ_USING_SERVICE=1"); 
-  _wputenv(envVarString);
-
-  // Empty value on _wputenv is how you remove an env variable in Windows
+  putenv(const_cast<char*>("MOZ_USING_SERVICE=1"));
+  LOG(("Starting service with cmdline: %ls\n", cmdLine));
   processStarted = CreateProcessW(argv[0], cmdLine, 
                                   NULL, NULL, FALSE, 
                                   CREATE_DEFAULT_ERROR_MODE, 
                                   NULL, 
                                   NULL, &si, &pi);
-  _wputenv(L"MOZ_USING_SERVICE=");
+  // Empty value on putenv is how you remove an env variable in Windows
+  putenv(const_cast<char*>("MOZ_USING_SERVICE="));
   
   BOOL updateWasSuccessful = FALSE;
   if (processStarted) {
