@@ -322,7 +322,8 @@ ReportSvcStatus(DWORD currentState,
   gSvcStatus.dwWin32ExitCode = exitCode;
   gSvcStatus.dwWaitHint = waitHint;
 
-  if (SERVICE_START_PENDING == currentState) {
+  if (SERVICE_START_PENDING == currentState || 
+      SERVICE_STOP_PENDING == currentState) {
     gSvcStatus.dwControlsAccepted = 0;
   } else {
     gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP | 
@@ -351,6 +352,7 @@ SvcCtrlHandler(DWORD dwCtrl)
   switch(dwCtrl) {
   case SERVICE_CONTROL_SHUTDOWN:
   case SERVICE_CONTROL_STOP:
+    ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 3000);
     // Signal the service to stop.
     SetEvent(ghSvcStopEvent);
     break;
