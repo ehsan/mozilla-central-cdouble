@@ -1797,6 +1797,8 @@ int NS_main(int argc, NS_tchar **argv)
             lastFallbackError = FALLBACKKEY_SERVICE_NO_STOP_ERROR;
             useService = false;
           }
+        } else {
+          lastFallbackError = FALLBACKKEY_LAUNCH_ERROR;
         }
       }
 
