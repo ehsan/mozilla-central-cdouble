@@ -1683,8 +1683,9 @@ int NS_main(int argc, NS_tchar **argv)
   // argument prior to callbackIndex is the working directory.
   const int callbackIndex = 5;
 
+  bool usingService = false;
 #if defined(XP_WIN)
-  bool usingService = getenv("MOZ_USING_SERVICE") != NULL;
+  usingService = getenv("MOZ_USING_SERVICE") != NULL;
   putenv(const_cast<char*>("MOZ_USING_SERVICE="));
   // lastFallbackError keeps track of the last error for the service not being 
   // used, in case of an error when fallback is not enabled we write the 
