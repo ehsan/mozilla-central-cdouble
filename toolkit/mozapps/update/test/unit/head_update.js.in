@@ -1213,6 +1213,8 @@ function checkCallbackServiceLog() {
         logTestInfo("unable to remove file during cleanup. Exception: " + e);
         do_timeout(TEST_HELPER_TIMEOUT, removeCallbackCopy);
       }
+    } else {
+      do_timeout(TEST_HELPER_TIMEOUT, do_test_finished);
     }
   })();
 
