@@ -569,7 +569,7 @@ static int ensure_parent_dir(const NS_tchar *path)
       if (rv < 0 && errno != EEXIST) {
         LOG(("ensure_parent_dir: failed to create directory: " LOG_S ", " \
              "err: %d\n", path, errno));
-        rv = WRITE_ERROR;
+        rv = WRITE_ERROR1;
       } else {
         rv = OK;
       }
@@ -751,14 +751,14 @@ static int rename_file(const NS_tchar *spath, const NS_tchar *dpath,
     if (ensure_remove(dpath)) {
       LOG(("rename_file: destination file exists and could not be " \
            "removed: " LOG_S "\n", dpath));
-      return WRITE_ERROR;
+      return WRITE_ERROR2;
     }
   }
 
   if (NS_trename(spath, dpath) != 0) {
     LOG(("rename_file: failed to rename file - src: " LOG_S ", " \
          "dst:" LOG_S ", err: %d\n", spath, dpath, errno));
-    return WRITE_ERROR;
+    return WRITE_ERROR3;
   }
 
   return OK;
@@ -813,7 +813,7 @@ static int backup_discard(const NS_tchar *path)
     if (rename_file(backup, path)) {
       LOG(("backup_discard: failed to rename file:" LOG_S ", dst:" LOG_S "\n",
            backup, path));
-      return WRITE_ERROR;
+      return WRITE_ERROR4;
     }
     // The MoveFileEx call to remove the file on OS reboot will fail if the
     // process doesn't have write access to the HKEY_LOCAL_MACHINE registry key
@@ -830,7 +830,7 @@ static int backup_discard(const NS_tchar *path)
   }
 #else
   if (rv)
-    return WRITE_ERROR;
+    return WRITE_ERROR5;
 #endif
 
   return OK;
@@ -942,7 +942,7 @@ RemoveFile::Prepare()
 
   if (rv) {
     LOG(("access failed: %d\n", errno));
-    return WRITE_ERROR;
+    return WRITE_ERROR6;
   }
 
   return OK;
@@ -1043,7 +1043,7 @@ RemoveDir::Prepare()
   rv = NS_taccess(mDir, W_OK);
   if (rv) {
     LOG(("access failed: %d, %d\n", rv, errno));
-    return WRITE_ERROR;
+    return WRITE_ERROR7;
   }
 
   return OK;
@@ -1305,7 +1305,7 @@ PatchFile::Prepare()
 
   FILE *fp = NS_tfopen(spath, NS_T("wb"));
   if (!fp)
-    return WRITE_ERROR;
+    return WRITE_ERROR8;
 
 #ifdef XP_WIN
   char sourcefile[MAXPATHLEN];
@@ -1426,7 +1426,7 @@ PatchFile::Execute()
 
   if (ofile == NULL) {
     LOG(("unable to create new file: " LOG_S ", err: %d\n", mFile, errno));
-    return WRITE_ERROR;
+    return WRITE_ERROR9;
   }
 
 #ifdef XP_WIN
@@ -2069,8 +2069,8 @@ int NS_main(int argc, NS_tchar **argv)
 
   bool useService = false;
   bool testOnlyFallbackKeyExists = false;
-  bool noServiceFallback = _wgetenv(L"MOZ_NO_SERVICE_FALLBACK") != NULL;
-  _wputenv(L"MOZ_NO_SERVICE_FALLBACK=");
+  bool noServiceFallback = getenv("MOZ_NO_SERVICE_FALLBACK") != NULL;
+  putenv(const_cast<char*>("MOZ_NO_SERVICE_FALLBACK="));
 
   // We never want the service to be used unless we build with
   // the maintenance service.
@@ -2176,8 +2176,8 @@ int NS_main(int argc, NS_tchar **argv)
 
   bool usingService = false;
 #if defined(XP_WIN)
-  usingService = _wgetenv(L"MOZ_USING_SERVICE") != NULL;
-  _wputenv(L"MOZ_USING_SERVICE=");
+  usingService = getenv("MOZ_USING_SERVICE") != NULL;
+  putenv(const_cast<char*>("MOZ_USING_SERVICE="));
   // lastFallbackError keeps track of the last error for the service not being 
   // used, in case of an error when fallback is not enabled we write the 
   // error to the update.status file. 
@@ -2290,22 +2290,6 @@ int NS_main(int argc, NS_tchar **argv)
         }
       }
 
-      HANDLE serviceInUseEvent = NULL;
-      if (useService) {
-        // Make sure the service isn't already busy processing another command.
-        // This event will also be used by the service who will signal it when
-        // it is done with the udpate.
-        serviceInUseEvent = CreateEventW(NULL, TRUE, 
-                                         FALSE, SERVICE_EVENT_NAME);
-
-        // Only use the service if we know the event can be created and
-        // doesn't already exist.
-        if (!serviceInUseEvent) {
-          useService = false;
-          lastFallbackError = FALLBACKKEY_EVENT_ERROR;
-        }
-      }
-
       // Originally we used to write "pending" to update.status before
       // launching the service command.  This is no longer needed now
       // since the service command is launched from updater.exe.  If anything
@@ -2319,14 +2303,17 @@ int NS_main(int argc, NS_tchar **argv)
         // we do the update the old way.
         useService = LaunchServiceSoftwareUpdateCommand(argc, (LPCWSTR *)argv);
 
-        // The command was launched, so we should wait for the work to be done.
-        // The service will set the event we wait on when it is done.
+        // If the command was launched then wait for the service to be done.
         if (useService) {
-          WaitForSingleObject(serviceInUseEvent, INFINITE);
+          if (!WaitForServiceStop(SVC_NAME, 600)) {
+            // If the service doesn't stop after 10 minutes there is
+            // something seriously wrong.
+            lastFallbackError = FALLBACKKEY_SERVICE_NO_STOP_ERROR;
+            useService = false;
+          }
         } else {
           lastFallbackError = FALLBACKKEY_LAUNCH_ERROR;
         }
-        CloseHandle(serviceInUseEvent);
       }
 
       // If we could not use the service in the background update case,
@@ -2477,7 +2464,7 @@ int NS_main(int argc, NS_tchar **argv)
                         sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
     LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", gDestinationPath));
     LogFinish();
-    WriteStatusFile(WRITE_ERROR);
+    WriteStatusFile(WRITE_ERROR10);
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
     if (argc > callbackIndex) {
       LaunchCallbackApp(argv[4], argc - callbackIndex,
@@ -2512,11 +2499,12 @@ int NS_main(int argc, NS_tchar **argv)
       NS_tstrcpy(p, argv[callbackIndex] + max(callbackPrefixLength, commonPrefixLength));
       targetPath = buffer;
     }
+    ZeroMemory(callbackLongPath, sizeof(callbackLongPath));
     if (!GetLongPathNameW(targetPath, callbackLongPath,
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
       LOG(("NS_main: unable to find callback file: " LOG_S "\n", targetPath));
       LogFinish();
-      WriteStatusFile(WRITE_ERROR);
+      WriteStatusFile(WRITE_ERROR11);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
       if (argc > callbackIndex) {
         LaunchCallbackApp(argv[4], argc - callbackIndex,
@@ -2585,7 +2573,7 @@ int NS_main(int argc, NS_tchar **argv)
         LOG(("NS_main: file in use - failed to exclusively open executable " \
              "file: " LOG_S "\n", targetPath));
         LogFinish();
-        WriteStatusFile(WRITE_ERROR);
+        WriteStatusFile(WRITE_ERROR12);
         NS_tremove(gCallbackBackupPath);
         EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
         LaunchCallbackApp(argv[4], argc - callbackIndex,

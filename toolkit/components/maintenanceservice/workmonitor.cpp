@@ -161,29 +161,19 @@ StartUpdateProcess(int argc,
                                       MOVEFILE_REPLACE_EXISTING);
   }
 
-  // Create an environment block for the updater.exe process we're about to 
-  // start.  Indicate that MOZ_USING_SERVICE is set so the updater.exe can
+  // Add an env var for MOZ_USING_SERVICE so the updater.exe can
   // do anything special that it needs to do for service updates.
   // Search in updater.cpp for more info on MOZ_USING_SERVICE.
-  WCHAR envVarString[32];
-  wsprintf(envVarString, L"MOZ_USING_SERVICE=1"); 
-  _wputenv(envVarString);
-  LPVOID environmentBlock = NULL;
-  if (!CreateEnvironmentBlock(&environmentBlock, NULL, TRUE)) {
-    LOG(("Could not create an environment block, setting it to NULL.\n"));
-    environmentBlock = NULL;
-  }
-  // Empty value on _wputenv is how you remove an env variable in Windows
-  _wputenv(L"MOZ_USING_SERVICE=");
+  putenv(const_cast<char*>("MOZ_USING_SERVICE=1"));
+  LOG(("Starting service with cmdline: %ls\n", cmdLine));
   processStarted = CreateProcessW(argv[0], cmdLine, 
                                   NULL, NULL, FALSE, 
-                                  CREATE_DEFAULT_ERROR_MODE | 
-                                  CREATE_UNICODE_ENVIRONMENT, 
-                                  environmentBlock, 
+                                  CREATE_DEFAULT_ERROR_MODE, 
+                                  NULL, 
                                   NULL, &si, &pi);
-  if (environmentBlock) {
-    DestroyEnvironmentBlock(environmentBlock);
-  }
+  // Empty value on putenv is how you remove an env variable in Windows
+  putenv(const_cast<char*>("MOZ_USING_SERVICE="));
+  
   BOOL updateWasSuccessful = FALSE;
   if (processStarted) {
     // Wait for the updater process to finish
@@ -358,6 +348,8 @@ ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
       LOG(("updater.exe was launched and run successfully!\n"));
       LogFlush();
 
+      // We may not execute code after StartServiceUpdate because
+      // the service installer will stop the service if it is running.
       StartServiceUpdate(argc, argv);
     } else {
       result = FALSE;
@@ -408,16 +400,8 @@ ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
 BOOL
 ExecuteServiceCommand(int argc, LPWSTR *argv) 
 {
-  // Indicate that the service is busy and shouldn't be used by anyone else
-  // by opening or creating a named event.  Programs should check if this 
-  // event exists before trying to start the service.
-  nsAutoHandle serviceRunningEvent(CreateEventW(NULL, TRUE, 
-                                                FALSE, SERVICE_EVENT_NAME));
-
   if (argc < 3) {
     LOG(("Not enough command line arguments to execute a service command\n"));
-    SetEvent(serviceRunningEvent);
-    StopService();
     return FALSE;
   }
 
@@ -436,6 +420,9 @@ ExecuteServiceCommand(int argc, LPWSTR *argv)
   BOOL result = FALSE;
   if (!lstrcmpi(argv[2], L"software-update")) {
     result = ProessSoftwareUpdateCommand(argc - 3, argv + 3);
+    // We may not reach here if the service install succeeded
+    // because the service self updates itself and the service
+    // installer will stop the service.
     LOG(("Service command %ls complete.\n", argv[2]));
   } else {
     LOG(("Service command not recognized: %ls.\n", argv[2]));
@@ -444,7 +431,5 @@ ExecuteServiceCommand(int argc, LPWSTR *argv)
 
   LOG(("service command %ls complete with result: %ls.\n", 
        argv[1], (result ? L"Success" : L"Failure")));
-  SetEvent(serviceRunningEvent);
-  StopService();
   return TRUE;
 }

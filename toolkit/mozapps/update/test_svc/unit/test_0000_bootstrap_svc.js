@@ -36,7 +36,6 @@ function run_test() {
 
 function checkUpdateApplied() {
   checkFilesAfterUpdateSuccess();
-  do_test_finished();
 
   // We need to check the service log even though this is a bootstrap
   // because the app bin could be in use by this test by the time the next

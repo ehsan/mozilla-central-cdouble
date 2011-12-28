@@ -46,11 +46,13 @@
 #include "servicebase.h"
 #include "workmonitor.h"
 #include "uachelper.h"
+#include "updatehelper.h"
 
 SERVICE_STATUS gSvcStatus = { 0 }; 
 SERVICE_STATUS_HANDLE gSvcStatusHandle = NULL; 
-HANDLE ghSvcStopEvent = NULL;
-BOOL gServiceStopping = FALSE;
+HANDLE gWorkDoneEvent = NULL;
+HANDLE gThread = NULL;
+bool gServiceControlStopping = false;
 
 // logs are pretty small ~10 lines, so 5 seems reasonable.
 #define LOGS_TO_KEEP 5
@@ -142,20 +144,6 @@ wmain(int argc, WCHAR **argv)
 }
 
 /**
- * Wrapper callback for the monitoring thread.
- *
- * @param param Unused thread callback parameter
- */
-DWORD
-WINAPI StartMaintenanceServiceThread(LPVOID param) 
-{
-  ThreadData *threadData = reinterpret_cast<ThreadData*>(param);
-  ExecuteServiceCommand(threadData->argc, threadData->argv);
-  delete threadData;
-  return 0;
-}
-
-/**
  * Obtains the base path where logs should be stored
  *
  * @param  path The out buffer for the backup log path of size MAX_PATH + 1
@@ -240,7 +228,7 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
  * Main entry point when running as a service.
  */
 void WINAPI 
-SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
+SvcMain(DWORD argc, LPWSTR *argv)
 {
   // Setup logging, and backup the old logs
   WCHAR updatePath[MAX_PATH + 1];
@@ -260,48 +248,33 @@ SvcMain(DWORD dwArgc, LPWSTR *lpszArgv)
     return; 
   } 
 
-  // These SERVICE_STATUS members remain as set here
+  // These values will be re-used later in calls involving gSvcStatus
   gSvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
   gSvcStatus.dwServiceSpecificExitCode = 0;
 
   // Report initial status to the SCM
   ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
 
-  // Perform service-specific initialization and work.
-  SvcInit(dwArgc, lpszArgv);
-}
-
-/**
- * Service initialization.
- */
-void
-SvcInit(DWORD argc, LPWSTR *argv)
-{
-  // Create an event. The control handler function, SvcCtrlHandler,
-  // signals this event when it receives the stop control code.
-  ghSvcStopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-  if (NULL == ghSvcStopEvent) {
+  // This event will be used to tell the SvcCtrlHandler when the work is
+  // done for when a stop comamnd is manually issued.
+  gWorkDoneEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (!gWorkDoneEvent) {
     ReportSvcStatus(SERVICE_STOPPED, 1, 0);
     return;
   }
 
-  ThreadData *threadData = new ThreadData();
-  threadData->argc = argc;
-  threadData->argv = argv;
-
-  DWORD threadID;
-  HANDLE thread = CreateThread(NULL, 0, StartMaintenanceServiceThread, 
-                               threadData, 0, &threadID);
-
-  // Report running status when initialization is complete.
+  // Initialization complete and we're about to start working on
+  // the actual command.  Report the service state as running to the SCM.
   ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
 
-  // Perform work until service stops.
-  for(;;) {
-    // Check whether to stop the service.
-    WaitForSingleObject(ghSvcStopEvent, INFINITE);
+  ExecuteServiceCommand(argc, argv);  
+  LogFinish();
+  SetEvent(gWorkDoneEvent);
+
+  // If the work is done and we aren't already in a stop pending state
+  // waiting for the command to exit, then issue a stop command now.
+  if (!gServiceControlStopping) {
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
-    return;
   }
 }
 
@@ -319,15 +292,16 @@ ReportSvcStatus(DWORD currentState,
 {
   static DWORD dwCheckPoint = 1;
 
-  // Fill in the SERVICE_STATUS structure.
   gSvcStatus.dwCurrentState = currentState;
   gSvcStatus.dwWin32ExitCode = exitCode;
   gSvcStatus.dwWaitHint = waitHint;
 
-  if (SERVICE_START_PENDING == currentState) {
+  if (SERVICE_START_PENDING == currentState || 
+      SERVICE_STOP_PENDING == currentState) {
     gSvcStatus.dwControlsAccepted = 0;
   } else {
-    gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+    gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP | 
+                                    SERVICE_ACCEPT_SHUTDOWN;
   }
 
   if ((SERVICE_RUNNING == currentState) ||
@@ -350,16 +324,21 @@ SvcCtrlHandler(DWORD dwCtrl)
 {
   // Handle the requested control code. 
   switch(dwCtrl) {
-  case SERVICE_CONTROL_STOP: 
-    ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
-    // Signal the service to stop.
-    SetEvent(ghSvcStopEvent);
-    ReportSvcStatus(gSvcStatus.dwCurrentState, NO_ERROR, 0);
-    LogFinish();
+  case SERVICE_CONTROL_SHUTDOWN:
+  case SERVICE_CONTROL_STOP:
+    // If we're already stopping, just return
+    if (gServiceControlStopping) {
+      break;
+    }
+    gServiceControlStopping = true;
+    do {
+      ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 1000);
+    } while(WaitForSingleObject(gWorkDoneEvent, 100) == WAIT_TIMEOUT);
+    CloseHandle(gWorkDoneEvent);
+    gWorkDoneEvent = NULL;
+    ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
     break;
-  case SERVICE_CONTROL_INTERROGATE: 
-    break; 
-  default: 
+  default:
     break;
   }
 }
