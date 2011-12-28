@@ -128,8 +128,7 @@ StartUpdateProcess(int argc,
 
   // Add an env var for MOZ_USING_SERVICE so the updater.exe can
   // do anything special that it needs to do for service updates.
-  // Search in updater.cpp for more info on MOZ_USING_SERVICE
-  // for more info.
+  // Search in updater.cpp for more info on MOZ_USING_SERVICE.
   putenv(const_cast<char*>("MOZ_USING_SERVICE=1"));
   LOG(("Starting service with cmdline: %ls\n", cmdLine));
   processStarted = CreateProcessW(argv[0], cmdLine, 
