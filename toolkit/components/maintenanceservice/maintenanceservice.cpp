@@ -296,16 +296,12 @@ SvcInit(DWORD argc, LPWSTR *argv)
   // Report running status when initialization is complete.
   ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
 
-  // Perform work until service stops.
-  for(;;) {
-    // Check whether to stop the service.
-    WaitForSingleObject(ghSvcStopEvent, INFINITE);
-    CloseHandle(ghSvcStopEvent);
-    ghSvcStopEvent = NULL;
-    LogFinish();
-    ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
-    return;
-  }
+  // Wait for the service to stop from the SCM or when the job is done.
+  WaitForSingleObject(ghSvcStopEvent, INFINITE);
+  CloseHandle(ghSvcStopEvent);
+  ghSvcStopEvent = NULL;
+  LogFinish();
+  ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
 }
 
 /**
@@ -355,7 +351,6 @@ SvcCtrlHandler(DWORD dwCtrl)
   switch(dwCtrl) {
   case SERVICE_CONTROL_SHUTDOWN:
   case SERVICE_CONTROL_STOP:
-    ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
     // Signal the service to stop.
     SetEvent(ghSvcStopEvent);
     break;
