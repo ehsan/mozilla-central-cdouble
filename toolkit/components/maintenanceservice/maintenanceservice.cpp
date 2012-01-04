@@ -218,7 +218,7 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
       continue;
     }
 
-    if (!MoveFileEx(oldPath, newPath, MOVEFILE_REPLACE_EXISTING)) {
+    if (!MoveFileExW(oldPath, newPath, MOVEFILE_REPLACE_EXISTING)) {
       continue;
     }
   }

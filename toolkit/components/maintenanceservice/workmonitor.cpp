@@ -161,8 +161,8 @@ StartUpdateProcess(int argc,
   // because of background updates.
   if (PathGetSiblingFilePath(updaterINI, argv[0], L"updater.ini") &&
       PathGetSiblingFilePath(updaterINITemp, argv[0], L"updater.tmp")) {
-    selfHandlePostUpdate = MoveFileEx(updaterINI, updaterINITemp, 
-                                      MOVEFILE_REPLACE_EXISTING);
+    selfHandlePostUpdate = MoveFileExW(updaterINI, updaterINITemp, 
+                                       MOVEFILE_REPLACE_EXISTING);
   }
 
   // Add an env var for MOZ_USING_SERVICE so the updater.exe can
@@ -236,7 +236,7 @@ StartUpdateProcess(int argc,
   // We use it ourselves, and also we want it back in case we had any type 
   // of error so that the normal update process can use it.
   if (selfHandlePostUpdate) {
-    MoveFileEx(updaterINITemp, updaterINI, MOVEFILE_REPLACE_EXISTING);
+    MoveFileExW(updaterINITemp, updaterINI, MOVEFILE_REPLACE_EXISTING);
 
     // Only run the PostUpdate if the update was successful
     if (updateWasSuccessful && argc > 2) {

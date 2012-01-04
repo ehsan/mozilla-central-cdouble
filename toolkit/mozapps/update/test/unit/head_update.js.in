@@ -566,7 +566,9 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
                            createInstance(AUS_Ci.nsIProcess);
     helperBinProcess.init(helperBin);
     helperBinProcess.run(true, helperBinArgs, helperBinArgs.length);
-    if (helperBinProcess.exitValue != 0) {
+    if (helperBinProcess.exitValue == 0xEE) {
+      do_throw("The service does not exist on this machine!");
+    } else if (helperBinProcess.exitValue != 0) {
       if (aFailTest) {
         do_throw("maintenance service did not stop, last state: " +
                  helperBinProcess.exitValue + ". Forcing test failure.");

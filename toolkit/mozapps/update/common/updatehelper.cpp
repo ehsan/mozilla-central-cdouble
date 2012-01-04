@@ -530,6 +530,14 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
       case ERROR_SHUTDOWN_IN_PROGRESS:
         ssp.dwCurrentState = 0x000000DE;
         break;
+      // These 3 errors can occur when the service is not yet stopped but
+      // it is stopping.
+      case ERROR_INVALID_SERVICE_CONTROL:
+      case ERROR_SERVICE_CANNOT_ACCEPT_CTRL:
+      case ERROR_SERVICE_NOT_ACTIVE:
+        currentWaitMS += 50;
+        Sleep(50);
+        continue;
       default:
         ssp.dwCurrentState = 0x000000DF;
       }

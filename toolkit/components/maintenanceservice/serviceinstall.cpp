@@ -189,12 +189,12 @@ SvcInstall(SvcInstallAction action)
         return FALSE;
       }
 
-      if (!DeleteFile(serviceConfig.lpBinaryPathName)) {
+      if (!DeleteFileW(serviceConfig.lpBinaryPathName)) {
         LOG(("Could not delete old service binary file.  (%d)\n", GetLastError()));
         return FALSE;
       }
 
-      if (!CopyFile(newServiceBinaryPath, 
+      if (!CopyFileW(newServiceBinaryPath, 
                     serviceConfig.lpBinaryPathName, FALSE)) {
         LOG(("Could not overwrite old service binary file. "
              "This should never happen, but if it does the next upgrade will fix"
@@ -207,7 +207,7 @@ SvcInstall(SvcInstallAction action)
       // We made a copy of ourselves to the existing location.
       // The tmp file (the process of which we are executing right now) will be
       // left over.  Attempt to delete the file on the next reboot.
-      MoveFileEx(newServiceBinaryPath, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+      MoveFileExW(newServiceBinaryPath, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
       
       // Setup the new module path
       wcsncpy(newServiceBinaryPath, serviceConfig.lpBinaryPathName, MAX_PATH);
@@ -216,7 +216,7 @@ SvcInstall(SvcInstallAction action)
       // We don't need to copy ourselves to the existing location.
       // The tmp file (the process of which we are executing right now) will be
       // left over.  Attempt to delete the file on the next reboot.
-      MoveFileEx(newServiceBinaryPath, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+      MoveFileExW(newServiceBinaryPath, NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
       
       return TRUE; // nothing to do, we already have a newer service installed
     }
