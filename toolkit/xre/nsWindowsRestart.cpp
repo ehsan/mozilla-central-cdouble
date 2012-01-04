@@ -220,43 +220,6 @@ FreeAllocStrings(int argc, PRUnichar **argv)
   delete [] argv;
 }
 
-static BOOL
-WriteStatusFile(LPCWSTR updateDirPath, const char* contents,
-                size_t length)
-{
-  PRUnichar updateStatusFilePath[MAX_PATH + 1];
-  wcscpy(updateStatusFilePath, updateDirPath);
-  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
-    return FALSE;
-  }
-
-  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0, 
-                                      NULL, CREATE_ALWAYS, 0, NULL));
-  if (statusFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
-
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, contents,
-                      length, &wrote, NULL);
-  return ok && (wrote == length);
-}
-
-/**
- * Sets update.status to applied so that the next startup will not use
- * the service and instead will attempt an update the with a UAC prompt.
- *
- * @param  updateDirPath The path of the update directory
- * @return TRUE if successful
- */
-BOOL
-WriteStatusApplied(LPCWSTR updateDirPath)
-{
-  const char applied[] = "applied";
-  return WriteStatusFile(updateDirPath, applied,
-                         sizeof(applied) - 1);
-}
-
 
 
 /**
