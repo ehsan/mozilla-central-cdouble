@@ -143,8 +143,8 @@ SHARED_LIBRARY_LIBS += \
   $(NULL)
 
 ifdef MOZ_ENABLE_XREMOTE
-SHARED_LIBRARY_LIBS += $(DEPTH)/widget/src/xremoteclient/$(LIB_PREFIX)xremote_client_s.$(LIB_SUFFIX)
-LOCAL_INCLUDES += -I$(topsrcdir)/widget/src/xremoteclient
+SHARED_LIBRARY_LIBS += $(DEPTH)/widget/xremoteclient/$(LIB_PREFIX)xremote_client_s.$(LIB_SUFFIX)
+LOCAL_INCLUDES += -I$(topsrcdir)/widget/xremoteclient
 endif
 
 ifdef MOZ_CRASHREPORTER
