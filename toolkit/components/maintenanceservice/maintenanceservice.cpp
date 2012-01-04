@@ -246,6 +246,18 @@ EnsureProcessTerminatedThread(LPVOID)
   return 0;
 }
 
+void 
+StartTerminationThread() 
+{
+  // If the process does not self terminate like it should, this thread 
+  // will terminate the process after 5 seconds.
+  HANDLE thread = CreateThread(NULL, 0, EnsureProcessTerminatedThread, 
+                               NULL, 0, NULL);
+  if (thread) {
+    CloseHandle(thread);
+  }
+}
+
 /**
  * Main entry point when running as a service.
  */
@@ -283,6 +295,7 @@ SvcMain(DWORD argc, LPWSTR *argv)
   // done for when a stop comamnd is manually issued.
   gWorkDoneEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
   if (!gWorkDoneEvent) {
+    StartTerminationThread();
     ReportSvcStatus(SERVICE_STOPPED, 1, 0);
     return;
   }
@@ -294,13 +307,7 @@ SvcMain(DWORD argc, LPWSTR *argv)
   ExecuteServiceCommand(argc, argv);  
   LogFinish();
   
-  // If the process does not self terminate like it should, this thread 
-  // will terminate the process after 5 seconds.
-  HANDLE thread = CreateThread(NULL, 0, EnsureProcessTerminatedThread, 
-                               NULL, 0, NULL);
-  if (thread) {
-    CloseHandle(thread);
-  }
+  StartTerminationThread();
 
   SetEvent(gWorkDoneEvent);
 
