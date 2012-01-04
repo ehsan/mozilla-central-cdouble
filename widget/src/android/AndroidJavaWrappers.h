@@ -161,7 +161,7 @@ public:
     jobject LockBuffer();
     unsigned char *LockBufferBits();
     void UnlockBuffer();
-    void BeginDrawing();
+    void BeginDrawing(int aWidth, int aHeight);
     void EndDrawing(const nsIntRect &aRect, const nsAString &aMetadata);
 
 private:
@@ -390,7 +390,6 @@ public:
     static jclass jAddressClass;
     static jmethodID jGetAddressLineMethod;
     static jmethodID jGetAdminAreaMethod;
-    static jmethodID jGetCountryCodeMethod;
     static jmethodID jGetCountryNameMethod;
     static jmethodID jGetFeatureNameMethod;
     static jmethodID jGetLocalityMethod;
@@ -532,6 +531,7 @@ public:
         FORCED_RESIZE = 16,
         ACTIVITY_START = 17,
         BROADCAST = 19,
+        VIEWPORT = 20,
         dummy_java_enum_list_end
     };
 

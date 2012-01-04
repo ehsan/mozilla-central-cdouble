@@ -1564,23 +1564,27 @@ function delayedStartup(isLoadingBlank, mustLoadSidebar) {
     }
     catch (ex) { /* never mind; suppose SessionStore is broken */ }
     if (shouldCheck && !shell.isDefaultBrowser(true) && !willRecoverSession) {
-      var brandBundle = document.getElementById("bundle_brand");
-      var shellBundle = document.getElementById("bundle_shell");
+      // Delay the set-default-browser prompt so it doesn't block
+      // initialisation of the session store service.
+      setTimeout(function () {
+        var brandBundle = document.getElementById("bundle_brand");
+        var shellBundle = document.getElementById("bundle_shell");
 
-      var brandShortName = brandBundle.getString("brandShortName");
-      var promptTitle = shellBundle.getString("setDefaultBrowserTitle");
-      var promptMessage = shellBundle.getFormattedString("setDefaultBrowserMessage",
-                                                         [brandShortName]);
-      var checkboxLabel = shellBundle.getFormattedString("setDefaultBrowserDontAsk",
-                                                         [brandShortName]);
-      var checkEveryTime = { value: shouldCheck };
-      var ps = Services.prompt;
-      var rv = ps.confirmEx(window, promptTitle, promptMessage,
-                            ps.STD_YES_NO_BUTTONS,
-                            null, null, null, checkboxLabel, checkEveryTime);
-      if (rv == 0)
-        shell.setDefaultBrowser(true, false);
-      shell.shouldCheckDefaultBrowser = checkEveryTime.value;
+        var brandShortName = brandBundle.getString("brandShortName");
+        var promptTitle = shellBundle.getString("setDefaultBrowserTitle");
+        var promptMessage = shellBundle.getFormattedString("setDefaultBrowserMessage",
+                                                           [brandShortName]);
+        var checkboxLabel = shellBundle.getFormattedString("setDefaultBrowserDontAsk",
+                                                           [brandShortName]);
+        var checkEveryTime = { value: shouldCheck };
+        var ps = Services.prompt;
+        var rv = ps.confirmEx(window, promptTitle, promptMessage,
+                              ps.STD_YES_NO_BUTTONS,
+                              null, null, null, checkboxLabel, checkEveryTime);
+        if (rv == 0)
+          shell.setDefaultBrowser(true, false);
+        shell.shouldCheckDefaultBrowser = checkEveryTime.value;
+      }, 0);
     }
   }
 #endif
@@ -2197,14 +2201,7 @@ function openLocationCallback()
 
 function BrowserOpenTab()
 {
-  if (!gBrowser) {
-    // If there are no open browser windows, open a new one
-    window.openDialog("chrome://browser/content/", "_blank",
-                      "chrome,all,dialog=no", "about:blank");
-    return;
-  }
-  gBrowser.loadOneTab("about:blank", {inBackground: false});
-  focusAndSelectUrlBar();
+  openUILinkIn("about:blank", "tab");
 }
 
 /* Called from the openLocation dialog. This allows that dialog to instruct
@@ -8800,7 +8797,7 @@ function switchToTabHavingURI(aURI, aOpenNew) {
     if (isBrowserWindow && isTabEmpty(gBrowser.selectedTab))
       gBrowser.selectedBrowser.loadURI(aURI.spec);
     else
-      openUILinkIn(aURI.spec, "tab", { inBackground: false });
+      openUILinkIn(aURI.spec, "tab");
   }
 
   return false;
@@ -8910,20 +8907,16 @@ function duplicateTabIn(aTab, where, delta) {
                  .getService(Ci.nsISessionStore)
                  .duplicateTab(window, aTab, delta);
 
-  var loadInBackground =
-    getBoolPref("browser.tabs.loadBookmarksInBackground", false);
-
   switch (where) {
     case "window":
       gBrowser.hideTab(newTab);
       gBrowser.replaceTabWithWindow(newTab);
       break;
     case "tabshifted":
-      loadInBackground = !loadInBackground;
-      // fall through
+      // A background tab has been opened, nothing else to do here.
+      break;
     case "tab":
-      if (!loadInBackground)
-        gBrowser.selectedTab = newTab;
+      gBrowser.selectedTab = newTab;
       break;
   }
 }
@@ -9030,3 +9023,10 @@ XPCOMUtils.defineLazyGetter(window, "gShowPageResizers", function () {
 #endif
 });
 
+function focusNextFrame(event) {
+  let fm = Cc["@mozilla.org/focus-manager;1"].getService(Ci.nsIFocusManager);
+  let dir = event.shiftKey ? fm.MOVEFOCUS_BACKWARDDOC : fm.MOVEFOCUS_FORWARDDOC;
+  let element = fm.moveFocus(window, null, dir, fm.FLAG_BYKEY);
+  if (element.ownerDocument == document)
+    focusAndSelectUrlBar();
+}

@@ -341,6 +341,7 @@ DOMCI_CLASS(SVGPoint)
 DOMCI_CLASS(SVGPointList)
 DOMCI_CLASS(SVGPreserveAspectRatio)
 DOMCI_CLASS(SVGRect)
+DOMCI_CLASS(SVGStringList)
 DOMCI_CLASS(SVGTransform)
 DOMCI_CLASS(SVGTransformList)
 DOMCI_CLASS(SVGZoomEvent)
@@ -500,7 +501,7 @@ DOMCI_CLASS(DesktopNotification)
 DOMCI_CLASS(DesktopNotificationCenter)
 
 // WebSocket
-DOMCI_CLASS(MozWebSocket)
+DOMCI_CLASS(WebSocket)
 DOMCI_CLASS(CloseEvent)
 
 DOMCI_CLASS(IDBFactory)

@@ -2852,11 +2852,6 @@ MOZ_ARG_DISABLE_BOOL(polyic,
 [  --disable-polyic      Disable use of PICs by JIT compiler],
   ENABLE_POLYIC= )
 
-MOZ_ARG_ENABLE_BOOL(tracejit,
-[  --enable-tracejit     Deprecated, does nothing],
-  ENABLE_TRACEJIT=,
-  ENABLE_TRACEJIT= )
-
 MOZ_ARG_ENABLE_BOOL(methodjit-spew,
 [  --enable-methodjit-spew      Enable method JIT spew support],
   ENABLE_METHODJIT_SPEW=1,
@@ -4363,6 +4358,17 @@ MOZ_ARG_DISABLE_BOOL(gcincremental,
     JSGC_INCREMENTAL= )
 if test -n "$JSGC_INCREMENTAL"; then
     AC_DEFINE(JSGC_INCREMENTAL)
+fi
+
+dnl ========================================================
+dnl = Perform moving GC stack rooting analysis
+dnl ========================================================
+MOZ_ARG_ENABLE_BOOL(gcrootanalysis,
+[  --enable-root-analysis Enable moving GC stack root analysis],
+    JSGC_ROOT_ANALYSIS=1,
+    JSGC_ROOT_ANALYSIS= )
+if test -n "$JSGC_ROOT_ANALYSIS"; then
+    AC_DEFINE(JSGC_ROOT_ANALYSIS)
 fi
 
 dnl ========================================================

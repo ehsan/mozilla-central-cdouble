@@ -87,7 +87,6 @@ MAKEFILES_dom="
   dom/locales/Makefile
   dom/plugins/base/Makefile
   dom/plugins/ipc/Makefile
-  js/jetpack/Makefile
 "
 
 MAKEFILES_editor="
@@ -1078,7 +1077,6 @@ if [ "$ENABLE_TESTS" ]; then
   fi
   if [ "$OS_ARCH" = "WINNT" ]; then
     add_makefiles "
-      intl/chardet/tests/Makefile
       toolkit/xre/test/win/Makefile
       widget/src/windows/tests/Makefile
       xpcom/tests/windows/Makefile

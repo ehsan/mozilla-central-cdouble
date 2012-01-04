@@ -75,6 +75,7 @@ public:
   virtual nsresult EvaluateString(const nsAString& aScript,
                                   JSObject* aScopeObject,
                                   nsIPrincipal *principal,
+                                  nsIPrincipal *originPrincipal,
                                   const char *aURL,
                                   PRUint32 aLineNo,
                                   PRUint32 aVersion,
@@ -182,10 +183,14 @@ public:
   static void LoadEnd();
 
   static void GarbageCollectNow(bool shrinkingGC = false);
+  static void ShrinkGCBuffersNow();
   static void CycleCollectNow(nsICycleCollectorListener *aListener = nsnull);
 
   static void PokeGC();
   static void KillGCTimer();
+
+  static void PokeShrinkGCBuffers();
+  static void KillShrinkGCBuffersTimer();
 
   static void PokeCC();
   static void MaybePokeCC();
