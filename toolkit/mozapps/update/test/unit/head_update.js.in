@@ -463,6 +463,11 @@ let gServiceLaunchedCallbackArgs = null;
  * @return true if the test should run and false if it shouldn't.
  */
 function shouldRunServiceTest(aFirstTest) {
+  // In case the machine is running an old maintenance service or if it
+  // is not installed, and permissions exist to install it.  Then install
+  // the newer bin that we have.
+  attemptServiceInstall();
+
   const REG_PATH = "SOFTWARE\\Mozilla\\MaintenanceService\\" +
                    "3932ecacee736d366d6436db0f55bce4";
 
@@ -545,6 +550,34 @@ function copyBinToApplyToDir(filename) {
     do_print("copying " + fileToCopy.path + " to: " + applyToUpdater.path);
     fileToCopy.copyTo(applyToUpdater, filename);
   }
+}
+
+/**
+ * Attempts to upgrade the maintenance service if permissions are allowed.
+ * This is useful for XP where we have permission to upgrade in case an
+ * older service installer exists.  Also if the user manually installed into
+ * a unprivileged location.
+*/
+function attemptServiceInstall() {
+  var version = AUS_Cc["@mozilla.org/system-info;1"]
+                .getService(AUS_Ci.nsIPropertyBag2)
+                .getProperty("version");
+  var isXPOrLower = (parseFloat(version) < 6.0);
+  if (!isXPOrLower) {
+    return;
+  }
+  
+  let binDir = getGREDir();
+  let installerFile = binDir.clone();
+  installerFile.append(MAINTENANCE_SERVICE_INSTALLER_BIN_FILE);
+  if (!installerFile.exists()) {
+    do_throw(MAINTENANCE_SERVICE_INSTALLER_BIN_FILE + " not found.");
+  }
+  let installerProcess = AUS_Cc["@mozilla.org/process/util;1"].
+                         createInstance(AUS_Ci.nsIProcess);
+  installerProcess.init(installerFile);
+  logTestInfo("Starting installer process...");
+  installerProcess.run(true, [], 0);
 }
 
 /**
