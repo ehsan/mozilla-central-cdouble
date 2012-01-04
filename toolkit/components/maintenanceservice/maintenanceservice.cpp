@@ -136,7 +136,7 @@ wmain(int argc, WCHAR **argv)
 
   // This call returns when the service has stopped. 
   // The process should simply terminate when the call returns.
-  if (!StartServiceCtrlDispatcher(DispatchTable)) {
+  if (!StartServiceCtrlDispatcherW(DispatchTable)) {
     LOG(("StartServiceCtrlDispatcher failed (%d)\n", GetLastError()));
   }
 
@@ -290,25 +290,20 @@ ReportSvcStatus(DWORD currentState,
                 DWORD exitCode, 
                 DWORD waitHint)
 {
-  static DWORD dwCheckPoint = 1;
+  static DWORD checkPoint = 0;
 
   gSvcStatus.dwCurrentState = currentState;
   gSvcStatus.dwWin32ExitCode = exitCode;
   gSvcStatus.dwWaitHint = waitHint;
 
-  if (SERVICE_START_PENDING == currentState || 
-      SERVICE_STOP_PENDING == currentState) {
-    gSvcStatus.dwControlsAccepted = 0;
-  } else {
-    gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP | 
-                                    SERVICE_ACCEPT_SHUTDOWN;
-  }
+  // The service will stop on its own pretty quickly.
+  gSvcStatus.dwControlsAccepted = 0;
 
   if ((SERVICE_RUNNING == currentState) ||
       (SERVICE_STOPPED == currentState)) {
     gSvcStatus.dwCheckPoint = 0;
   } else {
-    gSvcStatus.dwCheckPoint = dwCheckPoint++;
+    gSvcStatus.dwCheckPoint = ++checkPoint;
   }
 
   // Report the status of the service to the SCM.
