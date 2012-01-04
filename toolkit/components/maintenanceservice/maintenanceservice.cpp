@@ -267,7 +267,9 @@ SvcMain(DWORD argc, LPWSTR *argv)
   gSvcStatusHandle = RegisterServiceCtrlHandlerW(SVC_NAME, SvcCtrlHandler);
   if (!gSvcStatusHandle) {
     LOG(("RegisterServiceCtrlHandler failed (%d)\n", GetLastError()));
-    return; 
+    ExecuteServiceCommand(argc, argv);  
+    LogFinish();
+    exit(1);
   } 
 
   // These values will be re-used later in calls involving gSvcStatus
