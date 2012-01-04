@@ -278,8 +278,9 @@ StartServiceUpdate(int argc, LPWSTR *argv)
 DWORD 
 StartServiceCommand(int argc, LPCWSTR* argv) 
 {
-  if (!WaitForServiceStop(SVC_NAME, 5)) {
-    return 17000;
+  DWORD lastState = WaitForServiceStop(SVC_NAME, 5);
+  if (lastState != SERVICE_STOPPED) {
+    return 20000 + lastState;
   }
 
   // Get a handle to the SCM database.
@@ -310,7 +311,7 @@ StartServiceCommand(int argc, LPCWSTR* argv)
       lastError = ERROR_SUCCESS;
       break;
     } else {
-      lastError = GetLastError();
+      lastError = 18000 + GetLastError();
     }
     Sleep(100);
     currentWaitMS += 100;
@@ -434,20 +435,29 @@ WriteStatusFailure(LPCWSTR updateDirPath, int errorCode)
  * This function does not stop the service, it just blocks until the service
  * is stopped.
  *
- * @param  serviceName    The service to wait for.
- * @param  maxWaitSeconds The maximum number of seconds to wait
- * @return TRUE if the service was stopped after waiting at most maxWaitSeconds
- *         FALSE on an error or when the service was not stopped
+ * @param  serviceName     The service to wait for.
+ * @param  maxWaitSeconds  The maximum number of seconds to wait
+ * @return state of the service after a timeout or when stopped.
+ *         A value of 255 is returned for an error. Typical values are:
+ *         SERVICE_STOPPED 0x00000001
+ *         SERVICE_START_PENDING 0x00000002
+ *         SERVICE_STOP_PENDING 0x00000003
+ *         SERVICE_RUNNING 0x00000004
+ *         SERVICE_CONTINUE_PENDING 0x00000005
+ *         SERVICE_PAUSE_PENDING 0x00000006
+ *         SERVICE_PAUSED 0x00000007
  */
-BOOL
-WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
+DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
 {
+  // Stores the last service state checked.
+  // 255 is used as an invalid value which means there was an error
+  DWORD lastServiceState = 255;
   // Get a handle to the SCM database.
   SC_HANDLE serviceManager = OpenSCManager(NULL, NULL, 
                                            SC_MANAGER_CONNECT | 
                                            SC_MANAGER_ENUMERATE_SERVICE);
   if (!serviceManager)  {
-    return FALSE;
+    return lastServiceState;
   }
 
   // Get a handle to the service.
@@ -456,14 +466,12 @@ WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
                                    SERVICE_QUERY_STATUS);
   if (!service) {
     CloseServiceHandle(serviceManager);
-    return FALSE;
+    return lastServiceState;
   }
 
-  BOOL gotStop = FALSE;
   DWORD currentWaitMS = 0;
+  SERVICE_STATUS_PROCESS ssp;
   while (currentWaitMS < maxWaitSeconds * 1000) {
-    // Make sure the service is not stopped.
-    SERVICE_STATUS_PROCESS ssp;
     DWORD bytesNeeded;
     if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
                               sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
@@ -472,14 +480,14 @@ WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
 
     // The service is already in use.
     if (ssp.dwCurrentState == SERVICE_STOPPED) {
-      gotStop = TRUE;
       break;
     }
     currentWaitMS += 50;
     Sleep(50);
   }
 
+  lastServiceState = ssp.dwCurrentState;
   CloseServiceHandle(service);
   CloseServiceHandle(serviceManager);
-  return gotStop;
+  return lastServiceState;
 }

@@ -1791,7 +1791,8 @@ int NS_main(int argc, NS_tchar **argv)
         useService = (ret == ERROR_SUCCESS);
         // If the command was launched then wait for the service to be done.
         if (useService) {
-          if (!WaitForServiceStop(SVC_NAME, 600)) {
+          DWORD lastState = WaitForServiceStop(SVC_NAME, 600);
+          if (lastState != SERVICE_STOPPED) {
             // If the service doesn't stop after 10 minutes there is
             // something seriously wrong.
             lastFallbackError = FALLBACKKEY_SERVICE_NO_STOP_ERROR;

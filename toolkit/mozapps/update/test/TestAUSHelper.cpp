@@ -179,7 +179,7 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
                                            SC_MANAGER_CONNECT | 
                                            SC_MANAGER_ENUMERATE_SERVICE);
   if (!serviceManager)  {
-    return false;
+    return lastServiceState;
   }
 
   // Get a handle to the service.
@@ -188,7 +188,7 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
                                    SERVICE_QUERY_STATUS);
   if (!service) {
     CloseServiceHandle(serviceManager);
-    return false;
+    return lastServiceState;
   }
 
   DWORD currentWaitMS = 0;

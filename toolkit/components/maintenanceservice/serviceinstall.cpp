@@ -281,7 +281,7 @@ StopService()
   ControlService(schService, SERVICE_CONTROL_STOP, &status);
   schSCManager.reset();
   schService.reset();
-  return WaitForServiceStop(SVC_NAME, 20);
+  return WaitForServiceStop(SVC_NAME, 20) == SERVICE_STOPPED;
 }
 
 /**
