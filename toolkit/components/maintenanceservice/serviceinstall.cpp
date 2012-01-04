@@ -274,14 +274,19 @@ StopService()
     return FALSE;
   } 
 
-  // Stop logging before stopping the service.
-  LogFinish();
-
+  LOG(("Sending stop request...\n"));
   SERVICE_STATUS status;
-  ControlService(schService, SERVICE_CONTROL_STOP, &status);
+  if (!ControlService(schService, SERVICE_CONTROL_STOP, &status)) {
+    LOG(("Error sending stop request: %d\n", GetLastError()));
+  }
+
   schSCManager.reset();
   schService.reset();
-  return WaitForServiceStop(SVC_NAME, 20) == SERVICE_STOPPED;
+
+  LOG(("Waiting for service stop...\n"));
+  DWORD lastState = WaitForServiceStop(SVC_NAME, 60);
+  LOG(("Done waiting for service stop, last service state: %d\n", lastState));
+  return lastState == SERVICE_STOPPED;
 }
 
 /**
