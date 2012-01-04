@@ -70,6 +70,8 @@ static const unsigned long kDialogTimerTimeout = 300;
 #define MAX_EXTENSION_LENGTH 10
 #define FILE_BUFFER_SIZE     4096 
 
+typedef DWORD FILEOPENDIALOGOPTIONS;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Helper classes
 
@@ -886,7 +888,8 @@ nsFilePicker::ShowFilePicker(const nsString& aInitialDir)
   // options
 
   FILEOPENDIALOGOPTIONS fos = 0;
-  fos |= FOS_SHAREAWARE | FOS_OVERWRITEPROMPT | FOS_NOREADONLYRETURN;
+  fos |= FOS_SHAREAWARE | FOS_OVERWRITEPROMPT |
+         FOS_NOREADONLYRETURN | FOS_FORCEFILESYSTEM;
 
   // Handle add to recent docs settings
   if (IsPrivacyModeEnabled() || !mAddToRecentDocs) {

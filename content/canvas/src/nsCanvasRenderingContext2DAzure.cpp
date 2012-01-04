@@ -809,7 +809,7 @@ protected:
         if (state.patternStyles[aStyle]->mRepeat == nsCanvasPatternAzure::NOREPEAT) {
           mode = EXTEND_CLAMP;
         } else {
-          mode = EXTEND_WRAP;
+          mode = EXTEND_REPEAT;
         }
         mPattern = new (mSurfacePattern.addr())
           SurfacePattern(state.patternStyles[aStyle]->mSurface, mode);
@@ -1292,6 +1292,12 @@ nsCanvasRenderingContext2DAzure::InitializeWithTarget(DrawTarget *target, PRInt3
   if (!target)
   {
     mTarget = gfxPlatform::GetPlatform()->CreateOffscreenDrawTarget(IntSize(1, 1), FORMAT_B8G8R8A8);
+    if (!mTarget) {
+      // SupportsAzure() is controlled by the "gfx.canvas.azure.prefer-skia"
+      // pref so that may be the reason rather than an OOM.
+      mValid = false;
+      return NS_ERROR_OUT_OF_MEMORY;
+    }
   } else {
     mValid = true;
   }

@@ -4,6 +4,7 @@
 "use strict";
 
 Cu.import("resource://services-sync/addonsreconciler.js");
+Cu.import("resource://services-sync/engines/addons.js");
 Cu.import("resource://gre/modules/AddonManager.jsm");
 
 loadAddonTestFunctions();
@@ -12,6 +13,11 @@ startupManager();
 function run_test() {
   initTestLogging("Trace");
   Log4Moz.repository.getLogger("Sync.AddonsReconciler").level = Log4Moz.Level.Trace;
+  Log4Moz.repository.getLogger("Sync.AddonsReconciler").level =
+    Log4Moz.Level.Trace;
+
+  Svc.Prefs.set("engine.addons", true);
+  Engines.register(AddonsEngine);
 
   run_next_test();
 }
@@ -21,7 +27,7 @@ add_test(function test_defaults() {
 
   let reconciler = new AddonsReconciler();
 
-  do_check_true(reconciler._listening);
+  do_check_false(reconciler._listening);
   do_check_eq("object", typeof(reconciler.addons));
   do_check_eq(0, Object.keys(reconciler.addons).length);
   do_check_eq(0, reconciler._changes.length);
@@ -51,6 +57,7 @@ add_test(function test_install_detection() {
   _("Ensure that add-on installation results in appropriate side-effects.");
 
   let reconciler = new AddonsReconciler();
+  reconciler.startListening();
 
   let before = new Date();
   let addon = installAddon("test_bootstrap1_1");
@@ -90,6 +97,8 @@ add_test(function test_uninstall_detection() {
   _("Ensure that add-on uninstallation results in appropriate side-effects.");
 
   let reconciler = new AddonsReconciler();
+  reconciler.startListening();
+
   reconciler._addons = {};
   reconciler._changes = [];
 
@@ -140,4 +149,45 @@ add_test(function test_load_state_future_version() {
 
     run_next_test();
   });
+});
+
+add_test(function test_prune_changes_before_date() {
+  _("Ensure that old changes are pruned properly.");
+
+  let reconciler = new AddonsReconciler();
+  reconciler._ensureStateLoaded();
+  reconciler._changes = [];
+
+  let now = new Date();
+  const HOUR_MS = 1000 * 60 * 60;
+
+  _("Ensure pruning an empty changes array works.");
+  reconciler.pruneChangesBeforeDate(now);
+  do_check_eq(0, reconciler._changes.length);
+
+  let old = new Date(now.getTime() - HOUR_MS);
+  let young = new Date(now.getTime() - 1000);
+  reconciler._changes.push([old, CHANGE_INSTALLED, "foo"]);
+  reconciler._changes.push([young, CHANGE_INSTALLED, "bar"]);
+  do_check_eq(2, reconciler._changes.length);
+
+  _("Ensure pruning with an old time won't delete anything.");
+  let threshold = new Date(old.getTime() - 1);
+  reconciler.pruneChangesBeforeDate(threshold);
+  do_check_eq(2, reconciler._changes.length);
+
+  _("Ensure pruning a single item works.");
+  let threshold = new Date(young.getTime() - 1000);
+  reconciler.pruneChangesBeforeDate(threshold);
+  do_check_eq(1, reconciler._changes.length);
+  do_check_neq(undefined, reconciler._changes[0]);
+  do_check_eq(young, reconciler._changes[0][0]);
+  do_check_eq("bar", reconciler._changes[0][2]);
+
+  _("Ensure pruning all changes works.");
+  reconciler._changes.push([old, CHANGE_INSTALLED, "foo"]);
+  reconciler.pruneChangesBeforeDate(now);
+  do_check_eq(0, reconciler._changes.length);
+
+  run_next_test();
 });
