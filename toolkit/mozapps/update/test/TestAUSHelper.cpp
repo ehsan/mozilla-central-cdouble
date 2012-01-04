@@ -229,6 +229,7 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
 
   DWORD currentWaitMS = 0;
   SERVICE_STATUS_PROCESS ssp;
+  ssp.dwCurrentState = lastServiceState;
   while (currentWaitMS < maxWaitSeconds * 1000) {
     DWORD bytesNeeded;
     if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
