@@ -291,19 +291,21 @@ SvcMain(DWORD argc, LPWSTR *argv)
 
   ExecuteServiceCommand(argc, argv);  
   LogFinish();
+  
+  // If the process does not self terminate like it should, this thread 
+  // will terminate the process after 5 seconds.
+  HANDLE thread = CreateThread(NULL, 0, EnsureProcessTerminatedThread, 
+                               NULL, 0, NULL);
+  if (thread) {
+    CloseHandle(thread);
+  }
+
   SetEvent(gWorkDoneEvent);
 
   // If the work is done and we aren't already in a stop pending state
   // waiting for the command to exit, then issue a stop command now.
   if (!gServiceControlStopping) {
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
-  }
-
-  // If the process does not self terminate like it should, this thread will terminate
-  // the process after 5 seconds.
-  HANDLE thread = CreateThread(NULL, 0, EnsureProcessTerminatedThread, NULL, 0, NULL);
-  if (thread) {
-    CloseHandle(thread);
   }
 }
 
