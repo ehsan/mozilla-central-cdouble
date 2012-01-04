@@ -42,6 +42,8 @@
 
 // Needed for PathAppendW
 #include <shlwapi.h>
+// Needed for CreateToolhelp32Snapshot
+#include <tlhelp32.h>
 #pragma comment(lib, "shlwapi.lib") 
 
 WCHAR*
@@ -558,4 +560,70 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
   CloseServiceHandle(service);
   CloseServiceHandle(serviceManager);
   return lastServiceState;
+}
+
+
+/**
+ * Determines if there is at least one process running for the specified
+ * application. A match will be found across any session for any user.
+ *
+ * @param process The process to check for existance
+ * @return ERROR_NOT_FOUND if the process was not found
+ * @       ERROR_SUCCESS if the process was found and there were no errors
+ * @       Other Win32 system error code for other errors
+**/
+DWORD
+IsApplicationRunning(LPCWSTR filename)
+{
+  // Take a snapshot of all processes in the system.
+  HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (INVALID_HANDLE_VALUE == snapshot) {
+    return GetLastError();
+  }
+  
+  PROCESSENTRY32W processEntry;
+  processEntry.dwSize = sizeof(PROCESSENTRY32W);
+  if (!Process32FirstW(snapshot, &processEntry)) {
+    DWORD lastError = GetLastError();
+    CloseHandle(snapshot);
+    return lastError;
+  }
+
+  do {
+    if (wcsicmp(filename, processEntry.szExeFile) == 0) {
+      CloseHandle(snapshot);
+      return ERROR_SUCCESS;
+    }
+  } while (Process32NextW(snapshot, &processEntry));
+  CloseHandle(snapshot);
+  return ERROR_NOT_FOUND;
+}
+
+/**
+ * Waits for the specified applicaiton to exit.
+ *
+ * @param filename   The application to wait for.
+ * @param maxSeconds The maximum amount of seconds to wait for all
+ *                   instances of the application to exit.
+ * @return  ERROR_SUCCESS if no instances of the application exist
+ *          WAIT_TIMEOUT if the process is still running after maxSeconds.
+ *          Any other Win32 system error code.
+*/
+DWORD
+WaitForApplicationExit(LPCWSTR filename, DWORD maxSeconds) 
+{
+  DWORD applicationRunningError = WAIT_TIMEOUT;
+  for(DWORD i = 0; i < maxSeconds; i++) {
+    DWORD applicationRunningError = IsApplicationRunning(filename);
+    if (ERROR_NOT_FOUND == applicationRunningError) {
+      return ERROR_SUCCESS;
+    }
+    Sleep(1000);
+  }
+
+  if (ERROR_SUCCESS == applicationRunningError) {
+    return WAIT_TIMEOUT;
+  }
+
+  return applicationRunningError;
 }

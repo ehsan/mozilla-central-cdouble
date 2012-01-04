@@ -301,9 +301,9 @@ IsApplicationRunning(LPCWSTR filename)
     return GetLastError();
   }
   
-  PROCESSENTRY32 processEntry;
-  processEntry.dwSize = sizeof(PROCESSENTRY32);
-  if (!Process32First(snapshot, &processEntry)) {
+  PROCESSENTRY32W processEntry;
+  processEntry.dwSize = sizeof(PROCESSENTRY32W);
+  if (!Process32FirstW(snapshot, &processEntry)) {
     DWORD lastError = GetLastError();
     CloseHandle(snapshot);
     return lastError;
@@ -314,7 +314,7 @@ IsApplicationRunning(LPCWSTR filename)
       CloseHandle(snapshot);
       return ERROR_SUCCESS;
     }
-  } while (Process32Next(snapshot, &processEntry));
+  } while (Process32NextW(snapshot, &processEntry));
   CloseHandle(snapshot);
   return ERROR_NOT_FOUND;
 }
