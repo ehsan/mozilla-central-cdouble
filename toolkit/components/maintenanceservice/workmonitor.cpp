@@ -270,7 +270,7 @@ StartUpdateProcess(int argc,
  * @return TRUE if the update was successful.
  */
 BOOL
-ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
+ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
 {
   BOOL result = TRUE;
   if (argc < 3) {
@@ -442,7 +442,7 @@ ExecuteServiceCommand(int argc, LPWSTR *argv)
 
   BOOL result = FALSE;
   if (!lstrcmpi(argv[2], L"software-update")) {
-    result = ProessSoftwareUpdateCommand(argc - 3, argv + 3);
+    result = ProcessSoftwareUpdateCommand(argc - 3, argv + 3);
     // We might not reach here if the service install succeeded
     // because the service self updates itself and the service
     // installer will stop the service.

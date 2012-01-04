@@ -130,13 +130,13 @@ wmain(int argc, WCHAR **argv)
   }
 
   SERVICE_TABLE_ENTRYW DispatchTable[] = { 
-    { SVC_NAME, (LPSERVICE_MAIN_FUNCTION) SvcMain }, 
+    { SVC_NAME, (LPSERVICE_MAIN_FUNCTIONW) SvcMain }, 
     { NULL, NULL } 
   }; 
 
   // This call returns when the service has stopped. 
   // The process should simply terminate when the call returns.
-  if (!StartServiceCtrlDispatcher(DispatchTable)) {
+  if (!StartServiceCtrlDispatcherW(DispatchTable)) {
     LOG(("StartServiceCtrlDispatcher failed (%d)\n", GetLastError()));
   }
 
@@ -247,7 +247,7 @@ EnsureProcessTerminatedThread(LPVOID)
 }
 
 void 
-StartTerminationThread() 
+StartTerminationThread()
 {
   // If the process does not self terminate like it should, this thread 
   // will terminate the process after 5 seconds.
@@ -261,7 +261,7 @@ StartTerminationThread()
 /**
  * Main entry point when running as a service.
  */
-void WINAPI 
+void WINAPI
 SvcMain(DWORD argc, LPWSTR *argv)
 {
   // Setup logging, and backup the old logs
@@ -304,16 +304,19 @@ SvcMain(DWORD argc, LPWSTR *argv)
   // the actual command.  Report the service state as running to the SCM.
   ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
 
+  // The service command was executed, stop logging and set an event
+  // to indicate the work is done in case someone is waiting on a
+  // service stop operation.
   ExecuteServiceCommand(argc, argv);  
   LogFinish();
-  
-  StartTerminationThread();
 
   SetEvent(gWorkDoneEvent);
 
-  // If the work is done and we aren't already in a stop pending state
-  // waiting for the command to exit, then issue a stop command now.
+  // If we aren't already in a stopping state then tell the SCM we're stopped
+  // now.  If we are already in a stopping state then the SERVICE_STOPPED state
+  // will be set by the SvcCtrlHandler.
   if (!gServiceControlStopping) {
+    StartTerminationThread();
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
   }
 }
@@ -356,27 +359,55 @@ ReportSvcStatus(DWORD currentState,
 }
 
 /**
+ * Since the SvcCtrlHandler should only spend at most 30 seconds before 
+ * returning, this function does the service stop work for the SvcCtrlHandler. 
+*/
+DWORD WINAPI
+StopServiceAndWaitForCommandThread(LPVOID)
+{
+  do {
+    ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 1000);
+  } while(WaitForSingleObject(gWorkDoneEvent, 100) == WAIT_TIMEOUT);
+  CloseHandle(gWorkDoneEvent);
+  gWorkDoneEvent = NULL;
+  StartTerminationThread();
+  ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+  return 0;
+}
+
+/**
  * Called by SCM whenever a control code is sent to the service
  * using the ControlService function.
  */
 void WINAPI
 SvcCtrlHandler(DWORD dwCtrl)
 {
+  // After a SERVICE_CONTROL_STOP there should be no more commands sent to
+  // the SvcCtrlHandler.
+  if (gServiceControlStopping) {
+    return;
+  }
+
   // Handle the requested control code. 
   switch(dwCtrl) {
   case SERVICE_CONTROL_SHUTDOWN:
-  case SERVICE_CONTROL_STOP:
-    // If we're already stopping, just return
-    if (gServiceControlStopping) {
-      break;
-    }
-    gServiceControlStopping = true;
-    do {
+  case SERVICE_CONTROL_STOP: {
+      gServiceControlStopping = true;
       ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 1000);
-    } while(WaitForSingleObject(gWorkDoneEvent, 100) == WAIT_TIMEOUT);
-    CloseHandle(gWorkDoneEvent);
-    gWorkDoneEvent = NULL;
-    ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+
+      // The SvcCtrlHandler thread should not spend more than 30 seconds in 
+      // shutdown so we spawn a new thread for stopping the service 
+      HANDLE thread = CreateThread(NULL, 0, StopServiceAndWaitForCommandThread, 
+                                   NULL, 0, NULL);
+      if (thread) {
+        CloseHandle(thread);
+      } else {
+        // Couldn't start the thread so just call the stop ourselves.
+        // If it happens to take longer than 30 seconds the caller will
+        // get an error.
+        StopServiceAndWaitForCommandThread(NULL);
+      }
+    }
     break;
   default:
     break;

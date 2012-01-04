@@ -258,8 +258,7 @@ StartServiceUpdate(int argc, LPWSTR *argv)
   BOOL svcUpdateProcessStarted = CreateProcessW(maintserviceInstallerPath, 
                                                 cmdLine, 
                                                 NULL, NULL, FALSE, 
-                                                CREATE_DEFAULT_ERROR_MODE | 
-                                                CREATE_UNICODE_ENVIRONMENT, 
+                                                0, 
                                                 NULL, argv[2], &si, &pi);
   if (svcUpdateProcessStarted) {
     CloseHandle(pi.hProcess);
@@ -279,6 +278,10 @@ StartServiceUpdate(int argc, LPWSTR *argv)
 BOOL 
 StartServiceCommand(int argc, LPCWSTR* argv) 
 {
+  if (!WaitForServiceStop(SVC_NAME, 5)) {
+    return FALSE;
+  }
+
   // Get a handle to the SCM database.
   SC_HANDLE serviceManager = OpenSCManager(NULL, NULL, 
                                            SC_MANAGER_CONNECT | 
@@ -290,25 +293,8 @@ StartServiceCommand(int argc, LPCWSTR* argv)
   // Get a handle to the service.
   SC_HANDLE service = OpenServiceW(serviceManager, 
                                    SVC_NAME, 
-                                   SERVICE_QUERY_STATUS | SERVICE_START);
+                                   SERVICE_START);
   if (!service) {
-    CloseServiceHandle(serviceManager);
-    return FALSE;
-  }
-
-  // Make sure the service is not stopped.
-  SERVICE_STATUS_PROCESS ssp;
-  DWORD bytesNeeded;
-  if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
-                            sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
-    CloseServiceHandle(service);
-    CloseServiceHandle(serviceManager);
-    return FALSE;
-  }
-
-  // The service is already in use.
-  if (ssp.dwCurrentState != SERVICE_STOPPED) {
-    CloseServiceHandle(service);
     CloseServiceHandle(serviceManager);
     return FALSE;
   }
@@ -336,7 +322,7 @@ LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR* argv)
   // it has 2 extra args: 1) The Path to udpater.exe, and 2) the command 
   // being executed which is "software-update"
   LPCWSTR *updaterServiceArgv = new LPCWSTR[argc + 2];
-  updaterServiceArgv[0] = L"maintenanceservice.exe";
+  updaterServiceArgv[0] = L"MozillaMaintenance";
   updaterServiceArgv[1] = L"software-update";
 
   for (int i = 0; i < argc; ++i) {
