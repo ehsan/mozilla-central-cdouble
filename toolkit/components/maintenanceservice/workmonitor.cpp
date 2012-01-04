@@ -307,7 +307,7 @@ ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
       LOG(("updater.exe was launched and run successfully!\n"));
       LogFlush();
 
-      // We may not execute code after StartServiceUpdate because
+      // We might not execute code after StartServiceUpdate because
       // the service installer will stop the service if it is running.
       StartServiceUpdate(argc, argv);
     } else {
@@ -379,7 +379,7 @@ ExecuteServiceCommand(int argc, LPWSTR *argv)
   BOOL result = FALSE;
   if (!lstrcmpi(argv[2], L"software-update")) {
     result = ProessSoftwareUpdateCommand(argc - 3, argv + 3);
-    // We may not reach here if the service install succeeded
+    // We might not reach here if the service install succeeded
     // because the service self updates itself and the service
     // installer will stop the service.
     LOG(("Service command %ls complete.\n", argv[2]));
