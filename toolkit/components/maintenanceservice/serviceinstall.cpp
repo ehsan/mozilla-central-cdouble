@@ -278,13 +278,10 @@ StopService()
   LogFinish();
 
   SERVICE_STATUS status;
-  BOOL result = ControlService(schService, SERVICE_CONTROL_STOP, &status);
-  if (result) {
-    schSCManager.reset();
-    schService.reset();
-    result = WaitForServiceStop(SVC_NAME, 60);
-  }
-  return result;
+  ControlService(schService, SERVICE_CONTROL_STOP, &status);
+  schSCManager.reset();
+  schService.reset();
+  return WaitForServiceStop(SVC_NAME, 20);
 }
 
 /**

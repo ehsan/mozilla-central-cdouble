@@ -262,10 +262,6 @@ StartServiceUpdate(int argc, LPWSTR *argv)
                                                 CREATE_UNICODE_ENVIRONMENT, 
                                                 NULL, argv[2], &si, &pi);
   if (svcUpdateProcessStarted) {
-    // Wait on the process to finish updating to avoid problems with 
-    // tests that are running.  maintenanceservice_installer.exe 
-    // will execute very fast anyway.
-    WaitForSingleObject(pi.hProcess, INFINITE);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
   }
