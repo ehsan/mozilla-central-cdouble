@@ -220,33 +220,6 @@ FreeAllocStrings(int argc, PRUnichar **argv)
   delete [] argv;
 }
 
-/**
- * Obtains the directory path to store work item files.
- * 
- * @return TRUE if the path was obtained successfully.
-*/
-BOOL
-GetUpdateDirectoryPath(PRUnichar *path) 
-{
-  HRESULT hr = SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 
-    SHGFP_TYPE_CURRENT, path);
-  if (FAILED(hr)) {
-    return FALSE;
-  }
-  if (!PathAppendSafe(path, L"Mozilla")) {
-    return FALSE;
-  }
-  // The directory should already be created from the installer, but
-  // just to be safe in case someone deletes.
-  CreateDirectoryW(path, NULL);
-
-  if (!PathAppendSafe(path, L"updates")) {
-    return FALSE;
-  }
-  CreateDirectoryW(path, NULL);
-  return TRUE;
-}
-
 static BOOL
 WriteStatusFile(LPCWSTR updateDirPath, const char* contents,
                 size_t length)
