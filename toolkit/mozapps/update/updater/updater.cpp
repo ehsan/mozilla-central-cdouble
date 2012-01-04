@@ -1787,8 +1787,8 @@ int NS_main(int argc, NS_tchar **argv)
       if (useService) {
         // If the update couldn't be started, then set useService to false so
         // we do the update the old way.
-        useService = LaunchServiceSoftwareUpdateCommand(argc, (LPCWSTR *)argv);
-
+        DWORD ret = LaunchServiceSoftwareUpdateCommand(argc, (LPCWSTR *)argv);
+        useService = (ret == ERROR_SUCCESS);
         // If the command was launched then wait for the service to be done.
         if (useService) {
           if (!WaitForServiceStop(SVC_NAME, 600)) {
@@ -1798,7 +1798,7 @@ int NS_main(int argc, NS_tchar **argv)
             useService = false;
           }
         } else {
-          lastFallbackError = FALLBACKKEY_LAUNCH_ERROR;
+          lastFallbackError = 17000 + ret;
         }
       }
 

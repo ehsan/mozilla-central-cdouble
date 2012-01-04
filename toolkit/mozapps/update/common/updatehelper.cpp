@@ -273,13 +273,13 @@ StartServiceUpdate(int argc, LPWSTR *argv)
  * 
  * @param  argc    The total number of arguments in argv
  * @param  argv    An array of null terminated strings to pass to the service, 
- * @return TRUE if the service command was started.
+ * @return ERROR_SUCCESS if the service command was started.
 */
-BOOL 
+DWORD 
 StartServiceCommand(int argc, LPCWSTR* argv) 
 {
   if (!WaitForServiceStop(SVC_NAME, 5)) {
-    return FALSE;
+    return 17000;
   }
 
   // Get a handle to the SCM database.
@@ -287,7 +287,7 @@ StartServiceCommand(int argc, LPCWSTR* argv)
                                            SC_MANAGER_CONNECT | 
                                            SC_MANAGER_ENUMERATE_SERVICE);
   if (!serviceManager)  {
-    return FALSE;
+    return 17001;
   }
 
   // Get a handle to the service.
@@ -296,25 +296,28 @@ StartServiceCommand(int argc, LPCWSTR* argv)
                                    SERVICE_START);
   if (!service) {
     CloseServiceHandle(serviceManager);
-    return FALSE;
+    return 17002;
   }
 
   // Wait at most 5 seconds trying to start the service in case of errors
   // like ERROR_SERVICE_DATABASE_LOCKED or ERROR_SERVICE_REQUEST_TIMEOUT.
   const DWORD maxWaitMS = 5000;
   DWORD currentWaitMS = 0;
-  BOOL result = FALSE;
+  DWORD lastError = ERROR_SUCCESS;
   while (currentWaitMS < maxWaitMS) {
-    result = StartServiceW(service, argc, argv);
+    BOOL result = StartServiceW(service, argc, argv);
     if (result) {
+      lastError = ERROR_SUCCESS;
       break;
+    } else {
+      lastError = GetLastError();
     }
     Sleep(100);
     currentWaitMS += 100;
   }
   CloseServiceHandle(service);
   CloseServiceHandle(serviceManager);
-  return result;
+  return lastError;
 }
 
 /**
@@ -325,9 +328,9 @@ StartServiceCommand(int argc, LPCWSTR* argv)
  * @param  argc    The total number of arguments in argv
  * @param  argv    An array of null terminated strings to pass to the exePath, 
  *                 argv[0] must be the path to the updater.exe
- * @return TRUE if successful
+ * @return ERROR_SUCCESS if successful
  */
-BOOL
+DWORD
 LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR* argv)
 {
   // The service command is the same as the updater.exe command line except 
@@ -343,9 +346,9 @@ LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR* argv)
 
   // Execute the service command by starting the service with
   // the passed in arguments.
-  BOOL result = StartServiceCommand(argc + 2, updaterServiceArgv);
+  DWORD  ret = StartServiceCommand(argc + 2, updaterServiceArgv);
   delete[] updaterServiceArgv;
-  return result;
+  return ret;
 }
 
 /**

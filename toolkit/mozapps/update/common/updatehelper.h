@@ -41,7 +41,7 @@ BOOL LaunchWinPostProcess(const WCHAR *installationDir,
                           HANDLE userToken);
 BOOL StartServiceUpdate(int argc, LPWSTR *argv);
 BOOL GetUpdateDirectoryPath(LPWSTR path);
-BOOL LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR *argv);
+DWORD LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR *argv);
 BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
 BOOL WriteStatusPending(LPCWSTR updateDirPath);
 BOOL WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds);
