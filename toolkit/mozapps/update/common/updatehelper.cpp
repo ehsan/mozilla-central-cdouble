@@ -299,7 +299,19 @@ StartServiceCommand(int argc, LPCWSTR* argv)
     return FALSE;
   }
 
-  BOOL result = StartServiceW(service, argc, argv);
+  // Wait at most 5 seconds trying to start the service in case of errors
+  // like ERROR_SERVICE_DATABASE_LOCKED or ERROR_SERVICE_REQUEST_TIMEOUT.
+  const DWORD maxWaitMS = 5000;
+  DWORD currentWaitMS = 0;
+  BOOL result = FALSE;
+  while (currentWaitMS < maxWaitMS) {
+    result = StartServiceW(service, argc, argv);
+    if (result) {
+      break;
+    }
+    Sleep(100);
+    currentWaitMS += 100;
+  }
   CloseServiceHandle(service);
   CloseServiceHandle(serviceManager);
   return result;
