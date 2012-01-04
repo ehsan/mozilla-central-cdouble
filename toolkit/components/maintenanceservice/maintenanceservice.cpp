@@ -225,6 +225,28 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
 }
 
 /**
+ * Ensures the service is shutdown once all work is complete.
+ * There is an issue on XP SP2 and below where the service can hang
+ * in a stop pending state even know the SCM is notified of a stopped
+ * state.  On a sotpped state, control *should* be returned from the call to
+ * StartServiceCtrlDispatcher in the wmain thread.  Sometimes this is not the
+ * case though. This thread will terminate the process if it has been 5
+ * seconds after all work is done and the process is still not terminated.
+ * This thread is only started once a stopped state was sent to the SCM.
+ * The stop pending hang can be reproduced intermittently even if you set a
+ * stopped state dirctly and never set a stop pending state.
+ * It is safe to forcefully terminate the process ourselves since all work 
+ * is done once we start this thread.
+*/
+DWORD WINAPI
+EnsureProcessTerminatedThread(LPVOID) 
+{
+  Sleep(5000);
+  exit(0);
+  return 0;
+}
+
+/**
  * Main entry point when running as a service.
  */
 void WINAPI 
@@ -275,6 +297,13 @@ SvcMain(DWORD argc, LPWSTR *argv)
   // waiting for the command to exit, then issue a stop command now.
   if (!gServiceControlStopping) {
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+  }
+
+  // If the process does not self terminate like it should, this thread will terminate
+  // the process after 5 seconds.
+  HANDLE thread = CreateThread(NULL, 0, EnsureProcessTerminatedThread, NULL, 0, NULL);
+  if (thread) {
+    CloseHandle(thread);
   }
 }
 
