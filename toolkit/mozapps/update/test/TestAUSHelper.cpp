@@ -168,18 +168,41 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
  *         SERVICE_CONTINUE_PENDING 0x00000005
  *         SERVICE_PAUSE_PENDING 0x00000006
  *         SERVICE_PAUSED 0x00000007
+ *         last status not set 0x000000CF
+ *         Could no query status 0x000000DF
+ *         Could not open service, access denied 0x000000EB
+ *         Could not open service, invalid handle 0x000000EC
+ *         Could not open service, invalid name 0x000000ED
+ *         Could not open service, does not exist 0x000000EE
+ *         Could not open service, other error 0x000000EF
+ *         Could not open SCM, access denied 0x000000FD
+ *         Could not open SCM, database does not exist 0x000000FE;
+ *         Could not open SCM, other error 0x000000FF;
+ * Note: The strange choice of error codes above SERVICE_PAUSED are chosen
+ * in case Windows comes out with other service stats higher than 7, they
+ * would likely call it 8 and above.  JS code that uses this in TestAUSHelper
+ * only handles values up to 255 so that's why we don't use GetLastError 
+ * directly.
  */
 DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
 {
-  // Stores the last service state checked.
-  // 255 is used as an invalid value which means there was an error
-  DWORD lastServiceState = 255;
+  // 0x000000CF is defined above to be not set
+  DWORD lastServiceState = 0x000000CF;
+
   // Get a handle to the SCM database.
   SC_HANDLE serviceManager = OpenSCManager(NULL, NULL, 
                                            SC_MANAGER_CONNECT | 
                                            SC_MANAGER_ENUMERATE_SERVICE);
   if (!serviceManager)  {
-    return lastServiceState;
+    DWORD lastError = GetLastError();
+    switch(lastError) {
+    case ERROR_ACCESS_DENIED:
+      return 0x000000FD;
+    case ERROR_DATABASE_DOES_NOT_EXIST:
+      return 0x000000FE;
+    default:
+      return 0x000000FF;
+    }
   }
 
   // Get a handle to the service.
@@ -187,8 +210,20 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
                                    serviceName, 
                                    SERVICE_QUERY_STATUS);
   if (!service) {
+    DWORD lastError = GetLastError();
     CloseServiceHandle(serviceManager);
-    return lastServiceState;
+    switch(lastError) {
+    case ERROR_ACCESS_DENIED:
+      return 0x000000EB;
+    case ERROR_INVALID_HANDLE:
+      return 0x000000EC;
+    case ERROR_INVALID_NAME:
+      return 0x000000ED;
+    case ERROR_SERVICE_DOES_NOT_EXIST:
+      return 0x000000EE;
+    default:
+      return 0x000000EF;
+    } 
   }
 
   DWORD currentWaitMS = 0;
@@ -197,6 +232,31 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
     DWORD bytesNeeded;
     if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp,
                               sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
+      DWORD lastError = GetLastError();
+      switch (lastError) {
+      case ERROR_INVALID_HANDLE:
+        ssp.dwCurrentState = 0x000000D9;
+        break;
+      case ERROR_ACCESS_DENIED:
+        ssp.dwCurrentState = 0x000000DA;
+        break;
+      case ERROR_INSUFFICIENT_BUFFER:
+        ssp.dwCurrentState = 0x000000DB;
+        break;
+      case ERROR_INVALID_PARAMETER:
+        ssp.dwCurrentState = 0x000000DC;
+        break;
+      case ERROR_INVALID_LEVEL:
+        ssp.dwCurrentState = 0x000000DD;
+        break;
+      case ERROR_SHUTDOWN_IN_PROGRESS:
+        ssp.dwCurrentState = 0x000000DE;
+        break;
+      default:
+        ssp.dwCurrentState = 0x000000DF;
+      }
+
+      // We couldn't query the status so just break out
       break;
     }
 
