@@ -264,6 +264,5 @@ Section "Uninstall"
 
   SetRegView 64
   DeleteRegValue HKLM "Software\Mozilla\MaintenanceService" "Installed"
-  DeleteRegKey HKLM "${FallbackKey}\"
   SetRegView lastused
 SectionEnd
