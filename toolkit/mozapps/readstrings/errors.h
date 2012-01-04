@@ -52,18 +52,6 @@
 #define CERT_LOAD_ERROR 10
 #define CERT_HANDLING_ERROR 11
 #define CERT_VERIFY_ERROR 12
-#define WRITE_ERROR1 20
-#define WRITE_ERROR2 21
-#define WRITE_ERROR3 22
-#define WRITE_ERROR4 23
-#define WRITE_ERROR5 24
-#define WRITE_ERROR6 25
-#define WRITE_ERROR7 26
-#define WRITE_ERROR8 27
-#define WRITE_ERROR9 28
-#define WRITE_ERROR10 29
-#define WRITE_ERROR11 30
-#define WRITE_ERROR12 31
 
 // The following error codes are only used by updater.exe
 // when a fallback key exists and XPCShell tests are being run.

@@ -73,6 +73,45 @@ const int SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS = 16001;
 const int SERVICE_UPDATER_SIGN_ERROR = 16002;
 const int SERVICE_UPDATER_COMPARE_ERROR = 16003;
 const int SERVICE_UPDATER_IDENTITY_ERROR = 16004;
+const int SERVICE_STILL_APPLYING_ON_SUCCESS = 16005;
+const int SERVICE_STILL_APPLYING_ON_FAILURE = 16006;
+
+/* 
+ * Read the update.status file and sets isApplying to true if
+ * the status is set to applying
+ *
+ * @param  updateDirPath The directory where update.status is stored
+ * @param  isApplying Out parameter for specifying if the status
+ *         is set to applying or not.
+ * @return TRUE if the information was filled.
+*/
+static BOOL
+IsStatusApplying(LPCWSTR updateDirPath, BOOL &isApplying)
+{
+  isApplying = FALSE;
+  WCHAR updateStatusFilePath[MAX_PATH + 1];
+  wcscpy(updateStatusFilePath, updateDirPath);
+  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
+    return FALSE;
+  }
+
+  nsAutoHandle statusFile(CreateFileW(updateStatusFilePath, GENERIC_READ,
+                                      FILE_SHARE_READ | 
+                                      FILE_SHARE_WRITE | 
+                                      FILE_SHARE_DELETE,
+                                      NULL, OPEN_EXISTING, 0, NULL));
+  char buf[32] = { 0 };
+  DWORD read;
+  if (!ReadFile(statusFile, buf, sizeof(buf), &read, NULL)) {
+    return FALSE;
+  }
+
+  const char kApplying[] = "applying";
+  isApplying = strncmp(buf, kApplying, 
+                       sizeof(kApplying) - 1) == 0;
+  return TRUE;
+}
+
 
 /**
  * Gets the installation directory from the arguments passed to updater.exe.
@@ -157,8 +196,8 @@ StartUpdateProcess(int argc,
   // because of background updates.
   if (PathGetSiblingFilePath(updaterINI, argv[0], L"updater.ini") &&
       PathGetSiblingFilePath(updaterINITemp, argv[0], L"updater.tmp")) {
-    selfHandlePostUpdate = MoveFileEx(updaterINI, updaterINITemp, 
-                                      MOVEFILE_REPLACE_EXISTING);
+    selfHandlePostUpdate = MoveFileExW(updaterINI, updaterINITemp, 
+                                       MOVEFILE_REPLACE_EXISTING);
   }
 
   // Add an env var for MOZ_USING_SERVICE so the updater.exe can
@@ -196,6 +235,31 @@ StartUpdateProcess(int argc,
     }
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+
+    // Check just in case updater.exe didn't change the status from
+    // applying.  If this is the case we report an error.
+    BOOL isApplying = FALSE;
+    if (IsStatusApplying(argv[1], isApplying) && isApplying) {
+      if (updateWasSuccessful) {
+        LOG(("update.status is still applying even know update "
+             " was successful.\n"));
+        if (!WriteStatusFailure(argv[1], 
+                                SERVICE_STILL_APPLYING_ON_SUCCESS)) {
+          LOG(("Could not write update.status still applying on"
+               " success error.\n"));
+        }
+        // Since we still had applying we know updater.exe didn't do its
+        // job correctly.
+        updateWasSuccessful = FALSE;
+      } else {
+        LOG(("update.status is still applying and update was not successful.\n"));
+        if (!WriteStatusFailure(argv[1], 
+                                SERVICE_STILL_APPLYING_ON_FAILURE)) {
+          LOG(("Could not write update.status still applying on"
+               " success error.\n"));
+        }
+      }
+    }
   } else {
     DWORD lastError = GetLastError();
     LOG(("Could not create process as current user, "
@@ -207,7 +271,7 @@ StartUpdateProcess(int argc,
   // We use it ourselves, and also we want it back in case we had any type 
   // of error so that the normal update process can use it.
   if (selfHandlePostUpdate) {
-    MoveFileEx(updaterINITemp, updaterINI, MOVEFILE_REPLACE_EXISTING);
+    MoveFileExW(updaterINITemp, updaterINI, MOVEFILE_REPLACE_EXISTING);
 
     // Only run the PostUpdate if the update was successful
     if (updateWasSuccessful && argc > 2) {
@@ -241,7 +305,7 @@ StartUpdateProcess(int argc,
  * @return TRUE if the update was successful.
  */
 BOOL
-ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
+ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
 {
   BOOL result = TRUE;
   if (argc < 3) {
@@ -348,7 +412,7 @@ ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
       LOG(("updater.exe was launched and run successfully!\n"));
       LogFlush();
 
-      // We may not execute code after StartServiceUpdate because
+      // We might not execute code after StartServiceUpdate because
       // the service installer will stop the service if it is running.
       StartServiceUpdate(argc, argv);
     } else {
@@ -398,7 +462,7 @@ ProessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
  * @return FALSE if there was an error executing the service command.
  */
 BOOL
-ExecuteServiceCommand(int argc, LPWSTR *argv) 
+ExecuteServiceCommand(int argc, LPWSTR *argv)
 {
   if (argc < 3) {
     LOG(("Not enough command line arguments to execute a service command\n"));
@@ -419,8 +483,8 @@ ExecuteServiceCommand(int argc, LPWSTR *argv)
 
   BOOL result = FALSE;
   if (!lstrcmpi(argv[2], L"software-update")) {
-    result = ProessSoftwareUpdateCommand(argc - 3, argv + 3);
-    // We may not reach here if the service install succeeded
+    result = ProcessSoftwareUpdateCommand(argc - 3, argv + 3);
+    // We might not reach here if the service install succeeded
     // because the service self updates itself and the service
     // installer will stop the service.
     LOG(("Service command %ls complete.\n", argv[2]));

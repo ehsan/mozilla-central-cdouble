@@ -569,7 +569,7 @@ static int ensure_parent_dir(const NS_tchar *path)
       if (rv < 0 && errno != EEXIST) {
         LOG(("ensure_parent_dir: failed to create directory: " LOG_S ", " \
              "err: %d\n", path, errno));
-        rv = WRITE_ERROR1;
+        rv = WRITE_ERROR;
       } else {
         rv = OK;
       }
@@ -751,14 +751,14 @@ static int rename_file(const NS_tchar *spath, const NS_tchar *dpath,
     if (ensure_remove(dpath)) {
       LOG(("rename_file: destination file exists and could not be " \
            "removed: " LOG_S "\n", dpath));
-      return WRITE_ERROR2;
+      return WRITE_ERROR;
     }
   }
 
   if (NS_trename(spath, dpath) != 0) {
     LOG(("rename_file: failed to rename file - src: " LOG_S ", " \
          "dst:" LOG_S ", err: %d\n", spath, dpath, errno));
-    return WRITE_ERROR3;
+    return WRITE_ERROR;
   }
 
   return OK;
@@ -813,7 +813,7 @@ static int backup_discard(const NS_tchar *path)
     if (rename_file(backup, path)) {
       LOG(("backup_discard: failed to rename file:" LOG_S ", dst:" LOG_S "\n",
            backup, path));
-      return WRITE_ERROR4;
+      return WRITE_ERROR;
     }
     // The MoveFileEx call to remove the file on OS reboot will fail if the
     // process doesn't have write access to the HKEY_LOCAL_MACHINE registry key
@@ -830,7 +830,7 @@ static int backup_discard(const NS_tchar *path)
   }
 #else
   if (rv)
-    return WRITE_ERROR5;
+    return WRITE_ERROR;
 #endif
 
   return OK;
@@ -942,7 +942,7 @@ RemoveFile::Prepare()
 
   if (rv) {
     LOG(("access failed: %d\n", errno));
-    return WRITE_ERROR6;
+    return WRITE_ERROR;
   }
 
   return OK;
@@ -1043,7 +1043,7 @@ RemoveDir::Prepare()
   rv = NS_taccess(mDir, W_OK);
   if (rv) {
     LOG(("access failed: %d, %d\n", rv, errno));
-    return WRITE_ERROR7;
+    return WRITE_ERROR;
   }
 
   return OK;
@@ -1305,7 +1305,7 @@ PatchFile::Prepare()
 
   FILE *fp = NS_tfopen(spath, NS_T("wb"));
   if (!fp)
-    return WRITE_ERROR8;
+    return WRITE_ERROR;
 
 #ifdef XP_WIN
   char sourcefile[MAXPATHLEN];
@@ -1426,7 +1426,7 @@ PatchFile::Execute()
 
   if (ofile == NULL) {
     LOG(("unable to create new file: " LOG_S ", err: %d\n", mFile, errno));
-    return WRITE_ERROR9;
+    return WRITE_ERROR;
   }
 
 #ifdef XP_WIN
@@ -2301,11 +2301,12 @@ int NS_main(int argc, NS_tchar **argv)
       if (useService) {
         // If the update couldn't be started, then set useService to false so
         // we do the update the old way.
-        useService = LaunchServiceSoftwareUpdateCommand(argc, (LPCWSTR *)argv);
-
+        DWORD ret = LaunchServiceSoftwareUpdateCommand(argc, (LPCWSTR *)argv);
+        useService = (ret == ERROR_SUCCESS);
         // If the command was launched then wait for the service to be done.
         if (useService) {
-          if (!WaitForServiceStop(SVC_NAME, 600)) {
+          DWORD lastState = WaitForServiceStop(SVC_NAME, 600);
+          if (lastState != SERVICE_STOPPED) {
             // If the service doesn't stop after 10 minutes there is
             // something seriously wrong.
             lastFallbackError = FALLBACKKEY_SERVICE_NO_STOP_ERROR;
@@ -2464,7 +2465,7 @@ int NS_main(int argc, NS_tchar **argv)
                         sizeof(applyDirLongPath)/sizeof(applyDirLongPath[0]))) {
     LOG(("NS_main: unable to find apply to dir: " LOG_S "\n", gDestinationPath));
     LogFinish();
-    WriteStatusFile(WRITE_ERROR10);
+    WriteStatusFile(WRITE_ERROR);
     EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
     if (argc > callbackIndex) {
       LaunchCallbackApp(argv[4], argc - callbackIndex,
@@ -2476,7 +2477,10 @@ int NS_main(int argc, NS_tchar **argv)
   HANDLE callbackFile = INVALID_HANDLE_VALUE;
   if (argc > callbackIndex) {
     // If the callback executable is specified it must exist for a successful
-    // update.
+    // update.  It is important we null out the whole buffer here because later
+    // we make the assumption that the callback application is inside the
+    // apply-to dir.  If we don't have a fully null'ed out buffer it can lead
+    // to stack corruption which causes crashes and other problems.
     NS_tchar callbackLongPath[MAXPATHLEN];
     NS_tchar *targetPath = argv[callbackIndex];
     NS_tchar buffer[MAXPATHLEN*2];
@@ -2504,7 +2508,7 @@ int NS_main(int argc, NS_tchar **argv)
                           sizeof(callbackLongPath)/sizeof(callbackLongPath[0]))) {
       LOG(("NS_main: unable to find callback file: " LOG_S "\n", targetPath));
       LogFinish();
-      WriteStatusFile(WRITE_ERROR11);
+      WriteStatusFile(WRITE_ERROR);
       EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
       if (argc > callbackIndex) {
         LaunchCallbackApp(argv[4], argc - callbackIndex,
@@ -2573,7 +2577,7 @@ int NS_main(int argc, NS_tchar **argv)
         LOG(("NS_main: file in use - failed to exclusively open executable " \
              "file: " LOG_S "\n", targetPath));
         LogFinish();
-        WriteStatusFile(WRITE_ERROR12);
+        WriteStatusFile(WRITE_ERROR);
         NS_tremove(gCallbackBackupPath);
         EXIT_WHEN_ELEVATED(elevatedLockFilePath, updateLockFileHandle, 1);
         LaunchCallbackApp(argv[4], argc - callbackIndex,
