@@ -1829,14 +1829,20 @@ int NS_main(int argc, NS_tchar **argv)
         SHELLEXECUTEINFO sinfo;
         memset(&sinfo, 0, sizeof(SHELLEXECUTEINFO));
         sinfo.cbSize       = sizeof(SHELLEXECUTEINFO);
+        // The SEE_MASK_FLAG_DDEWAIT flag is deprecated, SEE_MASK_NOASYNC
+        // should be used instead.
         sinfo.fMask        = SEE_MASK_FLAG_NO_UI |
-                             SEE_MASK_FLAG_DDEWAIT |
+                             SEE_MASK_NOASYNC |
                              SEE_MASK_NOCLOSEPROCESS;
         sinfo.hwnd         = NULL;
         sinfo.lpFile       = argv[0];
         sinfo.lpParameters = cmdLine;
         sinfo.lpVerb       = L"runas";
         sinfo.nShow        = SW_SHOWNORMAL;
+#ifdef DEBUG
+        // If we're in debug, then inherit the parent process' console.
+        sinfo.fMask |= SEE_MASK_NO_CONSOLE;
+#endif
 
         bool result = ShellExecuteEx(&sinfo);
         free(cmdLine);
