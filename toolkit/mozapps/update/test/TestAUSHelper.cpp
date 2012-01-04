@@ -7,6 +7,7 @@
 #pragma comment(lib, "crypt32.lib")
 # include <windows.h>
 # include <wintrust.h>
+# include <tlhelp32.h>
 # include <softpub.h>
 # include <direct.h>
 # include <io.h>
@@ -282,6 +283,71 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
   return lastServiceState;
 }
 
+/**
+ * Determines if there is at least one process running for the specified
+ * application. A match will be found across any session for any user.
+ *
+ * @param process The process to check for existance
+ * @return ERROR_NOT_FOUND if the process was not found
+ * @       ERROR_SUCCESS if the process was found and there were no errors
+ * @       Other Win32 system error code for other errors
+**/
+DWORD
+IsApplicationRunning(LPCWSTR filename)
+{
+  // Take a snapshot of all processes in the system.
+  HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (INVALID_HANDLE_VALUE == snapshot) {
+    return GetLastError();
+  }
+  
+  PROCESSENTRY32 processEntry;
+  processEntry.dwSize = sizeof(PROCESSENTRY32);
+  if (!Process32First(snapshot, &processEntry)) {
+    DWORD lastError = GetLastError();
+    CloseHandle(snapshot);
+    return lastError;
+  }
+
+  do {
+    if (wcsicmp(filename, processEntry.szExeFile) == 0) {
+      CloseHandle(snapshot);
+      return ERROR_SUCCESS;
+    }
+  } while (Process32Next(snapshot, &processEntry));
+  CloseHandle(snapshot);
+  return ERROR_NOT_FOUND;
+}
+
+/**
+ * Waits for the specified applicaiton to exit.
+ *
+ * @param filename   The application to wait for.
+ * @param maxSeconds The maximum amount of seconds to wait for all
+ *                   instances of the application to exit.
+ * @return  ERROR_SUCCESS if no instances of the application exist
+ *          WAIT_TIMEOUT if the process is still running after maxSeconds.
+ *          Any other Win32 system error code.
+*/
+DWORD
+WaitForApplicationExit(LPCWSTR filename, DWORD maxSeconds) 
+{
+  DWORD applicationRunningError = WAIT_TIMEOUT;
+  for(DWORD i = 0; i < maxSeconds; i++) {
+    DWORD applicationRunningError = IsApplicationRunning(filename);
+    if (ERROR_NOT_FOUND == applicationRunningError) {
+      return ERROR_SUCCESS;
+    }
+    Sleep(1000);
+  }
+
+  if (ERROR_SUCCESS == applicationRunningError) {
+    return WAIT_TIMEOUT;
+  }
+
+  return applicationRunningError;
+}
+
 
 #endif
 
@@ -339,6 +405,24 @@ int NS_main(int argc, NS_tchar **argv)
       return 0;
     } else {
       return serviceState;
+    }
+#else 
+    // Not implemented on non-Windows platforms
+    return 1;
+#endif
+  }
+
+  if (!NS_tstrcmp(argv[1], NS_T("wait-for-application-exit"))) {
+#ifdef XP_WIN
+    const int maxWaitSeconds = NS_ttoi(argv[3]);
+    LPCWSTR application = argv[2];
+    DWORD ret = WaitForApplicationExit(application, maxWaitSeconds);
+    if (ERROR_SUCCESS == ret) {
+      return 0;
+    } else if (WAIT_TIMEOUT == ret) {
+      return 1;
+    } else {
+      return 2;
     }
 #else 
     // Not implemented on non-Windows platforms

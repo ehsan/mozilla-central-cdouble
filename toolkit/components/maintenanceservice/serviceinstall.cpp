@@ -190,7 +190,8 @@ SvcInstall(SvcInstallAction action)
       }
 
       if (!DeleteFileW(serviceConfig.lpBinaryPathName)) {
-        LOG(("Could not delete old service binary file.  (%d)\n", GetLastError()));
+        LOG(("Could not delete old service binary file %ls.  (%d)\n", 
+             serviceConfig.lpBinaryPathName, GetLastError()));
         return FALSE;
       }
 

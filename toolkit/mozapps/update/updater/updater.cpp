@@ -1799,7 +1799,7 @@ int NS_main(int argc, NS_tchar **argv)
             useService = false;
           }
         } else {
-          lastFallbackError = 17000 + ret;
+          lastFallbackError = FALLBACKKEY_LAUNCH_ERROR;
         }
       }
 

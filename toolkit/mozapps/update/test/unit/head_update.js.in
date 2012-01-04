@@ -462,7 +462,7 @@ let gServiceLaunchedCallbackArgs = null;
  *
  * @return true if the test should run and false if it shouldn't.
  */
-function shouldRunServiceTest() {
+function shouldRunServiceTest(aFirstTest) {
   const REG_PATH = "SOFTWARE\\Mozilla\\MaintenanceService\\" +
                    "3932ecacee736d366d6436db0f55bce4";
 
@@ -497,9 +497,19 @@ function shouldRunServiceTest() {
                 createInstance(AUS_Ci.nsIProcess);
   process.init(helperBin);
   process.run(true, args, args.length);
+  if (aFirstTest === undefined) {
+    aFirstTest = false;
+  }
   if (process.exitValue == 0xEE) {
     logTestInfo("this test can only run when the service is installed.");
     return false;
+  }
+  // If this is the first test in the series, then there is no reason the
+  // service should be anything but stopped, so be strict here and throw
+  // an error.
+  if (aFirstTest && process.exitValue != 0) {
+    do_throw("First test, check for service stopped state returned error " + 
+             process.exitValue);
   }
 
   // Make sure the binaries are signed
@@ -508,11 +518,9 @@ function shouldRunServiceTest() {
             createInstance(AUS_Ci.nsIProcess);
   process.init(helperBin);
   process.run(true, args, args.length);
-
   if (process.exitValue == 0) {
     return true;
   }
-
   logTestInfo("this test can only run on builds with signed binaries. " +
               HELPER_BIN_FILE + " returned " + process.exitValue)
   return false;
@@ -569,7 +577,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
   function waitForServiceStop(aFailTest) {
     logTestInfo("Waiting for service to stop if necessary...");
     // Use the helper bin to ensure the service is stopped. If not
-    // stopped then wait for the service to be stopped (at most 20 seconds)
+    // stopped then wait for the service to be stopped (at most 120 seconds)
     let helperBin = do_get_file(HELPER_BIN_FILE);
     let helperBinArgs = ["wait-for-service-stop", 
                          "MozillaMaintenance", 
@@ -592,9 +600,31 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
       logTestInfo("Service stopped.");
     }
   }
+  function waitForApplicationStop(application) {
+    logTestInfo("Waiting for " + application + " to stop if " + 
+                "necessary...");
+    // Use the helper bin to ensure the application is stopped. 
+    // If not, then wait for it to be stopped (at most 120 seconds)
+    let helperBin = do_get_file(HELPER_BIN_FILE);
+    let helperBinArgs = ["wait-for-application-exit", 
+                         application, 
+                         "120"];
+    let helperBinProcess = AUS_Cc["@mozilla.org/process/util;1"].
+                           createInstance(AUS_Ci.nsIProcess);
+    helperBinProcess.init(helperBin);
+    helperBinProcess.run(true, helperBinArgs, helperBinArgs.length);
+    if (helperBinProcess.exitValue != 0) {
+      do_throw(application + " did not stop, last state: " +
+               helperBinProcess.exitValue + ". Forcing test failure.");
+    }
+  }
 
   // Make sure the service from the previous test is already stopped.
   waitForServiceStop(true);
+  // maintenanceservice_installer.exe is started async during updates.
+  waitForApplicationStop("maintenanceservice_installer.exe");
+  // maintenanceservice_tmp.exe is started async from the service installer.
+  waitForApplicationStop("maintenanceservice_tmp.exe");
 
   // Prevent the cleanup function from begin run more than once
   if (typeof(gRegisteredServiceCleanup) === "undefined") {
