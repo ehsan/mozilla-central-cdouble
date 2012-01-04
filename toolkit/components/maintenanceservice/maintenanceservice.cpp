@@ -228,7 +228,7 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
  * Ensures the service is shutdown once all work is complete.
  * There is an issue on XP SP2 and below where the service can hang
  * in a stop pending state even know the SCM is notified of a stopped
- * state.  On a sotpped state, control *should* be returned from the call to
+ * state.  On a stopped state, control *should* be returned from the call to
  * StartServiceCtrlDispatcher in the wmain thread.  Sometimes this is not the
  * case though. This thread will terminate the process if it has been 5
  * seconds after all work is done and the process is still not terminated.
@@ -246,7 +246,7 @@ EnsureProcessTerminatedThread(LPVOID)
   return 0;
 }
 
-void 
+void
 StartTerminationThread()
 {
   // If the process does not self terminate like it should, this thread 

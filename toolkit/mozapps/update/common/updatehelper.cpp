@@ -275,7 +275,7 @@ StartServiceUpdate(int argc, LPWSTR *argv)
  * @param  argv    An array of null terminated strings to pass to the service, 
  * @return ERROR_SUCCESS if the service command was started.
 */
-DWORD 
+DWORD
 StartServiceCommand(int argc, LPCWSTR* argv) 
 {
   DWORD lastState = WaitForServiceStop(SVC_NAME, 5);
@@ -347,7 +347,7 @@ LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR* argv)
 
   // Execute the service command by starting the service with
   // the passed in arguments.
-  DWORD  ret = StartServiceCommand(argc + 2, updaterServiceArgv);
+  DWORD ret = StartServiceCommand(argc + 2, updaterServiceArgv);
   delete[] updaterServiceArgv;
   return ret;
 }
