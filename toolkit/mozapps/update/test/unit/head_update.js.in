@@ -492,7 +492,7 @@ function shouldRunServiceTest(aFirstTest) {
 
   // Check to make sure the service is installed
   let helperBin = do_get_file(HELPER_BIN_FILE);
-  let args = ["wait-for-service-stop", "MozillaMaintenance", "1"];
+  let args = ["wait-for-service-stop", "MozillaMaintenance", "10"];
   let process = AUS_Cc["@mozilla.org/process/util;1"].
                 createInstance(AUS_Ci.nsIProcess);
   process.init(helperBin);

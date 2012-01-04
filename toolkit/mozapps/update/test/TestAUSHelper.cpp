@@ -220,8 +220,18 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
       return 0x000000EC;
     case ERROR_INVALID_NAME:
       return 0x000000ED;
+    // If the service does not exist, keep trying in case it does exist soon.
+    // I think there might be an issue with the TALOS machines and some of 
+    // the machines having an old maintenanceservice.exe that used to 
+    // uninstall when upgrading.  Those should already be upgraded but this 
+    // is safer.
     case ERROR_SERVICE_DOES_NOT_EXIST:
-      return 0x000000EE;
+      if (maxWaitSeconds == 0) {
+        return 0x000000EE;
+      } else {
+        Sleep(1000);
+        return WaitForServiceStop(serviceName, maxWaitSeconds - 1);
+      }
     default:
       return 0x000000EF;
     } 
