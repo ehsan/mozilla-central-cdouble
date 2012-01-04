@@ -561,7 +561,7 @@ function runUpdateUsingService(aInitialStatus, aExpectedStatus,
     let helperBin = do_get_file(HELPER_BIN_FILE);
     let helperBinArgs = ["wait-for-service-stop", 
                          "MozillaMaintenance", 
-                         "20"];
+                         "120"];
     let helperBinProcess = AUS_Cc["@mozilla.org/process/util;1"].
                            createInstance(AUS_Ci.nsIProcess);
     helperBinProcess.init(helperBin);

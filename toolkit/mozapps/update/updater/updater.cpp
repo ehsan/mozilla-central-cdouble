@@ -1971,7 +1971,7 @@ int NS_main(int argc, NS_tchar **argv)
     // Since the process may be signaled as exited by WaitForSingleObject before
     // the release of the executable image try to lock the main executable file
     // multiple times before giving up.
-    int retries = 5;
+    int retries = 15;
     do {
       // By opening a file handle without FILE_SHARE_READ to the callback
       // executable, the OS will prevent launching the process while it is
