@@ -421,7 +421,7 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
  * @return FALSE if there was an error executing the service command.
  */
 BOOL
-ExecuteServiceCommand(int argc, LPWSTR *argv) 
+ExecuteServiceCommand(int argc, LPWSTR *argv)
 {
   if (argc < 3) {
     LOG(("Not enough command line arguments to execute a service command\n"));

@@ -562,8 +562,8 @@ function attemptServiceInstall() {
   var version = AUS_Cc["@mozilla.org/system-info;1"]
                 .getService(AUS_Ci.nsIPropertyBag2)
                 .getProperty("version");
-  var isXPOrLower = (parseFloat(version) < 6.0);
-  if (!isXPOrLower) {
+  var isVistaOrHigher = (parseFloat(version) >= 6.0);
+  if (isVistaOrHigher) {
     return;
   }
   

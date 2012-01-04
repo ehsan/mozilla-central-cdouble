@@ -46,8 +46,7 @@
 #include <tlhelp32.h>
 #pragma comment(lib, "shlwapi.lib") 
 
-WCHAR*
-MakeCommandLine(int argc, WCHAR **argv);
+WCHAR* MakeCommandLine(int argc, WCHAR **argv);
 BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);
 
 /**
@@ -269,16 +268,20 @@ StartServiceUpdate(int argc, LPWSTR *argv)
   return svcUpdateProcessStarted;
 }
 
-
 /**
  * Executes a maintenance service command
  * 
  * @param  argc    The total number of arguments in argv
  * @param  argv    An array of null terminated strings to pass to the service, 
  * @return ERROR_SUCCESS if the service command was started.
+ *         Less than 16000, a windows system error code from StartServiceW
+ *         More than 20000, 20000 + the last state of the service constant if
+ *         the last state is something other than stopped.
+ *         17001 if the SCM could not be opened
+ *         17002 if the service could not be opened
 */
 DWORD
-StartServiceCommand(int argc, LPCWSTR* argv) 
+StartServiceCommand(int argc, LPCWSTR* argv)
 {
   DWORD lastState = WaitForServiceStop(SVC_NAME, 5);
   if (lastState != SERVICE_STOPPED) {
@@ -313,7 +316,7 @@ StartServiceCommand(int argc, LPCWSTR* argv)
       lastError = ERROR_SUCCESS;
       break;
     } else {
-      lastError = 18000 + GetLastError();
+      lastError = GetLastError();
     }
     Sleep(100);
     currentWaitMS += 100;
@@ -408,7 +411,7 @@ WriteStatusPending(LPCWSTR updateDirPath)
  * @return TRUE if successful
  */
 BOOL
-WriteStatusFailure(LPCWSTR updateDirPath, int errorCode) 
+WriteStatusFailure(LPCWSTR updateDirPath, int errorCode)
 {
   WCHAR updateStatusFilePath[MAX_PATH + 1];
   wcscpy(updateStatusFilePath, updateDirPath);
@@ -464,7 +467,8 @@ WriteStatusFailure(LPCWSTR updateDirPath, int errorCode)
  * only handles values up to 255 so that's why we don't use GetLastError 
  * directly.
  */
-DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
+DWORD
+WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
 {
   // 0x000000CF is defined above to be not set
   DWORD lastServiceState = 0x000000CF;
@@ -563,7 +567,6 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
   return lastServiceState;
 }
 
-
 /**
  * Determines if there is at least one process running for the specified
  * application. A match will be found across any session for any user.
@@ -574,7 +577,7 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
  * @       Other Win32 system error code for other errors
 **/
 DWORD
-IsApplicationRunning(LPCWSTR filename)
+IsProcessRunning(LPCWSTR filename)
 {
   // Take a snapshot of all processes in the system.
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -611,11 +614,11 @@ IsApplicationRunning(LPCWSTR filename)
  *          Any other Win32 system error code.
 */
 DWORD
-WaitForApplicationExit(LPCWSTR filename, DWORD maxSeconds) 
+WaitForProcessExit(LPCWSTR filename, DWORD maxSeconds)
 {
   DWORD applicationRunningError = WAIT_TIMEOUT;
   for(DWORD i = 0; i < maxSeconds; i++) {
-    DWORD applicationRunningError = IsApplicationRunning(filename);
+    DWORD applicationRunningError = IsProcessRunning(filename);
     if (ERROR_NOT_FOUND == applicationRunningError) {
       return ERROR_SUCCESS;
     }

@@ -185,7 +185,8 @@ VerifyCertificateTrustForFile(LPCWSTR filePath)
  * only handles values up to 255 so that's why we don't use GetLastError 
  * directly.
  */
-DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) 
+DWORD
+WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
 {
   // 0x000000CF is defined above to be not set
   DWORD lastServiceState = 0x000000CF;
@@ -304,7 +305,7 @@ DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds)
  * @       Other Win32 system error code for other errors
 **/
 DWORD
-IsApplicationRunning(LPCWSTR filename)
+IsProcessRunning(LPCWSTR filename)
 {
   // Take a snapshot of all processes in the system.
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -341,11 +342,11 @@ IsApplicationRunning(LPCWSTR filename)
  *          Any other Win32 system error code.
 */
 DWORD
-WaitForApplicationExit(LPCWSTR filename, DWORD maxSeconds) 
+WaitForProcessExit(LPCWSTR filename, DWORD maxSeconds)
 {
   DWORD applicationRunningError = WAIT_TIMEOUT;
   for(DWORD i = 0; i < maxSeconds; i++) {
-    DWORD applicationRunningError = IsApplicationRunning(filename);
+    DWORD applicationRunningError = IsProcessRunning(filename);
     if (ERROR_NOT_FOUND == applicationRunningError) {
       return ERROR_SUCCESS;
     }
@@ -427,7 +428,7 @@ int NS_main(int argc, NS_tchar **argv)
 #ifdef XP_WIN
     const int maxWaitSeconds = NS_ttoi(argv[3]);
     LPCWSTR application = argv[2];
-    DWORD ret = WaitForApplicationExit(application, maxWaitSeconds);
+    DWORD ret = WaitForProcessExit(application, maxWaitSeconds);
     if (ERROR_SUCCESS == ret) {
       return 0;
     } else if (WAIT_TIMEOUT == ret) {

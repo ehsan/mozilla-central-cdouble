@@ -45,6 +45,6 @@ DWORD LaunchServiceSoftwareUpdateCommand(DWORD argc, LPCWSTR *argv);
 BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
 BOOL WriteStatusPending(LPCWSTR updateDirPath);
 DWORD WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds);
-DWORD WaitForApplicationExit(LPCWSTR filename, DWORD maxSeconds);
+DWORD WaitForProcessExit(LPCWSTR filename, DWORD maxSeconds);
 
 #define SVC_NAME L"MozillaMaintenance"

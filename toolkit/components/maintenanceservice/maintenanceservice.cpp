@@ -150,7 +150,7 @@ wmain(int argc, WCHAR **argv)
  * @return TRUE if successful.
  */
 BOOL
-GetLogDirectoryPath(WCHAR *path) 
+GetLogDirectoryPath(WCHAR *path)
 {
   HRESULT hr = SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, 
     SHGFP_TYPE_CURRENT, path);
@@ -205,7 +205,7 @@ GetBackupLogPath(LPWSTR path, LPCWSTR basePath, int logNumber)
  * @param numLogsToKeep The number of logs to keep
  */
 void
-BackupOldLogs(LPCWSTR basePath, int numLogsToKeep) 
+BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
 {
   WCHAR oldPath[MAX_PATH + 1];
   WCHAR newPath[MAX_PATH + 1];
@@ -227,19 +227,19 @@ BackupOldLogs(LPCWSTR basePath, int numLogsToKeep)
 /**
  * Ensures the service is shutdown once all work is complete.
  * There is an issue on XP SP2 and below where the service can hang
- * in a stop pending state even know the SCM is notified of a stopped
- * state.  On a stopped state, control *should* be returned from the call to
- * StartServiceCtrlDispatcher in the wmain thread.  Sometimes this is not the
- * case though. This thread will terminate the process if it has been 5
- * seconds after all work is done and the process is still not terminated.
- * This thread is only started once a stopped state was sent to the SCM.
- * The stop pending hang can be reproduced intermittently even if you set a
- * stopped state dirctly and never set a stop pending state.
- * It is safe to forcefully terminate the process ourselves since all work 
- * is done once we start this thread.
+ * in a stop pending state even though the SCM is notified of a stopped
+ * state.  Control *should* be returned to StartServiceCtrlDispatcher from the 
+ * call to SetServiceStatus on a stopped state in the wmain thread.  
+ * Sometimes this is not the case though. This thread will terminate the process
+ * if it has been 5 seconds after all work is done and the process is still not
+ * terminated.  This thread is only started once a stopped state was sent to the
+ * SCM. The stop pending hang can be reproduced intermittently even if you set 
+ * a stopped state dirctly and never set a stop pending state.  It is safe to 
+ * forcefully terminate the process ourselves since all work is done once we 
+ * start this thread.
 */
 DWORD WINAPI
-EnsureProcessTerminatedThread(LPVOID) 
+EnsureProcessTerminatedThread(LPVOID)
 {
   Sleep(5000);
   exit(0);
@@ -295,8 +295,8 @@ SvcMain(DWORD argc, LPWSTR *argv)
   // done for when a stop comamnd is manually issued.
   gWorkDoneEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
   if (!gWorkDoneEvent) {
-    StartTerminationThread();
     ReportSvcStatus(SERVICE_STOPPED, 1, 0);
+    StartTerminationThread();
     return;
   }
 
@@ -316,8 +316,8 @@ SvcMain(DWORD argc, LPWSTR *argv)
   // now.  If we are already in a stopping state then the SERVICE_STOPPED state
   // will be set by the SvcCtrlHandler.
   if (!gServiceControlStopping) {
-    StartTerminationThread();
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+    StartTerminationThread();
   }
 }
 
@@ -370,8 +370,8 @@ StopServiceAndWaitForCommandThread(LPVOID)
   } while(WaitForSingleObject(gWorkDoneEvent, 100) == WAIT_TIMEOUT);
   CloseHandle(gWorkDoneEvent);
   gWorkDoneEvent = NULL;
-  StartTerminationThread();
   ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+  StartTerminationThread();
   return 0;
 }
 

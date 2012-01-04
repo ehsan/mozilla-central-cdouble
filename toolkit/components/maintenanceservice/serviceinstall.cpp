@@ -289,7 +289,7 @@ StopService()
 
   // The service can be in a stopped state but the exe still in use
   // so make sure the process is really gone before proceeding
-  WaitForApplicationExit(L"maintenanceservice.exe", 30);
+  WaitForProcessExit(L"maintenanceservice.exe", 30);
   LOG(("Done waiting for service stop, last service state: %d\n", lastState));
 
   return lastState == SERVICE_STOPPED;
