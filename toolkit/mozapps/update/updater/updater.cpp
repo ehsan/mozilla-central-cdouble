@@ -1977,7 +1977,7 @@ UpdateThreadFunc(void *param)
     NS_tsnprintf(dataFile, sizeof(dataFile)/sizeof(dataFile[0]),
                  NS_T("%s/update.mar"), gSourcePath);
 
-    int rv = gArchiveReader.Open(dataFile);
+    rv = gArchiveReader.Open(dataFile);
     if (rv == OK && sBackgroundUpdate) {
       rv = CopyInstallDirToDestDir();
     }
