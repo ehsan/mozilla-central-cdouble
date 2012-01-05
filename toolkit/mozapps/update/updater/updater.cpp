@@ -1669,6 +1669,7 @@ WriteStatusApplying()
   return true;
 }
 
+#ifdef MOZ_MAINTENANCE_SERVICE
 /* 
  * Read the update.status file and sets isPendingService to true if
  * the status is set to pending-service.
@@ -1700,7 +1701,9 @@ IsUpdateStatusPendingService()
          (strncmp(buf, kAppliedService,
                   sizeof(kAppliedService) - 1) == 0);
 }
+#endif
 
+#ifdef XP_WIN
 /* 
  * Read the update.status file and sets isSuccess to true if
  * the status is set to succeeded.
@@ -1729,6 +1732,7 @@ IsUpdateStatusSucceeded(bool &isSucceeded)
                         sizeof(kSucceeded) - 1) == 0;
   return true;
 }
+#endif
 
 template <size_t N>
 static bool
