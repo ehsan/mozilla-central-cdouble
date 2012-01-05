@@ -61,9 +61,7 @@ Var InstallType
 Var AddStartMenuSC
 Var AddQuickLaunchSC
 Var AddDesktopSC
-!ifdef MOZ_MAINTENANCE_SERVICE
 Var InstallMaintenanceService
-!endif
 Var PageName
 
 ; By defining NO_STARTMENU_DIR an installer that doesn't provide an option for
