@@ -619,7 +619,7 @@ static int ensure_copy(const NS_tchar *path, const NS_tchar *dest)
   size_t left = ss.st_size;
   while (left) {
     size_t read = fread(buffer, 1, left, infile);
-    if (read < 0) {
+    if (ferror(infile)) {
       LOG(("ensure_copy: failed to read the file: " LOG_S ", err: %d\n",
            path, errno));
       free(buffer);
@@ -1240,7 +1240,7 @@ PatchFile::LoadSourceFile(FILE* ofile)
   unsigned char *rb = buf;
   while (r) {
     size_t c = fread(rb, 1, r, ofile);
-    if (c < 0) {
+    if (ferror(ofile)) {
       LOG(("LoadSourceFile: error reading destination file: " LOG_S "\n",
            mFile));
       return READ_ERROR;
@@ -2992,7 +2992,7 @@ GetManifestContents(const NS_tchar *manifest)
   char *rb = mbuf;
   while (r) {
     size_t c = fread(rb, 1, mmin(SSIZE_MAX, r), mfile);
-    if (c < 0) {
+    if (ferror(mfile)) {
       LOG(("GetManifestContents: error reading manifest file: " LOG_S "\n", manifest));
       return NULL;
     }
