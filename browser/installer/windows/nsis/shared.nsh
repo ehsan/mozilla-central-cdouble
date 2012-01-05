@@ -142,6 +142,10 @@
       ; to ask for elevation if the user isn't already elevated.  If the user 
       ; is already elevated it will just launch the program.
       ExecShell "runas" "$INSTDIR\maintenanceservice_installer.exe"
+    ${Else}
+      ; The maintenance service is already installed.
+      ; Do nothing, the maintenance service will launch the 
+      ; maintenanceservice_installer.exe /Upgrade itself to do the self update. 
     ${EndIf}
   ${EndIf}
 !endif

@@ -79,6 +79,7 @@ const PREF_APP_UPDATE_POSTUPDATE          = "app.update.postupdate";
 const PREF_APP_UPDATE_PROMPTWAITTIME      = "app.update.promptWaitTime";
 const PREF_APP_UPDATE_SHOW_INSTALLED_UI   = "app.update.showInstalledUI";
 const PREF_APP_UPDATE_SILENT              = "app.update.silent";
+const PREF_APP_UPDATE_BACKGROUND          = "app.update.background";
 const PREF_APP_UPDATE_URL                 = "app.update.url";
 const PREF_APP_UPDATE_URL_DETAILS         = "app.update.url.details";
 const PREF_APP_UPDATE_URL_OVERRIDE        = "app.update.url.override";
@@ -135,6 +136,8 @@ const STATE_DOWNLOADING     = "downloading";
 const STATE_PENDING         = "pending";
 const STATE_PENDING_SVC     = "pending-service";
 const STATE_APPLYING        = "applying";
+const STATE_APPLIED         = "applied";
+const STATE_APPLIED_SVC     = "applied-service";
 const STATE_SUCCEEDED       = "succeeded";
 const STATE_DOWNLOAD_FAILED = "download-failed";
 const STATE_FAILED          = "failed";
@@ -387,8 +390,7 @@ XPCOMUtils.defineLazyGetter(this, "gCanApplyUpdates", function aus_gCanApplyUpda
     }
 
     /**
-#      On Windows, we no longer store the update under the app dir if the app
-#      dir is under C:\Program Files.
+#      On Windows, we no longer store the update under the app dir.
 #
 #      If we are on Windows (including Vista, if we can't elevate) we need to
 #      to check that we can create and remove files from the actual app 
@@ -1391,6 +1393,34 @@ UpdateService.prototype = {
       return;
     }
 
+    if (status == STATE_APPLYING) {
+      // This indicates that the background updater service is in either of the
+      // following two states:
+      // 1. It is in the process of applying an update in the background, and
+      //    we just happen to be racing against that.
+      // 2. It has failed to apply an update for some reason, and we hit this
+      //    case because the updater process has set the update status to
+      //    applying, but has never finished.
+      // In order to differentiate between these two states, we look at the
+      // state field of the update object.  If it's "pending", then we know
+      // that this is the first time we're hitting this case, so we switch
+      // that state to "applying" and we just wait and hope for the best.
+      // If it's "applying", we know that we've already been here once, so
+      // we really want to start from a clean state.
+      if (update &&
+          (update.state == STATE_PENDING || update.state == STATE_PENDING_SVC)) {
+        LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
+            "state for the first time");
+        update.state = STATE_APPLYING;
+        um.saveUpdates();
+      } else { // We get here even if we don't have an update object
+        LOG("UpdateService:_postUpdateProcessing - patch found in applying " +
+            "state for the second time");
+        cleanupActiveUpdate();
+      }
+      return;
+    }
+
     if (!update)
       update = new Update(null);
 
@@ -1984,6 +2014,26 @@ UpdateService.prototype = {
     return this._downloader.downloadUpdate(update);
   },
 
+  applyUpdateInBackground: function AUS_applyUpdateInBackground(update) {
+    // If background updates are disabled, then just bail out!
+    if (!getPref("getBoolPref", PREF_APP_UPDATE_BACKGROUND, false)) {
+      return;
+    }
+
+    LOG("UpdateService:applyUpdateInBackground called with the following update: " +
+        update.name);
+
+    // Initiate the update in the background
+    try {
+      Cc["@mozilla.org/updates/update-processor;1"].
+        createInstance(Ci.nsIUpdateProcessor).
+        processUpdate(update);
+    } catch (e) {
+      // Fail gracefully in case the application does not support the update
+      // processor service.
+    }
+  },
+
   /**
    * See nsIUpdateService.idl
    */
@@ -2257,6 +2307,7 @@ UpdateManager.prototype = {
       for (let i = updates.length - 1; i >= 0; --i) {
         let state = updates[i].state;
         if (state == STATE_NONE || state == STATE_DOWNLOADING ||
+            state == STATE_APPLIED || state == STATE_APPLIED_SVC ||
             state == STATE_PENDING || state == STATE_PENDING_SVC) {
           updates.splice(i, 1);
         }
@@ -2265,6 +2316,18 @@ UpdateManager.prototype = {
       this._writeUpdatesToXMLFile(updates.slice(0, 10),
                                   getUpdateFile([FILE_UPDATES_DB]));
     }
+  },
+
+  refreshUpdateStatus: function UM_refreshUpdateStatus(update) {
+    var status = readStatusFile(getUpdatesDir());
+    var ary = status.split(":");
+    update.state = ary[0];
+    if (update.state == STATE_FAILED && ary[1]) {
+      update.errorCode = parseInt(ary[1]);
+    }
+    var um = Cc["@mozilla.org/updates/update-manager;1"].
+             getService(Ci.nsIUpdateManager);
+    um.saveUpdates();
   },
 
   classID: Components.ID("{093C2356-4843-4C65-8709-D7DBCBBE7DFB}"),
@@ -2592,8 +2655,12 @@ Downloader.prototype = {
    * Whether or not a patch has been downloaded and staged for installation.
    */
   get patchIsStaged() {
-    var readState = readStatusFile(getUpdatesDir()); 
-    return readState == STATE_PENDING || readState == STATE_PENDING_SVC;
+    var readState = readStatusFile(getUpdatesDir());
+    // Note that if we decide to download and apply new updates after another
+    // update has been successfully applied in the background, we need to stop
+    // checking for the APPLIED state here.
+    return readState == STATE_PENDING || readState == STATE_PENDING_SVC ||
+           readState == STATE_APPLIED || readState == STATE_APPLIED_SVC;
   },
 
   /**
@@ -2906,6 +2973,8 @@ Downloader.prototype = {
       LOG("Downloader:onStopRequest - original URI spec: " + request.URI.spec +
           ", final URI spec: " + request.finalURI.spec + ", status: " + status);
 
+    // XXX ehsan shouldShowPrompt should always be false here.
+    // But what happens when there is already a UI showing?
     var state = this._patch.state;
     var shouldShowPrompt = false;
     var deleteActiveUpdate = false;
@@ -2917,7 +2986,7 @@ Downloader.prototype = {
         // download, since otherwise some kind of UI is already visible and
         // that UI will notify.
         if (this.background)
-          shouldShowPrompt = true;
+          shouldShowPrompt = !getPref("getBoolPref", PREF_APP_UPDATE_BACKGROUND, false);
 
         // Tell the updater.exe we're ready to apply.
         writeStatusFile(getUpdatesDir(), state);
@@ -3037,6 +3106,14 @@ Downloader.prototype = {
                      createInstance(Ci.nsIUpdatePrompt);
       prompter.showUpdateDownloaded(this._update, true);
     }
+
+    if (state == STATE_PENDING || state == STATE_PENDING_SVC) {
+      // Initiate the background update job.
+      Cc["@mozilla.org/updates/update-service;1"].
+        getService(Ci.nsIApplicationUpdateService).
+        applyUpdateInBackground(this._update);
+    }
+
     // Prevent leaking the update object (bug 454964)
     this._update = null;
   },

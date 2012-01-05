@@ -78,7 +78,10 @@ CPPSRCS += EventTracer.cpp
 EXPORTS += EventTracer.h
 endif
 
-DEFINES += -DIMPL_XREAPI -DMOZ_APP_NAME='"$(MOZ_APP_NAME)"'
+DEFINES += -DIMPL_XREAPI \
+  -DMOZ_APP_NAME='"$(MOZ_APP_NAME)"' \
+  -DMOZ_APP_DISPLAYNAME='"$(MOZ_APP_DISPLAYNAME)"' \
+  -DMOZ_APP_VERSION='"$(MOZ_APP_VERSION)"'
 
 ifdef MOZ_UPDATER
 ifneq ($(OS_TARGET),Android)
@@ -134,7 +137,10 @@ CPPSRCS += nsAndroidStartup.cpp
 DEFINES += -DANDROID_PACKAGE_NAME='"$(ANDROID_PACKAGE_NAME)"'
 endif
 
-SHARED_LIBRARY_LIBS += ../profile/$(LIB_PREFIX)profile_s.$(LIB_SUFFIX)
+SHARED_LIBRARY_LIBS += \
+  ../profile/$(LIB_PREFIX)profile_s.$(LIB_SUFFIX) \
+  ../mozapps/update/common/$(LIB_PREFIX)updatecommon.$(LIB_SUFFIX) \
+  $(NULL)
 
 ifdef MOZ_ENABLE_XREMOTE
 SHARED_LIBRARY_LIBS += $(DEPTH)/widget/xremoteclient/$(LIB_PREFIX)xremote_client_s.$(LIB_SUFFIX)
@@ -193,6 +199,7 @@ LOCAL_INCLUDES += \
   -I$(topsrcdir)/toolkit/crashreporter \
   -I$(topsrcdir)/dom/base \
   -I$(topsrcdir)/xpcom/build \
+  -I$(topsrcdir)/xpcom/io \
   $(NULL)
 
 LOCAL_INCLUDES += \

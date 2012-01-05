@@ -77,6 +77,10 @@ PARALLEL_DIRS += \
   viewsource \
   $(NULL)
 
+ifdef MOZ_MAINTENANCE_SERVICE
+DIRS += maintenanceservice
+endif
+
 ifdef BUILD_CTYPES
 PARALLEL_DIRS += \
   ctypes \

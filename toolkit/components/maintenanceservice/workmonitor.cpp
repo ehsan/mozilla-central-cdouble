@@ -114,6 +114,41 @@ IsStatusApplying(LPCWSTR updateDirPath, BOOL &isApplying)
 
 
 /**
+ * Gets the installation directory from the arguments passed to updater.exe.
+ *
+ * @param argcTmp    The argc value normally sent to updater.exe
+ * @param argvTmp    The argv value normally sent to updater.exe
+ * @param installDir Buffer to hold the installation directory.
+ *                   The size of the buffer should be 2 * MAX_PATH.
+ */
+bool
+GetInstallationDir(int argcTmp, LPWSTR *argvTmp, LPWSTR installDir)
+{
+  if (argcTmp < 2) {
+    return false;
+  }
+  wcscpy(installDir, argvTmp[2]);
+  bool backgroundUpdate = (argcTmp == 4 && !wcscmp(argvTmp[3], L"-1"));
+  bool replaceRequest = (argcTmp >= 4 && wcsstr(argvTmp[3], L"/replace"));
+  if (backgroundUpdate || replaceRequest) {
+    LPWSTR pathSeparator = wcschr(installDir, L';');
+    if (pathSeparator) {
+      wcscpy(installDir, pathSeparator + 1);
+    }
+    LPWSTR backSlash = wcsrchr(installDir, L'\\');
+    // Go one level up, ignoring trailing backslashes
+    if (backSlash && !backSlash[1]) {
+      *backSlash = L'\0';
+      backSlash = wcsrchr(installDir, L'\\');
+    }
+    if (!pathSeparator) {
+      *backSlash = L'\0';
+    }
+  }
+  return true;
+}
+
+/**
  * Runs an update process as the service using the SYSTEM account.
  *
  * @param  argc           The number of arguments in argv
@@ -288,11 +323,17 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
     return FALSE;
   }
 
+  WCHAR installDir[2 * MAX_PATH];
+  ZeroMemory(installDir, 2 * MAX_PATH * sizeof(WCHAR));
+  if (!GetInstallationDir(argc, argv, installDir)) {
+    return false;
+  }
+
   // Verify that the updater.exe that we are executing is the same
   // as the one in the installation directory which we are updating.
   // The installation dir that we are installing to is argv[2].
   WCHAR installDirUpdater[MAX_PATH + 1];
-  wcsncpy(installDirUpdater, argv[2], MAX_PATH);
+  wcsncpy(installDirUpdater, installDir, MAX_PATH);
   if (!PathAppendSafe(installDirUpdater, L"updater.exe")) {
     LOG(("Install directory updater could not be determined.\n"));
     result = FALSE;
@@ -359,7 +400,7 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
   // Check for updater.exe sign problems
   BOOL updaterSignProblem = FALSE;
 #ifndef DISABLE_UPDATER_AUTHENTICODE_CHECK
-  updaterSignProblem = !DoesBinaryMatchAllowedCertificates(argv[2],
+  updaterSignProblem = !DoesBinaryMatchAllowedCertificates(installDir,
                                                            argv[0]);
 #endif
 

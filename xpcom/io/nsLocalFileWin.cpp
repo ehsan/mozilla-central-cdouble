@@ -2714,6 +2714,13 @@ nsLocalFile::SetFileAttributesWin(PRUint32 aAttribs)
       }
     }
 
+    if (aAttribs & WFA_READONLY) {
+      dwAttrs |= FILE_ATTRIBUTE_READONLY;
+    } else if ((aAttribs & WFA_READWRITE) &&
+               (dwAttrs & FILE_ATTRIBUTE_READONLY)) {
+      dwAttrs &= ~FILE_ATTRIBUTE_READONLY;
+    }
+
     if (SetFileAttributesW(mWorkingPath.get(), dwAttrs) == 0)
       return NS_ERROR_FAILURE;
     return NS_OK;
