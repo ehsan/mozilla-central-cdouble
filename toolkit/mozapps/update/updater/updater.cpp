@@ -1969,6 +1969,7 @@ ProcessReplaceRequest()
 static void
 UpdateThreadFunc(void *param)
 {
+  int rv;
   if (sReplaceRequest) {
     rv = ProcessReplaceRequest();
   } else {
